@@ -1588,7 +1588,8 @@
           font: "F1",
           size: 10.8,
           lineHeight: 15.5,
-          after: 6
+          after: 6,
+          justify: true
         });
       } else if (part.type === "heading1") {
         documentBuilder.addText(text, {
@@ -1685,7 +1686,8 @@
           font: "F1",
           size: 11.5,
           lineHeight: 16.5,
-          after: 6
+          after: 6,
+          justify: true
         });
       }
     };
@@ -1963,6 +1965,7 @@
       const after = options.after || 0;
       const indent = options.indent || 0;
       const firstPrefix = options.prefix || "";
+      const justify = options.justify === true;
       const x = marginLeft + indent;
       const maxWidth = pageWidth - marginLeft - marginRight - indent;
 
@@ -1978,9 +1981,15 @@
         const minStartLines = Math.min(lines.length, options.minStartLines || 2);
         ensureSpace(minStartLines * lineHeight);
 
-        for (const line of lines) {
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+          const line = lines[lineIndex];
+          const isLastLine = lineIndex === lines.length - 1;
+          const wordSpacing = justify && !isLastLine
+            ? getPdfJustifiedWordSpacing(line, maxWidth, size)
+            : 0;
+
           ensureSpace(lineHeight);
-          writePdfTextLine(writer, line, x, y, font, size);
+          writePdfTextLine(writer, line, x, y, font, size, 0, 0, 0, { wordSpacing });
           y -= lineHeight;
         }
       }
@@ -2446,11 +2455,30 @@
     return width * fontSize;
   }
 
-  function writePdfTextLine(writer, text, x, y, font, size, r = 0, g = 0, b = 0) {
+  function getPdfJustifiedWordSpacing(text, maxWidth, fontSize) {
+    const spaces = (text.match(/ /g) || []).length;
+
+    if (spaces < 2) {
+      return 0;
+    }
+
+    const currentWidth = measurePdfText(text, fontSize);
+    const extraWidth = maxWidth - currentWidth;
+
+    if (extraWidth <= 0 || currentWidth < maxWidth * 0.72) {
+      return 0;
+    }
+
+    const wordSpacing = extraWidth / spaces;
+    return wordSpacing <= fontSize * 0.7 ? wordSpacing : 0;
+  }
+
+  function writePdfTextLine(writer, text, x, y, font, size, r = 0, g = 0, b = 0, options = {}) {
     const strengthenRegularText = font === "F1" && size >= 10.5 && r === 0 && g === 0 && b === 0;
     const strokeSetup = strengthenRegularText ? ` ${formatPdfNumber(r)} ${formatPdfNumber(g)} ${formatPdfNumber(b)} RG 0.015 w` : "";
     const renderMode = strengthenRegularText ? " 2 Tr" : "";
-    writer.writeAscii(`q ${formatPdfNumber(r)} ${formatPdfNumber(g)} ${formatPdfNumber(b)} rg${strokeSetup} BT /${font} ${formatPdfNumber(size)} Tf${renderMode} 1 0 0 1 ${formatPdfNumber(x)} ${formatPdfNumber(y)} Tm `);
+    const wordSpacing = options.wordSpacing ? ` ${formatPdfNumber(options.wordSpacing)} Tw` : "";
+    writer.writeAscii(`q ${formatPdfNumber(r)} ${formatPdfNumber(g)} ${formatPdfNumber(b)} rg${strokeSetup} BT /${font} ${formatPdfNumber(size)} Tf${renderMode} 1 0 0 1 ${formatPdfNumber(x)} ${formatPdfNumber(y)} Tm${wordSpacing} `);
     writer.writeBytes(createPdfLiteralBytes(text));
     writer.writeAscii(" Tj ET Q\n");
   }

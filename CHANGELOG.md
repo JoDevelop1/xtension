@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.2
+
+- Justifies prose text in generated PDFs while keeping headings, lists, source URLs, media, and embedded cards in their existing layout.
+
 ## v0.4.1
 
 - Added WebExtension localization with the same locale coverage as the PapaClip browser extension.
