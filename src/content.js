@@ -1843,13 +1843,22 @@
       size: 8.5,
       lineHeight: 12
     });
-    documentBuilder.addLinkedText(buildPdfFollowPromptSegments(article), {
-      before: 16,
-      font: "F1",
-      size: 9,
-      lineHeight: 12.5,
+    documentBuilder.addLinkedText([{ text: localizedText("pdfFollowIntro", "Liked this article? To read more interesting content:") }], {
+      before: 18,
+      after: 2,
+      font: "F2",
+      size: 11.5,
+      lineHeight: 15.5,
       align: "center",
-      color: [0.33, 0.39, 0.44],
+      color: [0, 0, 0],
+      linkColor: [0.1, 0.35, 0.62]
+    });
+    documentBuilder.addLinkedText(buildPdfFollowActionSegments(article), {
+      font: "F2",
+      size: 11.5,
+      lineHeight: 15.5,
+      align: "center",
+      color: [0, 0, 0],
       linkColor: [0.1, 0.35, 0.62]
     });
 
@@ -2400,24 +2409,24 @@
     };
   }
 
-  function buildPdfFollowPromptSegments(article) {
+  function buildPdfFollowActionSegments(article) {
     const handle = getPdfFollowHandle(article);
     const handleText = handle ? `@${handle}` : "X";
     const profileUrl = handle ? `https://x.com/${encodeURIComponent(handle)}` : "https://x.com/";
 
     return localizedRichTemplate(
-      "pdfFollowPrompt",
+      "pdfFollowAction",
       {
         handle: {
           text: handleText,
           url: profileUrl
         },
         signupLink: {
-          text: localizedText("pdfSignupLinkText", "sign up on X"),
+          text: localizedText("pdfSignupLinkText", "Sign up on X"),
           url: "https://x.com/"
         }
       },
-      "Liked this article? To read more interesting content, {signupLink} and follow {handle}."
+      "{signupLink} and follow {handle}."
     );
   }
 

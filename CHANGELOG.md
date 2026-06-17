@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.10
+
+- Formats the final PDF follow callout as two centered bold lines.
+- Uses normal body text sizing for the final PDF callout and keeps the sign-up and profile links on the second line.
+
 ## v0.4.9
 
 - Adds a localized final PDF callout after the source link, with clickable links to X and to the exported account profile.

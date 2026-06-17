@@ -12,7 +12,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.4.9.zip
+dist/xtension-chrome-v0.4.10.zip
 ```
 
 Assets to provide:
@@ -34,7 +34,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.4.9.zip
+dist/xtension-edge-v0.4.10.zip
 ```
 
 Assets to provide:
@@ -55,7 +55,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.4.9.zip
+dist/xtension-firefox-v0.4.10.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:

@@ -8,7 +8,7 @@ const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.4.9";
+const version = "0.4.10";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",

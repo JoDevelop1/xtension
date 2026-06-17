@@ -22,7 +22,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "الفيديو: معاينة فقط. افتح التغريدة المصدر لتشغيل الفيديو - {url}",
     videoPreviewOnlyPdfSource: "الفيديو: معاينة فقط. افتح رابط المصدر في ملف PDF لتشغيل الفيديو.",
     pdfSourceLabel: "المصدر",
-    pdfFollowPrompt: "هل أعجبك هذا المقال؟ لقراءة المزيد من المحتوى المفيد، {signupLink} وتابع {handle}.",
+    pdfFollowIntro: "هل أعجبك هذا المقال؟ لقراءة المزيد من المحتوى المفيد:",
+    pdfFollowAction: "{signupLink} وتابع {handle}.",
     pdfSignupLinkText: "سجّل في X"
   },
   cs: {
@@ -45,8 +46,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: pouze nahled. Video prehrajete otevrenim zdrojoveho tweetu - {url}",
     videoPreviewOnlyPdfSource: "Video: pouze nahled. Video prehrajete otevrenim zdrojoveho odkazu v PDF.",
     pdfSourceLabel: "Zdroj",
-    pdfFollowPrompt: "Libil se vam tento clanek? Pro dalsi zajimavy obsah se {signupLink} a sledujte {handle}.",
-    pdfSignupLinkText: "zaregistrujte na X"
+    pdfFollowIntro: "Libil se vam tento clanek? Pro dalsi zajimavy obsah:",
+    pdfFollowAction: "{signupLink} a sledujte {handle}.",
+    pdfSignupLinkText: "Zaregistrujte na X"
   },
   da: {
     extensionName: "Xtension",
@@ -68,8 +70,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: kun forhåndsvisning. Abn kildetweetet for at afspille videoen - {url}",
     videoPreviewOnlyPdfSource: "Video: kun forhåndsvisning. Abn kilde-linket i PDF'en for at afspille videoen.",
     pdfSourceLabel: "Kilde",
-    pdfFollowPrompt: "Kunne du lide denne artikel? For at laese mere interessant indhold kan du {signupLink} og folge {handle}.",
-    pdfSignupLinkText: "tilmelde dig X"
+    pdfFollowIntro: "Kunne du lide denne artikel? For at laese mere interessant indhold:",
+    pdfFollowAction: "{signupLink} og folg {handle}.",
+    pdfSignupLinkText: "Tilmeld dig X"
   },
   de: {
     extensionName: "Xtension",
@@ -91,8 +94,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: nur Vorschau. Offne den Quell-Tweet, um das Video abzuspielen - {url}",
     videoPreviewOnlyPdfSource: "Video: nur Vorschau. Offne den Quelllink im PDF, um das Video abzuspielen.",
     pdfSourceLabel: "Quelle",
-    pdfFollowPrompt: "Hat dir dieser Artikel gefallen? Um noch mehr interessante Inhalte zu lesen, {signupLink} und folge {handle}.",
-    pdfSignupLinkText: "melde dich bei X an"
+    pdfFollowIntro: "Hat dir dieser Artikel gefallen? Um noch mehr interessante Inhalte zu lesen:",
+    pdfFollowAction: "{signupLink} und folge {handle}.",
+    pdfSignupLinkText: "Melde dich bei X an"
   },
   en: {
     extensionName: "Xtension",
@@ -114,8 +118,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: preview only. Open the source tweet to play the video - {url}",
     videoPreviewOnlyPdfSource: "Video: preview only. Open the PDF source link to play the video.",
     pdfSourceLabel: "Source",
-    pdfFollowPrompt: "Liked this article? To read more interesting content, {signupLink} and follow {handle}.",
-    pdfSignupLinkText: "sign up on X"
+    pdfFollowIntro: "Liked this article? To read more interesting content:",
+    pdfFollowAction: "{signupLink} and follow {handle}.",
+    pdfSignupLinkText: "Sign up on X"
   },
   es: {
     extensionName: "Xtension",
@@ -137,8 +142,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: solo vista previa. Abre el tweet fuente para reproducir el video - {url}",
     videoPreviewOnlyPdfSource: "Video: solo vista previa. Abre el enlace de origen del PDF para reproducir el video.",
     pdfSourceLabel: "Fuente",
-    pdfFollowPrompt: "Te gusto este articulo? Para leer mas contenido interesante, {signupLink} y sigue a {handle}.",
-    pdfSignupLinkText: "registrate en X"
+    pdfFollowIntro: "Te gusto este articulo? Para leer mas contenido interesante:",
+    pdfFollowAction: "{signupLink} y sigue a {handle}.",
+    pdfSignupLinkText: "Registrate en X"
   },
   fi: {
     extensionName: "Xtension",
@@ -160,8 +166,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: vain esikatselu. Avaa lahdetwiitti toistaaksesi videon - {url}",
     videoPreviewOnlyPdfSource: "Video: vain esikatselu. Avaa PDF:n lahdelinkki toistaaksesi videon.",
     pdfSourceLabel: "Lahde",
-    pdfFollowPrompt: "Piditko tasta artikkelista? Jos haluat lukea lisaa kiinnostavaa sisaltoa, {signupLink} ja seuraa kayttajaa {handle}.",
-    pdfSignupLinkText: "liity X:aan"
+    pdfFollowIntro: "Piditko tasta artikkelista? Jos haluat lukea lisaa kiinnostavaa sisaltoa:",
+    pdfFollowAction: "{signupLink} ja seuraa kayttajaa {handle}.",
+    pdfSignupLinkText: "Liity X:aan"
   },
   fr: {
     extensionName: "Xtension",
@@ -183,8 +190,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video : apercu uniquement. Ouvrir le tweet source pour lire la video - {url}",
     videoPreviewOnlyPdfSource: "Video : apercu uniquement. Ouvrir le lien source du PDF pour lire la video.",
     pdfSourceLabel: "Source",
-    pdfFollowPrompt: "Vous avez aime cet article ? Pour lire encore plus de contenus interessants, {signupLink} et suivez {handle}.",
-    pdfSignupLinkText: "inscrivez-vous sur X"
+    pdfFollowIntro: "Vous avez aime cet article ? Pour lire encore plus de contenus interessants :",
+    pdfFollowAction: "{signupLink} et suivez {handle}.",
+    pdfSignupLinkText: "Inscrivez-vous sur X"
   },
   hi: {
     extensionName: "Xtension",
@@ -206,7 +214,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "वीडियो: केवल पूर्वावलोकन. वीडियो चलाने के लिए स्रोत ट्वीट खोलें - {url}",
     videoPreviewOnlyPdfSource: "वीडियो: केवल पूर्वावलोकन. वीडियो चलाने के लिए PDF का स्रोत लिंक खोलें.",
     pdfSourceLabel: "स्रोत",
-    pdfFollowPrompt: "क्या आपको यह लेख पसंद आया? और रोचक सामग्री पढ़ने के लिए {signupLink} और {handle} को फॉलो करें.",
+    pdfFollowIntro: "क्या आपको यह लेख पसंद आया? और रोचक सामग्री पढ़ने के लिए:",
+    pdfFollowAction: "{signupLink} और {handle} को फॉलो करें.",
     pdfSignupLinkText: "X पर साइन अप करें"
   },
   it: {
@@ -229,8 +238,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: solo anteprima. Apri il tweet sorgente per riprodurre il video - {url}",
     videoPreviewOnlyPdfSource: "Video: solo anteprima. Apri il link sorgente del PDF per riprodurre il video.",
     pdfSourceLabel: "Fonte",
-    pdfFollowPrompt: "Ti e piaciuto questo articolo? Per leggere altri contenuti interessanti, {signupLink} e segui {handle}.",
-    pdfSignupLinkText: "iscriviti a X"
+    pdfFollowIntro: "Ti e piaciuto questo articolo? Per leggere altri contenuti interessanti:",
+    pdfFollowAction: "{signupLink} e segui {handle}.",
+    pdfSignupLinkText: "Iscriviti a X"
   },
   ja: {
     extensionName: "Xtension",
@@ -252,7 +262,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "動画: プレビューのみ。再生するには元のツイートを開いてください - {url}",
     videoPreviewOnlyPdfSource: "動画: プレビューのみ。再生するには PDF のソースリンクを開いてください。",
     pdfSourceLabel: "ソース",
-    pdfFollowPrompt: "この記事が気に入りましたか？さらに興味深いコンテンツを読むには、{signupLink}して{handle}をフォローしてください。",
+    pdfFollowIntro: "この記事が気に入りましたか？さらに興味深いコンテンツを読むには：",
+    pdfFollowAction: "{signupLink}して{handle}をフォローしてください。",
     pdfSignupLinkText: "Xに登録"
   },
   ko: {
@@ -275,7 +286,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "동영상: 미리보기만 제공됩니다. 동영상을 재생하려면 원본 트윗을 여세요 - {url}",
     videoPreviewOnlyPdfSource: "동영상: 미리보기만 제공됩니다. 동영상을 재생하려면 PDF의 원본 링크를 여세요.",
     pdfSourceLabel: "출처",
-    pdfFollowPrompt: "이 글이 마음에 드셨나요? 더 흥미로운 콘텐츠를 읽으려면 {signupLink}하고 {handle}을 팔로우하세요.",
+    pdfFollowIntro: "이 글이 마음에 드셨나요? 더 흥미로운 콘텐츠를 읽으려면:",
+    pdfFollowAction: "{signupLink}하고 {handle}을 팔로우하세요.",
     pdfSignupLinkText: "X에 가입"
   },
   nl: {
@@ -298,8 +310,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: alleen voorbeeld. Open de brontweet om de video af te spelen - {url}",
     videoPreviewOnlyPdfSource: "Video: alleen voorbeeld. Open de bronlink in de PDF om de video af te spelen.",
     pdfSourceLabel: "Bron",
-    pdfFollowPrompt: "Vond je dit artikel interessant? Om meer interessante content te lezen, {signupLink} en volg {handle}.",
-    pdfSignupLinkText: "meld je aan op X"
+    pdfFollowIntro: "Vond je dit artikel interessant? Om meer interessante content te lezen:",
+    pdfFollowAction: "{signupLink} en volg {handle}.",
+    pdfSignupLinkText: "Meld je aan op X"
   },
   no: {
     extensionName: "Xtension",
@@ -321,8 +334,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: kun forhåndsvisning. Apne kildetweeten for a spille av videoen - {url}",
     videoPreviewOnlyPdfSource: "Video: kun forhåndsvisning. Apne kildelenken i PDF-en for a spille av videoen.",
     pdfSourceLabel: "Kilde",
-    pdfFollowPrompt: "Likte du denne artikkelen? For a lese mer interessant innhold, {signupLink} og folg {handle}.",
-    pdfSignupLinkText: "registrer deg pa X"
+    pdfFollowIntro: "Likte du denne artikkelen? For a lese mer interessant innhold:",
+    pdfFollowAction: "{signupLink} og folg {handle}.",
+    pdfSignupLinkText: "Registrer deg pa X"
   },
   pl: {
     extensionName: "Xtension",
@@ -344,8 +358,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Wideo: tylko podglad. Otworz tweet zrodlowy, aby odtworzyc wideo - {url}",
     videoPreviewOnlyPdfSource: "Wideo: tylko podglad. Otworz link zrodlowy w PDF, aby odtworzyc wideo.",
     pdfSourceLabel: "Zrodlo",
-    pdfFollowPrompt: "Podobal Ci sie ten artykul? Aby czytac wiecej ciekawych tresci, {signupLink} i obserwuj {handle}.",
-    pdfSignupLinkText: "zarejestruj sie na X"
+    pdfFollowIntro: "Podobal Ci sie ten artykul? Aby czytac wiecej ciekawych tresci:",
+    pdfFollowAction: "{signupLink} i obserwuj {handle}.",
+    pdfSignupLinkText: "Zarejestruj sie na X"
   },
   pt_BR: {
     extensionName: "Xtension",
@@ -367,8 +382,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: apenas pre-visualizacao. Abra o tweet de origem para reproduzir o video - {url}",
     videoPreviewOnlyPdfSource: "Video: apenas pre-visualizacao. Abra o link de origem no PDF para reproduzir o video.",
     pdfSourceLabel: "Fonte",
-    pdfFollowPrompt: "Gostou deste artigo? Para ler mais conteudos interessantes, {signupLink} e siga {handle}.",
-    pdfSignupLinkText: "cadastre-se no X"
+    pdfFollowIntro: "Gostou deste artigo? Para ler mais conteudos interessantes:",
+    pdfFollowAction: "{signupLink} e siga {handle}.",
+    pdfSignupLinkText: "Cadastre-se no X"
   },
   pt_PT: {
     extensionName: "Xtension",
@@ -390,8 +406,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: apenas pre-visualizacao. Abra o tweet de origem para reproduzir o video - {url}",
     videoPreviewOnlyPdfSource: "Video: apenas pre-visualizacao. Abra a ligacao de origem no PDF para reproduzir o video.",
     pdfSourceLabel: "Fonte",
-    pdfFollowPrompt: "Gostou deste artigo? Para ler mais conteudos interessantes, {signupLink} e siga {handle}.",
-    pdfSignupLinkText: "registe-se no X"
+    pdfFollowIntro: "Gostou deste artigo? Para ler mais conteudos interessantes:",
+    pdfFollowAction: "{signupLink} e siga {handle}.",
+    pdfSignupLinkText: "Registe-se no X"
   },
   ro: {
     extensionName: "Xtension",
@@ -413,8 +430,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: doar previzualizare. Deschide tweetul sursa pentru a reda videoclipul - {url}",
     videoPreviewOnlyPdfSource: "Video: doar previzualizare. Deschide linkul sursa din PDF pentru a reda videoclipul.",
     pdfSourceLabel: "Sursa",
-    pdfFollowPrompt: "Ti-a placut acest articol? Pentru a citi mai mult continut interesant, {signupLink} si urmareste {handle}.",
-    pdfSignupLinkText: "inscrie-te pe X"
+    pdfFollowIntro: "Ti-a placut acest articol? Pentru a citi mai mult continut interesant:",
+    pdfFollowAction: "{signupLink} si urmareste {handle}.",
+    pdfSignupLinkText: "Inscrie-te pe X"
   },
   sv: {
     extensionName: "Xtension",
@@ -436,8 +454,9 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: endast forhandsvisning. Oppna kalltweeten for att spela upp videon - {url}",
     videoPreviewOnlyPdfSource: "Video: endast forhandsvisning. Oppna kallanken i PDF-filen for att spela upp videon.",
     pdfSourceLabel: "Kalla",
-    pdfFollowPrompt: "Gillade du den har artikeln? For att lasa mer intressant innehall, {signupLink} och folj {handle}.",
-    pdfSignupLinkText: "registrera dig pa X"
+    pdfFollowIntro: "Gillade du den har artikeln? For att lasa mer intressant innehall:",
+    pdfFollowAction: "{signupLink} och folj {handle}.",
+    pdfSignupLinkText: "Registrera dig pa X"
   },
   tr: {
     extensionName: "Xtension",
@@ -459,7 +478,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "Video: yalnizca onizleme. Videoyu oynatmak icin kaynak tweeti acin - {url}",
     videoPreviewOnlyPdfSource: "Video: yalnizca onizleme. Videoyu oynatmak icin PDF kaynak baglantisini acin.",
     pdfSourceLabel: "Kaynak",
-    pdfFollowPrompt: "Bu makaleyi begendiniz mi? Daha fazla ilgi cekici icerik okumak icin {signupLink} ve {handle} hesabini takip edin.",
+    pdfFollowIntro: "Bu makaleyi begendiniz mi? Daha fazla ilgi cekici icerik okumak icin:",
+    pdfFollowAction: "{signupLink} ve {handle} hesabini takip edin.",
     pdfSignupLinkText: "X'e kaydolun"
   },
   zh_CN: {
@@ -482,7 +502,8 @@ const localeMessages = {
     videoPreviewOnlyWithSource: "视频：仅预览。打开源推文以播放视频 - {url}",
     videoPreviewOnlyPdfSource: "视频：仅预览。打开 PDF 中的来源链接以播放视频。",
     pdfSourceLabel: "来源",
-    pdfFollowPrompt: "喜欢这篇文章吗？想阅读更多有趣内容，请{signupLink}并关注{handle}。",
+    pdfFollowIntro: "喜欢这篇文章吗？想阅读更多有趣内容：",
+    pdfFollowAction: "{signupLink}并关注{handle}。",
     pdfSignupLinkText: "注册 X"
   }
 };
