@@ -4,6 +4,8 @@
   const EXTENSION_API = globalThis.chrome || globalThis.browser;
   const RUNTIME_API = EXTENSION_API?.runtime;
   const I18N_API = EXTENSION_API?.i18n;
+  const EXTENSION_VERSION = RUNTIME_API?.getManifest?.()?.version || "development";
+  const PDF_GENERATOR_NAME = `Xtension ${EXTENSION_VERSION}`;
   const MENU_ITEM_SELECTOR = "[data-xtension-menu-item]";
   const MENU_ITEM_ATTRIBUTE = "data-xtension-menu-item";
   const MENU_ICON_ATTRIBUTE = "data-xtension-menu-icon";
@@ -2719,7 +2721,8 @@
     const firstPageObject = 6;
     const firstImageObject = firstPageObject + (pageEntries.length * 2);
     const firstAnnotationObject = firstImageObject + imageEntries.length;
-    const objectCount = 5 + (pageEntries.length * 2) + imageEntries.length + annotationEntries.length;
+    const infoObject = firstAnnotationObject + annotationEntries.length;
+    const objectCount = infoObject;
     const imageObjectByName = new Map(imageEntries.map((image, index) => {
       return [image.name, firstImageObject + index];
     }));
@@ -2766,7 +2769,23 @@
       objects.push(buildPdfLinkAnnotationObject(annotation));
     }
 
-    return writePdfFile(objects, objectCount, catalogObject);
+    objects.push(buildPdfInfoObject());
+
+    return writePdfFile(objects, objectCount, catalogObject, infoObject);
+  }
+
+  function buildPdfInfoObject() {
+    return concatBytes([
+      asciiBytes("<< /Title "),
+      createPdfLiteralBytes("Xtension PDF export"),
+      asciiBytes(" /Creator "),
+      createPdfLiteralBytes(PDF_GENERATOR_NAME),
+      asciiBytes(" /Producer "),
+      createPdfLiteralBytes(`${PDF_GENERATOR_NAME} PDF generator`),
+      asciiBytes(" /CreationDate "),
+      createPdfLiteralBytes(formatPdfDate(new Date())),
+      asciiBytes(" >>")
+    ]);
   }
 
   function buildPdfLinkAnnotationObject(annotation) {
@@ -2787,7 +2806,7 @@
     ]);
   }
 
-  function writePdfFile(objects, objectCount, catalogObject) {
+  function writePdfFile(objects, objectCount, catalogObject, infoObject) {
     const chunks = [];
     const offsets = [0];
     let offset = 0;
@@ -2813,10 +2832,31 @@
       xref += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
     }
 
-    xref += `trailer\n<< /Size ${objectCount + 1} /Root ${catalogObject} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+    const infoEntry = infoObject ? ` /Info ${infoObject} 0 R` : "";
+    xref += `trailer\n<< /Size ${objectCount + 1} /Root ${catalogObject} 0 R${infoEntry} >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
     addChunk(asciiBytes(xref));
 
     return concatBytes(chunks);
+  }
+
+  function formatPdfDate(date) {
+    const pad = (value, size = 2) => String(value).padStart(size, "0");
+    const timezoneOffset = -date.getTimezoneOffset();
+    const timezoneSign = timezoneOffset >= 0 ? "+" : "-";
+    const timezoneMinutes = Math.abs(timezoneOffset);
+
+    return "D:" +
+      pad(date.getFullYear(), 4) +
+      pad(date.getMonth() + 1) +
+      pad(date.getDate()) +
+      pad(date.getHours()) +
+      pad(date.getMinutes()) +
+      pad(date.getSeconds()) +
+      timezoneSign +
+      pad(Math.floor(timezoneMinutes / 60)) +
+      "'" +
+      pad(timezoneMinutes % 60) +
+      "'";
   }
 
   function createByteWriter() {

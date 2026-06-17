@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.6
+
+- Adds hidden PDF generator metadata with the active Xtension version so stale browser content scripts can be diagnosed from the generated file.
+
 ## v0.4.5
 
 - Uses Helvetica-compatible PDF text metrics for body justification so generated paragraphs align cleanly to the right margin.
