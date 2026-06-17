@@ -5,7 +5,7 @@
   const RUNTIME_API = EXTENSION_API?.runtime;
   const I18N_API = EXTENSION_API?.i18n;
   const EXTENSION_VERSION = RUNTIME_API?.getManifest?.()?.version || "development";
-  const PDF_GENERATOR_NAME = `Xtension ${EXTENSION_VERSION}`;
+  const PDF_GENERATOR_NAME = `Xtension ${EXTENSION_VERSION} by JoDevelop`;
   const MENU_ITEM_SELECTOR = "[data-xtension-menu-item]";
   const MENU_ITEM_ATTRIBUTE = "data-xtension-menu-item";
   const MENU_ICON_ATTRIBUTE = "data-xtension-menu-icon";

@@ -62,15 +62,15 @@ The workflow also declares `contents: write` so it can attach generated zip file
 Create the tag:
 
 ```powershell
-git tag v0.4.6
-git push origin v0.4.6
+git tag v0.4.7
+git push origin v0.4.7
 ```
 
 The GitHub Actions workflow builds:
 
-- `xtension-edge-v0.4.6.zip`
-- `xtension-chrome-v0.4.6.zip`
-- `xtension-firefox-v0.4.6.zip`
+- `xtension-edge-v0.4.7.zip`
+- `xtension-chrome-v0.4.7.zip`
+- `xtension-firefox-v0.4.7.zip`
 - `SHA256SUMS.txt`
 
 If the files are not attached automatically, create or edit the release manually and upload the files from `dist/`.
@@ -80,7 +80,7 @@ If the files are not attached automatically, create or edit the release manually
 Use the matching file:
 
 ```text
-release-notes/v0.4.6.md
+release-notes/v0.4.7.md
 ```
 
 ## Pre-Publication Check

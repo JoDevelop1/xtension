@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.7
+
+- Adds `by JoDevelop` to generated PDF metadata.
+
 ## v0.4.6
 
 - Adds hidden PDF generator metadata with the active Xtension version so stale browser content scripts can be diagnosed from the generated file.
