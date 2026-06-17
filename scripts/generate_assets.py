@@ -70,6 +70,7 @@ def pdf_menu_icon(size):
     body = (s(38), s(28), s(420), s(486))
     d.rounded_rectangle(body, radius=s(48), fill=red)
     d.rectangle((s(260), s(28), s(420), s(190)), fill=red)
+    d.polygon([(s(300), s(28)), (s(420), s(28)), (s(420), s(148))], fill=(0, 0, 0, 0))
     d.polygon([(s(300), s(28)), (s(420), s(148)), (s(300), s(148))], fill=red_light)
     d.line([(s(300), s(28)), (s(420), s(148))], fill=red_dark, width=s(4))
 

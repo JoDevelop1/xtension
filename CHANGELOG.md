@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.4
+
+- Makes the PDF document icon corner transparent so the folded page effect is visible on light backgrounds.
+
 ## v0.4.3
 
 - Restored the red PDF document menu icon style.
