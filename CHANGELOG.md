@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.3
+
+- Restored the red PDF document menu icon style.
+- Replaced the application logo with a black transparent double-struck X-style mark.
+
 ## v0.4.2
 
 - Justifies prose text in generated PDFs while keeping headings, lists, source URLs, media, and embedded cards in their existing layout.

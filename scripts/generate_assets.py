@@ -25,26 +25,31 @@ def rounded_rectangle(draw, box, radius, fill, outline=None, width=1):
 
 
 def icon(size):
-    scale = size / 1024
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas_size = size * 4
+    scale = canvas_size / 1024
+    img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
     def s(v):
         return round(v * scale)
 
-    # Transparent flat icon: no tile, no shadow, 3 colors max.
-    # Mathematical multiplication sign, intentionally distinct from the official X.com logo.
-    # Geometric × built from thick strokes for reliable small-size rendering.
-    cyan_width = max(1, s(120))
-    black_width = max(1, s(170))
-    d.line([(s(315), s(760)), (s(800), s(275))], fill="#1d9bf0", width=cyan_width)
-    d.line([(s(315), s(275)), (s(800), s(760))], fill="#1d9bf0", width=cyan_width)
-    d.line([(s(240), s(735)), (s(705), s(270))], fill="#050505", width=black_width)
-    d.line([(s(240), s(270)), (s(705), s(735))], fill="#050505", width=black_width)
+    black = "#050505"
+    clear = (0, 0, 0, 0)
 
-    # Minimal PDF badge only where there is enough room. Tiny toolbar icons stay readable.
-    if size >= 48:
-        rounded_rectangle(d, (s(575), s(690), s(900), s(865)), s(54), "#e53935")
+    # Stylized U+1D54F Mathematical Double-Struck Capital X, drawn as vector
+    # geometry so the build does not depend on platform emoji fonts.
+    d.polygon([(s(240), s(170)), (s(404), s(170)), (s(812), s(854)), (s(648), s(854))], fill=black)
+    d.polygon([(s(212), s(854)), (s(382), s(854)), (s(808), s(170)), (s(638), s(170))], fill=black)
+
+    d.polygon([(s(326), s(236)), (s(390), s(236)), (s(724), s(788)), (s(660), s(788))], fill=clear)
+
+    d.rectangle((s(226), s(170), s(456), s(226)), fill=black)
+    d.rectangle((s(568), s(170), s(808), s(226)), fill=black)
+    d.rectangle((s(214), s(798), s(438), s(854)), fill=black)
+    d.rectangle((s(586), s(798), s(812), s(854)), fill=black)
+
+    if size != canvas_size:
+        img = img.resize((size, size), Image.Resampling.LANCZOS)
 
     return img
 
@@ -57,31 +62,28 @@ def pdf_menu_icon(size):
     def s(v):
         return round(v * scale)
 
-    red = "#e1272f"
-    red_dark = "#b91720"
-    red_light = "#ff6b70"
+    red = "#ef202b"
+    red_dark = "#c91822"
+    red_light = "#f26b71"
     white = "#ffffff"
 
-    body = (s(78), s(28), s(420), s(486))
-    d.rounded_rectangle(body, radius=s(38), fill=red)
-    d.polygon([(s(330), s(28)), (s(420), s(118)), (s(330), s(118))], fill=red_light)
-    d.line([(s(330), s(30)), (s(420), s(120))], fill=red_dark, width=s(10))
+    body = (s(38), s(28), s(420), s(486))
+    d.rounded_rectangle(body, radius=s(48), fill=red)
+    d.rectangle((s(260), s(28), s(420), s(190)), fill=red)
+    d.polygon([(s(300), s(28)), (s(420), s(148)), (s(300), s(148))], fill=red_light)
+    d.line([(s(300), s(28)), (s(420), s(148))], fill=red_dark, width=s(4))
 
-    d.rounded_rectangle((s(42), s(212), s(470), s(366)), radius=s(24), fill=red_dark)
     text = "PDF"
-    text_font = font(s(118), True)
+    text_font = font(s(112), True)
     bbox = d.textbbox((0, 0), text, font=text_font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     d.text(
-        (s(256) - text_w / 2, s(289) - text_h / 2 - bbox[1]),
+        (s(226) - text_w / 2, s(286) - text_h / 2 - bbox[1]),
         text,
         fill=white,
         font=text_font,
     )
-
-    d.rounded_rectangle((s(128), s(400), s(370), s(420)), radius=s(10), fill=white)
-    d.rounded_rectangle((s(128), s(438), s(310), s(458)), radius=s(10), fill=white)
     return img
 
 
@@ -102,11 +104,11 @@ def save_icons():
 
 
 def draw_brand_header(draw, width, title, subtitle):
-    draw.rectangle((0, 0, width, 132), fill="#0f1419")
+    draw.rectangle((0, 0, width, 132), fill="#ffffff")
     mark = icon(96)
     draw._image.alpha_composite(mark, (36, 18))
-    draw.text((154, 28), title, fill="#ffffff", font=font(34, True))
-    draw.text((154, 78), subtitle, fill="#b9c2ca", font=font(18))
+    draw.text((154, 28), title, fill="#0f1419", font=font(34, True))
+    draw.text((154, 78), subtitle, fill="#536471", font=font(18))
 
 
 def promo(width, height, path, marquee=False):
