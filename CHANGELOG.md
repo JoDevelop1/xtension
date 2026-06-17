@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.9
+
+- Adds a localized final PDF callout after the source link, with clickable links to X and to the exported account profile.
+- Updates the PDF menu icon to a monochrome document style so it matches the X/Twitter menu icons.
+- Keeps the validated multicolor double-struck X application logo across browser packages and store assets.
+- Rebuilds Chrome, Edge, and Firefox packages from the same source assets.
+
 ## v0.4.8
 
 - Clarifies install and build documentation so end users do not see development-only Pillow requirements.

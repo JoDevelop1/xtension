@@ -1843,6 +1843,15 @@
       size: 8.5,
       lineHeight: 12
     });
+    documentBuilder.addLinkedText(buildPdfFollowPromptSegments(article), {
+      before: 16,
+      font: "F1",
+      size: 9,
+      lineHeight: 12.5,
+      align: "center",
+      color: [0.33, 0.39, 0.44],
+      linkColor: [0.1, 0.35, 0.62]
+    });
 
     return buildPdfBytesFromPages(documentBuilder.getDocument());
   }
@@ -2025,6 +2034,59 @@
           writePdfTextLine(writer, line, x, y, font, size, 0, 0, 0, { wordSpacing });
           y -= lineHeight;
         }
+      }
+
+      if (after) {
+        y -= after;
+      }
+    };
+
+    const addLinkedText = (segments, options = {}) => {
+      const tokens = createRichTextTokens(segments || []);
+
+      if (tokens.length === 0) {
+        return;
+      }
+
+      const font = options.font || "F1";
+      const size = options.size || 10;
+      const lineHeight = options.lineHeight || size * 1.35;
+      const before = options.before || 0;
+      const after = options.after || 0;
+      const indent = options.indent || 0;
+      const align = options.align || "left";
+      const color = options.color || [0, 0, 0];
+      const linkColor = options.linkColor || color;
+      const x = marginLeft + indent;
+      const maxWidth = pageWidth - marginLeft - marginRight - indent;
+      const lines = wrapRichTextTokens(tokens, maxWidth, size);
+
+      if (before) {
+        ensureSpace(before + lineHeight);
+        y -= before;
+      }
+
+      ensureSpace(Math.min(lines.length, options.minStartLines || 2) * lineHeight);
+
+      for (const line of lines) {
+        const lineWidth = measureRichTextTokens(line, size);
+        let cursorX = align === "center" ? x + Math.max(0, (maxWidth - lineWidth) / 2) : x;
+
+        ensureSpace(lineHeight);
+
+        for (const token of line) {
+          const tokenWidth = measurePdfText(token.text, size);
+          const [r, g, b] = token.url ? linkColor : color;
+          writePdfTextLine(writer, token.text, cursorX, y, font, size, r, g, b);
+
+          if (token.url && !/^\s+$/.test(token.text)) {
+            addLinkAnnotation(cursorX, y - 2, tokenWidth, size + 4, token.url);
+          }
+
+          cursorX += tokenWidth;
+        }
+
+        y -= lineHeight;
       }
 
       if (after) {
@@ -2315,6 +2377,7 @@
       addText,
       addImage,
       addAuthorHeader,
+      addLinkedText,
       addEmbeddedTweetCard,
       keepPartsTogether,
       addLinkCard,
@@ -2335,6 +2398,147 @@
         };
       }
     };
+  }
+
+  function buildPdfFollowPromptSegments(article) {
+    const handle = getPdfFollowHandle(article);
+    const handleText = handle ? `@${handle}` : "X";
+    const profileUrl = handle ? `https://x.com/${encodeURIComponent(handle)}` : "https://x.com/";
+
+    return localizedRichTemplate(
+      "pdfFollowPrompt",
+      {
+        handle: {
+          text: handleText,
+          url: profileUrl
+        },
+        signupLink: {
+          text: localizedText("pdfSignupLinkText", "sign up on X"),
+          url: "https://x.com/"
+        }
+      },
+      "Liked this article? To read more interesting content, {signupLink} and follow {handle}."
+    );
+  }
+
+  function getPdfFollowHandle(article) {
+    return cleanHandle(
+      article?.authorInfo?.handle ||
+      article?.author ||
+      parseStatusContext(article?.sourceUrl || "")?.author ||
+      ""
+    );
+  }
+
+  function localizedRichTemplate(key, replacements, fallback) {
+    const template = localizedText(key, fallback);
+    const segments = [];
+    const pattern = /\{([A-Za-z0-9_]+)\}/g;
+    let cursor = 0;
+    let match = pattern.exec(template);
+
+    while (match) {
+      if (match.index > cursor) {
+        segments.push({
+          text: template.slice(cursor, match.index)
+        });
+      }
+
+      const replacement = replacements?.[match[1]];
+      if (replacement) {
+        segments.push({
+          text: replacement.text,
+          url: replacement.url
+        });
+      } else {
+        segments.push({
+          text: match[0]
+        });
+      }
+
+      cursor = match.index + match[0].length;
+      match = pattern.exec(template);
+    }
+
+    if (cursor < template.length) {
+      segments.push({
+        text: template.slice(cursor)
+      });
+    }
+
+    return segments;
+  }
+
+  function createRichTextTokens(segments) {
+    const tokens = [];
+
+    for (const segment of segments || []) {
+      const normalizedText = String(segment?.text || "").replace(/\s+/g, " ");
+
+      for (const match of normalizedText.matchAll(/\s+|\S+/g)) {
+        const text = /^\s+$/.test(match[0]) ? " " : match[0];
+        if (text === " " && (tokens.length === 0 || tokens[tokens.length - 1].text === " ")) {
+          continue;
+        }
+
+        tokens.push({
+          text,
+          url: segment?.url || ""
+        });
+      }
+    }
+
+    return trimRichTextLine(tokens);
+  }
+
+  function wrapRichTextTokens(tokens, maxWidth, fontSize) {
+    const lines = [];
+    let currentLine = [];
+
+    for (const token of tokens) {
+      if (/^\s+$/.test(token.text) && currentLine.length === 0) {
+        continue;
+      }
+
+      const candidateLine = [...currentLine, token];
+      if (currentLine.length === 0 || measureRichTextTokens(candidateLine, fontSize) <= maxWidth) {
+        currentLine = candidateLine;
+        continue;
+      }
+
+      const trimmedLine = trimRichTextLine(currentLine);
+      if (trimmedLine.length > 0) {
+        lines.push(trimmedLine);
+      }
+
+      currentLine = /^\s+$/.test(token.text) ? [] : [token];
+    }
+
+    const trimmedLine = trimRichTextLine(currentLine);
+    if (trimmedLine.length > 0) {
+      lines.push(trimmedLine);
+    }
+
+    return lines;
+  }
+
+  function trimRichTextLine(tokens) {
+    let start = 0;
+    let end = tokens.length;
+
+    while (start < end && /^\s+$/.test(tokens[start].text)) {
+      start += 1;
+    }
+
+    while (end > start && /^\s+$/.test(tokens[end - 1].text)) {
+      end -= 1;
+    }
+
+    return tokens.slice(start, end);
+  }
+
+  function measureRichTextTokens(tokens, fontSize) {
+    return tokens.reduce((width, token) => width + measurePdfText(token.text, fontSize), 0);
   }
 
   function wrapPdfText(text, maxWidth, fontSize) {

@@ -1,10 +1,18 @@
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 ICONS = ASSETS / "icons"
 STORE = ROOT / "store-assets"
+LOGO_COLORS = ("#4285f4", "#ea4335", "#fbbc05", "#34a853")
+LOGO_OUTER_PATH = [
+    (62, 0), (276, 304), (20, 714), (223, 714), (384, 456), (565, 714),
+    (630, 714), (414, 407), (669, 0), (466, 0), (307, 254), (127, 0)
+]
+LOGO_INNER_PATH = [(495, 53), (574, 53), (194, 661), (115, 661)]
+LOGO_TRANSFORM_TRANSLATE = (77.756303, 962.0)
+LOGO_TRANSFORM_SCALE = (1.260504, -1.260504)
 
 
 def font(size, bold=False):
@@ -25,33 +33,63 @@ def rounded_rectangle(draw, box, radius, fill, outline=None, width=1):
 
 
 def icon(size):
-    canvas_size = size * 4
-    scale = canvas_size / 1024
+    scale_factor = 4 if size <= 128 else 2
+    canvas_size = size * scale_factor
+    mask = Image.new("L", (canvas_size, canvas_size), 0)
+    d = ImageDraw.Draw(mask)
+
+    d.polygon(scale_logo_path(LOGO_OUTER_PATH, canvas_size), fill=255)
+    d.polygon(scale_logo_path(LOGO_INNER_PATH, canvas_size), fill=0)
+
+    outline_radius = max(2, round(canvas_size * 18 / 1024))
+    outline_mask = expand_mask(mask, outline_radius)
     img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    outline = Image.new("RGBA", (canvas_size, canvas_size), "#050505")
+    img.alpha_composite(Image.composite(outline, img, outline_mask))
 
-    def s(v):
-        return round(v * scale)
-
-    black = "#050505"
-    clear = (0, 0, 0, 0)
-
-    # Stylized U+1D54F Mathematical Double-Struck Capital X, drawn as vector
-    # geometry so the build does not depend on platform emoji fonts.
-    d.polygon([(s(240), s(170)), (s(404), s(170)), (s(812), s(854)), (s(648), s(854))], fill=black)
-    d.polygon([(s(212), s(854)), (s(382), s(854)), (s(808), s(170)), (s(638), s(170))], fill=black)
-
-    d.polygon([(s(326), s(236)), (s(390), s(236)), (s(724), s(788)), (s(660), s(788))], fill=clear)
-
-    d.rectangle((s(226), s(170), s(456), s(226)), fill=black)
-    d.rectangle((s(568), s(170), s(808), s(226)), fill=black)
-    d.rectangle((s(214), s(798), s(438), s(854)), fill=black)
-    d.rectangle((s(586), s(798), s(812), s(854)), fill=black)
+    color_layer = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
+    color_draw = ImageDraw.Draw(color_layer)
+    c = canvas_size / 2
+    color_draw.polygon([(0, 0), (c, 0), (c, c), (0, c)], fill=LOGO_COLORS[0])
+    color_draw.polygon([(c, 0), (canvas_size, 0), (canvas_size, c), (c, c)], fill=LOGO_COLORS[1])
+    color_draw.polygon([(0, c), (c, c), (c, canvas_size), (0, canvas_size)], fill=LOGO_COLORS[2])
+    color_draw.polygon([(c, c), (canvas_size, c), (canvas_size, canvas_size), (c, canvas_size)], fill=LOGO_COLORS[3])
+    colored = Image.composite(color_layer, Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0)), mask)
+    img.alpha_composite(colored)
 
     if size != canvas_size:
         img = img.resize((size, size), Image.Resampling.LANCZOS)
 
     return img
+
+
+def scale_logo_path(points, canvas_size):
+    scale = canvas_size / 1024
+    translate_x, translate_y = LOGO_TRANSFORM_TRANSLATE
+    scale_x, scale_y = LOGO_TRANSFORM_SCALE
+
+    return [
+        (
+            (translate_x + x * scale_x) * scale,
+            (translate_y + y * scale_y) * scale
+        )
+        for x, y in points
+    ]
+
+
+def expand_mask(mask, radius):
+    if radius <= 0:
+        return mask
+
+    expanded = mask
+    remaining = radius
+
+    while remaining > 0:
+        step = min(4, remaining)
+        expanded = expanded.filter(ImageFilter.MaxFilter(step * 2 + 1))
+        remaining -= step
+
+    return expanded
 
 
 def pdf_menu_icon(size):
@@ -62,27 +100,31 @@ def pdf_menu_icon(size):
     def s(v):
         return round(v * scale)
 
-    red = "#ef202b"
-    red_dark = "#c91822"
-    red_light = "#f26b71"
+    black = "#0f1419"
     white = "#ffffff"
 
-    body = (s(38), s(28), s(420), s(486))
-    d.rounded_rectangle(body, radius=s(48), fill=red)
-    d.rectangle((s(260), s(28), s(420), s(190)), fill=red)
-    d.polygon([(s(300), s(28)), (s(420), s(28)), (s(420), s(148))], fill=(0, 0, 0, 0))
-    d.polygon([(s(300), s(28)), (s(420), s(148)), (s(300), s(148))], fill=red_light)
-    d.line([(s(300), s(28)), (s(420), s(148))], fill=red_dark, width=s(4))
+    page = [
+        (s(54), s(30)),
+        (s(316), s(30)),
+        (s(452), s(166)),
+        (s(452), s(486)),
+        (s(54), s(486)),
+    ]
+    d.polygon(page, fill=white)
+    d.line(page + [page[0]], fill=black, width=s(24), joint="curve")
+    d.line([(s(316), s(30)), (s(316), s(166)), (s(452), s(166))], fill=black, width=s(18), joint="curve")
+    d.polygon([(s(316), s(30)), (s(452), s(166)), (s(316), s(166))], fill=white)
+    d.line([(s(316), s(30)), (s(452), s(166))], fill=black, width=s(18))
 
     text = "PDF"
-    text_font = font(s(112), True)
+    text_font = font(s(156), True)
     bbox = d.textbbox((0, 0), text, font=text_font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     d.text(
-        (s(226) - text_w / 2, s(286) - text_h / 2 - bbox[1]),
+        (s(252) - text_w / 2, s(318) - text_h / 2 - bbox[1]),
         text,
-        fill=white,
+        fill=black,
         font=text_font,
     )
     return img
