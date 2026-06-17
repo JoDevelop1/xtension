@@ -1,5 +1,10 @@
 [data-xtension-menu-item] {
+  color: rgb(15, 20, 25) !important;
   cursor: pointer;
+}
+
+[data-xtension-menu-item] * {
+  color: rgb(15, 20, 25) !important;
 }
 
 [data-xtension-menu-item] svg {

@@ -320,22 +320,26 @@
     item.setAttribute("role", "menuitem");
     item.tabIndex = 0;
     item.className = getClassName(template, "css-175oi2r r-18u37iz r-1mmae3n r-3pj75a r-13qz1uu r-1loqt21");
+    item.style.color = "rgb(15, 20, 25)";
 
     const icon = document.createElement("div");
     icon.className = getClassName(templateIcon, "css-175oi2r r-1777fci");
     icon.setAttribute(MENU_ICON_ATTRIBUTE, "true");
+    icon.style.color = "rgb(15, 20, 25)";
     icon.append(createPdfIcon(getClassName(templateSvg, "")));
 
     const label = document.createElement("div");
     label.className = getClassName(templateLabel, "css-175oi2r");
+    label.style.color = "rgb(15, 20, 25)";
 
     const text = document.createElement("div");
     text.dir = "ltr";
     text.className = getClassName(templateText, "");
-    text.style.color = templateText?.style?.color || "rgb(15, 20, 25)";
+    text.style.color = "rgb(15, 20, 25)";
 
     const span = document.createElement("span");
     span.className = getClassName(templateSpan, "");
+    span.style.color = "rgb(15, 20, 25)";
     span.textContent = MENU_LABEL;
 
     text.append(span);

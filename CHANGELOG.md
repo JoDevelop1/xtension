@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.12
+
+- Forces the X/Twitter menu item text and icon color to black so it cannot inherit red destructive-menu styling.
+
 ## v0.4.11
 
 - Fixes spacing in the final bold PDF follow callout by measuring Helvetica Bold text correctly.
