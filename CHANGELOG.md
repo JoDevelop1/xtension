@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.8
+
+- Clarifies install and build documentation so end users do not see development-only Pillow requirements.
+- Commits runtime and store assets so package builds only require Node.js by default.
+
 ## v0.4.7
 
 - Adds `by JoDevelop` to generated PDF metadata.
