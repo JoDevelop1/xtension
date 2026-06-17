@@ -63,6 +63,7 @@
   const STATUS_PATH_PATTERN = /^\/([^/?#]+)\/status\/(\d+)/;
   const PDF_HELVETICA_WIDTH_FALLBACK = 556;
   const PDF_HELVETICA_WIDTHS = createPdfHelveticaWidthMap();
+  const PDF_HELVETICA_BOLD_WIDTHS = createPdfHelveticaBoldWidthMap();
   const PDF_WIN_ANSI_REPLACEMENTS = new Map([
     [0x0152, 140],
     [0x0153, 156],
@@ -2068,7 +2069,7 @@
       const linkColor = options.linkColor || color;
       const x = marginLeft + indent;
       const maxWidth = pageWidth - marginLeft - marginRight - indent;
-      const lines = wrapRichTextTokens(tokens, maxWidth, size);
+      const lines = wrapRichTextTokens(tokens, maxWidth, size, font);
 
       if (before) {
         ensureSpace(before + lineHeight);
@@ -2078,21 +2079,21 @@
       ensureSpace(Math.min(lines.length, options.minStartLines || 2) * lineHeight);
 
       for (const line of lines) {
-        const lineWidth = measureRichTextTokens(line, size);
+        const lineWidth = measureRichTextTokens(line, size, font);
         let cursorX = align === "center" ? x + Math.max(0, (maxWidth - lineWidth) / 2) : x;
 
         ensureSpace(lineHeight);
 
-        for (const token of line) {
-          const tokenWidth = measurePdfText(token.text, size);
-          const [r, g, b] = token.url ? linkColor : color;
-          writePdfTextLine(writer, token.text, cursorX, y, font, size, r, g, b);
+        for (const run of mergeRichTextRuns(line)) {
+          const runWidth = measurePdfText(run.text, size, font);
+          const [r, g, b] = run.url ? linkColor : color;
+          writePdfTextLine(writer, run.text, cursorX, y, font, size, r, g, b);
 
-          if (token.url && !/^\s+$/.test(token.text)) {
-            addLinkAnnotation(cursorX, y - 2, tokenWidth, size + 4, token.url);
+          if (run.url && !/^\s+$/.test(run.text)) {
+            addLinkAnnotation(cursorX, y - 2, runWidth, size + 4, run.url);
           }
 
-          cursorX += tokenWidth;
+          cursorX += runWidth;
         }
 
         y -= lineHeight;
@@ -2500,7 +2501,7 @@
     return trimRichTextLine(tokens);
   }
 
-  function wrapRichTextTokens(tokens, maxWidth, fontSize) {
+  function wrapRichTextTokens(tokens, maxWidth, fontSize, font = "F1") {
     const lines = [];
     let currentLine = [];
 
@@ -2510,7 +2511,7 @@
       }
 
       const candidateLine = [...currentLine, token];
-      if (currentLine.length === 0 || measureRichTextTokens(candidateLine, fontSize) <= maxWidth) {
+      if (currentLine.length === 0 || measureRichTextTokens(candidateLine, fontSize, font) <= maxWidth) {
         currentLine = candidateLine;
         continue;
       }
@@ -2546,8 +2547,28 @@
     return tokens.slice(start, end);
   }
 
-  function measureRichTextTokens(tokens, fontSize) {
-    return tokens.reduce((width, token) => width + measurePdfText(token.text, fontSize), 0);
+  function mergeRichTextRuns(tokens) {
+    const runs = [];
+
+    for (const token of tokens || []) {
+      const previous = runs[runs.length - 1];
+
+      if (previous && previous.url === token.url) {
+        previous.text += token.text;
+        continue;
+      }
+
+      runs.push({
+        text: token.text,
+        url: token.url || ""
+      });
+    }
+
+    return runs;
+  }
+
+  function measureRichTextTokens(tokens, fontSize, font = "F1") {
+    return tokens.reduce((width, token) => width + measurePdfText(token.text, fontSize, font), 0);
   }
 
   function wrapPdfText(text, maxWidth, fontSize) {
@@ -2818,14 +2839,162 @@
     return widths;
   }
 
-  function measurePdfText(text, fontSize) {
+  function createPdfHelveticaBoldWidthMap() {
+    const widths = createPdfHelveticaWidthMap();
+    const set = (characters, width) => {
+      for (const character of characters) {
+        widths.set(character.codePointAt(0), width);
+      }
+    };
+    const aliasBytes = (bytes, baseCharacter) => {
+      const width = widths.get(baseCharacter.codePointAt(0)) || PDF_HELVETICA_WIDTH_FALLBACK;
+      for (const byte of bytes) {
+        widths.set(byte, width);
+      }
+    };
+
+    set(" ", 278);
+    set("!", 333);
+    set("\"", 474);
+    set("#$0123456789=", 556);
+    set("%", 889);
+    set("&", 722);
+    set("'", 278);
+    set("()", 333);
+    set("*", 389);
+    set("+<>~", 584);
+    set(",", 278);
+    set("-", 333);
+    set("./", 278);
+    set(":;", 333);
+    set("?", 611);
+    set("@", 975);
+    set("[\\]", 333);
+    set("_", 556);
+    set("`", 278);
+    set("{|}", 389);
+    set("ABCDHNKRU", 722);
+    set("E", 667);
+    set("F", 611);
+    set("GOQ", 778);
+    set("I", 278);
+    set("J", 556);
+    set("L", 611);
+    set("M", 833);
+    set("PSVXY", 667);
+    set("T", 611);
+    set("W", 944);
+    set("Z", 611);
+    set("acexy", 556);
+    set("bdghnopqu", 611);
+    set("fjt", 333);
+    set("i", 278);
+    set("k", 556);
+    set("l", 278);
+    set("m", 889);
+    set("r", 389);
+    set("s", 556);
+    set("vw", 778);
+    set("z", 500);
+
+    widths.set(128, 556);
+    widths.set(130, 278);
+    widths.set(131, 556);
+    widths.set(132, 278);
+    widths.set(133, 1000);
+    widths.set(134, 556);
+    widths.set(135, 556);
+    widths.set(136, 333);
+    widths.set(137, 1000);
+    widths.set(139, 333);
+    widths.set(140, 1000);
+    widths.set(152, 333);
+    widths.set(153, 1000);
+    widths.set(155, 333);
+    widths.set(156, 944);
+    widths.set(160, 278);
+    widths.set(161, 333);
+    widths.set(162, 556);
+    widths.set(163, 556);
+    widths.set(164, 556);
+    widths.set(165, 556);
+    widths.set(166, 389);
+    widths.set(167, 556);
+    widths.set(168, 333);
+    widths.set(169, 737);
+    widths.set(170, 370);
+    widths.set(171, 556);
+    widths.set(172, 584);
+    widths.set(173, 333);
+    widths.set(174, 737);
+    widths.set(175, 333);
+    widths.set(176, 400);
+    widths.set(177, 584);
+    widths.set(178, 333);
+    widths.set(179, 333);
+    widths.set(180, 278);
+    widths.set(181, 611);
+    widths.set(182, 556);
+    widths.set(183, 278);
+    widths.set(184, 278);
+    widths.set(185, 333);
+    widths.set(186, 365);
+    widths.set(187, 556);
+    widths.set(188, 834);
+    widths.set(189, 834);
+    widths.set(190, 834);
+    widths.set(191, 611);
+    widths.set(198, 1000);
+    widths.set(208, 722);
+    widths.set(215, 584);
+    widths.set(216, 778);
+    widths.set(222, 667);
+    widths.set(223, 611);
+    widths.set(230, 889);
+    widths.set(240, 611);
+    widths.set(247, 584);
+    widths.set(248, 611);
+    widths.set(254, 611);
+    widths.set(255, 556);
+
+    aliasBytes([138], "S");
+    aliasBytes([142], "Z");
+    aliasBytes([154], "s");
+    aliasBytes([158], "z");
+    aliasBytes([159], "Y");
+    aliasBytes([192, 193, 194, 195, 196, 197], "A");
+    aliasBytes([199], "C");
+    aliasBytes([200, 201, 202, 203], "E");
+    aliasBytes([204, 205, 206, 207], "I");
+    aliasBytes([209], "N");
+    aliasBytes([210, 211, 212, 213, 214], "O");
+    aliasBytes([217, 218, 219, 220], "U");
+    aliasBytes([221], "Y");
+    aliasBytes([224, 225, 226, 227, 228, 229], "a");
+    aliasBytes([231], "c");
+    aliasBytes([232, 233, 234, 235], "e");
+    aliasBytes([236, 237, 238, 239], "i");
+    aliasBytes([241], "n");
+    aliasBytes([242, 243, 244, 245, 246], "o");
+    aliasBytes([249, 250, 251, 252], "u");
+    aliasBytes([253], "y");
+
+    return widths;
+  }
+
+  function measurePdfText(text, fontSize, font = "F1") {
     let width = 0;
+    const widths = getPdfWidthMap(font);
 
     for (const byte of encodeWinAnsi(text)) {
-      width += PDF_HELVETICA_WIDTHS.get(byte) || PDF_HELVETICA_WIDTH_FALLBACK;
+      width += widths.get(byte) || PDF_HELVETICA_WIDTH_FALLBACK;
     }
 
     return width * fontSize / 1000;
+  }
+
+  function getPdfWidthMap(font) {
+    return font === "F2" ? PDF_HELVETICA_BOLD_WIDTHS : PDF_HELVETICA_WIDTHS;
   }
 
   function getPdfJustifiedWordSpacing(text, maxWidth, fontSize) {

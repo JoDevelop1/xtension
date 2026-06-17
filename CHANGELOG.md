@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.11
+
+- Fixes spacing in the final bold PDF follow callout by measuring Helvetica Bold text correctly.
+- Renders continuous rich-text runs instead of drawing every word separately, preventing collapsed spaces between words and links.
+
 ## v0.4.10
 
 - Formats the final PDF follow callout as two centered bold lines.
