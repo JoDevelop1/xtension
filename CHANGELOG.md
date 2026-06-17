@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.5
+
+- Uses Helvetica-compatible PDF text metrics for body justification so generated paragraphs align cleanly to the right margin.
+
 ## v0.4.4
 
 - Makes the PDF document icon corner transparent so the folded page effect is visible on light backgrounds.

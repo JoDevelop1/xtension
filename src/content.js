@@ -59,6 +59,37 @@
   ].join(", ");
   const PROFILE_IMAGE_SELECTOR = 'img[src*="/profile_images/"], img[src*="profile_images"]';
   const STATUS_PATH_PATTERN = /^\/([^/?#]+)\/status\/(\d+)/;
+  const PDF_HELVETICA_WIDTH_FALLBACK = 556;
+  const PDF_HELVETICA_WIDTHS = createPdfHelveticaWidthMap();
+  const PDF_WIN_ANSI_REPLACEMENTS = new Map([
+    [0x0152, 140],
+    [0x0153, 156],
+    [0x0160, 138],
+    [0x0161, 154],
+    [0x0178, 159],
+    [0x017D, 142],
+    [0x017E, 158],
+    [0x0192, 131],
+    [0x02C6, 136],
+    [0x02DC, 152],
+    [0x2013, 45],
+    [0x2014, 45],
+    [0x2018, 39],
+    [0x2019, 39],
+    [0x201A, 130],
+    [0x201C, 34],
+    [0x201D, 34],
+    [0x201E, 132],
+    [0x2020, 134],
+    [0x2021, 135],
+    [0x2022, 45],
+    [0x2026, 133],
+    [0x2030, 137],
+    [0x2039, 139],
+    [0x203A, 155],
+    [0x20AC, 128],
+    [0x2122, 153]
+  ]);
 
   let enhanceQueued = false;
   let lastMenuContext = null;
@@ -2437,22 +2468,149 @@
     return lines;
   }
 
+  function createPdfHelveticaWidthMap() {
+    const widths = new Map();
+    const add = (characters, width) => {
+      for (const character of characters) {
+        widths.set(character.codePointAt(0), width);
+      }
+    };
+    const aliasBytes = (bytes, baseCharacter) => {
+      const width = widths.get(baseCharacter.codePointAt(0)) || PDF_HELVETICA_WIDTH_FALLBACK;
+      for (const byte of bytes) {
+        widths.set(byte, width);
+      }
+    };
+
+    // Widths are in thousandths of an em for the PDF base Helvetica font.
+    add(" !", 278);
+    add("\"", 355);
+    add("#$0123456789=_", 556);
+    add("%", 889);
+    add("&", 667);
+    add("'", 222);
+    add("()", 333);
+    add("*", 389);
+    add("+<>~", 584);
+    add(",./:;[]\\", 278);
+    add("-", 333);
+    add("?", 556);
+    add("@", 1015);
+    add("ABEPRSVXY", 667);
+    add("CDHNU", 722);
+    add("GOQ", 778);
+    add("FTZ", 611);
+    add("I", 278);
+    add("J", 500);
+    add("K", 667);
+    add("L", 556);
+    add("M", 833);
+    add("W", 944);
+    add("^", 469);
+    add("`", 222);
+    add("abdeghnopqu", 556);
+    add("cksvxyz", 500);
+    add("ft", 278);
+    add("ijl", 222);
+    add("m", 833);
+    add("r", 333);
+    add("w", 722);
+    add("{}", 334);
+    add("|", 260);
+
+    widths.set(128, 556);
+    widths.set(130, 222);
+    widths.set(131, 556);
+    widths.set(132, 333);
+    widths.set(133, 1000);
+    widths.set(134, 556);
+    widths.set(135, 556);
+    widths.set(136, 333);
+    widths.set(137, 1000);
+    widths.set(139, 333);
+    widths.set(140, 1000);
+    widths.set(152, 333);
+    widths.set(153, 1000);
+    widths.set(155, 333);
+    widths.set(156, 944);
+    widths.set(160, 278);
+    widths.set(161, 333);
+    widths.set(162, 556);
+    widths.set(163, 556);
+    widths.set(164, 556);
+    widths.set(165, 556);
+    widths.set(166, 260);
+    widths.set(167, 556);
+    widths.set(168, 333);
+    widths.set(169, 737);
+    widths.set(170, 370);
+    widths.set(171, 556);
+    widths.set(172, 584);
+    widths.set(173, 333);
+    widths.set(174, 737);
+    widths.set(175, 333);
+    widths.set(176, 400);
+    widths.set(177, 584);
+    widths.set(178, 333);
+    widths.set(179, 333);
+    widths.set(180, 333);
+    widths.set(181, 556);
+    widths.set(182, 537);
+    widths.set(183, 278);
+    widths.set(184, 333);
+    widths.set(185, 333);
+    widths.set(186, 365);
+    widths.set(187, 556);
+    widths.set(188, 834);
+    widths.set(189, 834);
+    widths.set(190, 834);
+    widths.set(191, 611);
+    widths.set(198, 1000);
+    widths.set(208, 722);
+    widths.set(215, 584);
+    widths.set(216, 778);
+    widths.set(222, 667);
+    widths.set(223, 611);
+    widths.set(230, 889);
+    widths.set(240, 556);
+    widths.set(247, 584);
+    widths.set(248, 611);
+    widths.set(254, 556);
+    widths.set(255, 500);
+
+    aliasBytes([138], "S");
+    aliasBytes([142], "Z");
+    aliasBytes([154], "s");
+    aliasBytes([158], "z");
+    aliasBytes([159], "Y");
+    aliasBytes([192, 193, 194, 195, 196, 197], "A");
+    aliasBytes([199], "C");
+    aliasBytes([200, 201, 202, 203], "E");
+    aliasBytes([204, 205, 206, 207], "I");
+    aliasBytes([209], "N");
+    aliasBytes([210, 211, 212, 213, 214], "O");
+    aliasBytes([217, 218, 219, 220], "U");
+    aliasBytes([221], "Y");
+    aliasBytes([224, 225, 226, 227, 228, 229], "a");
+    aliasBytes([231], "c");
+    aliasBytes([232, 233, 234, 235], "e");
+    aliasBytes([236, 237, 238, 239], "i");
+    aliasBytes([241], "n");
+    aliasBytes([242, 243, 244, 245, 246], "o");
+    aliasBytes([249, 250, 251, 252], "u");
+    aliasBytes([253], "y");
+
+    return widths;
+  }
+
   function measurePdfText(text, fontSize) {
     let width = 0;
 
-    for (const character of text) {
-      if (" .,;:!|ilI'`[]()".includes(character)) {
-        width += 0.28;
-      } else if ("mwMW@#%&".includes(character)) {
-        width += 0.82;
-      } else if (character === character.toUpperCase() && /[A-Z]/.test(character)) {
-        width += 0.62;
-      } else {
-        width += 0.52;
-      }
+    for (const byte of encodeWinAnsi(text)) {
+      width += PDF_HELVETICA_WIDTHS.get(byte) || PDF_HELVETICA_WIDTH_FALLBACK;
     }
 
-    return width * fontSize;
+    return width * fontSize / 1000;
   }
 
   function getPdfJustifiedWordSpacing(text, maxWidth, fontSize) {
@@ -2698,42 +2856,13 @@
   }
 
   function encodeWinAnsi(value) {
-    const replacementMap = new Map([
-      [0x0152, 140],
-      [0x0153, 156],
-      [0x0160, 138],
-      [0x0161, 154],
-      [0x0178, 159],
-      [0x017D, 142],
-      [0x017E, 158],
-      [0x0192, 131],
-      [0x02C6, 136],
-      [0x02DC, 152],
-      [0x2013, 45],
-      [0x2014, 45],
-      [0x2018, 39],
-      [0x2019, 39],
-      [0x201A, 130],
-      [0x201C, 34],
-      [0x201D, 34],
-      [0x201E, 132],
-      [0x2020, 134],
-      [0x2021, 135],
-      [0x2022, 45],
-      [0x2026, 133],
-      [0x2030, 137],
-      [0x2039, 139],
-      [0x203A, 155],
-      [0x20AC, 128],
-      [0x2122, 153]
-    ]);
     const bytes = [];
 
     for (const character of String(value || "")) {
       const codePoint = character.codePointAt(0);
 
-      if (replacementMap.has(codePoint)) {
-        bytes.push(replacementMap.get(codePoint));
+      if (PDF_WIN_ANSI_REPLACEMENTS.has(codePoint)) {
+        bytes.push(PDF_WIN_ANSI_REPLACEMENTS.get(codePoint));
       } else if (codePoint >= 32 && codePoint <= 255) {
         bytes.push(codePoint);
       } else if (codePoint === 9 || codePoint === 10 || codePoint === 13) {
