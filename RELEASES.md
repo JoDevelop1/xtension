@@ -1,53 +1,53 @@
-# Installer depuis GitHub Releases
+# Install From GitHub Releases
 
-Tant que Xtension n'est pas publié sur les stores, les utilisateurs peuvent l'installer manuellement depuis les archives de release.
+Until Xtension is published in browser stores, users can install it manually from GitHub release archives.
 
-## Quel fichier télécharger ?
+## Which File Should I Download?
 
-- Microsoft Edge : `xtension-edge-vX.Y.Z.zip`
-- Chrome, Brave, Vivaldi, Opera : `xtension-chrome-vX.Y.Z.zip`
-- Firefox : `xtension-firefox-vX.Y.Z.zip`
+- Microsoft Edge: `xtension-edge-vX.Y.Z.zip`
+- Chrome, Brave, Vivaldi, Opera: `xtension-chrome-vX.Y.Z.zip`
+- Firefox: `xtension-firefox-vX.Y.Z.zip`
 
-Le fichier `SHA256SUMS.txt` permet de vérifier que les archives téléchargées correspondent bien à celles générées pendant la release.
+`SHA256SUMS.txt` lets you verify that the downloaded archives match the files generated during the release.
 
 ## Edge
 
-1. Télécharge `xtension-edge-vX.Y.Z.zip`.
-2. Décompresse le zip dans un dossier stable, par exemple `Documents/Xtension/edge`.
-3. Ouvre `edge://extensions`.
-4. Active **Mode développeur**.
-5. Clique **Charger l'extension décompressée**.
-6. Sélectionne le dossier décompressé.
+1. Download `xtension-edge-vX.Y.Z.zip`.
+2. Extract the zip into a stable folder, for example `Documents/Xtension/edge`.
+3. Open `edge://extensions`.
+4. Enable **Developer mode**.
+5. Click **Load unpacked**.
+6. Select the extracted folder.
 
 ## Chrome / Brave / Vivaldi / Opera
 
-1. Télécharge `xtension-chrome-vX.Y.Z.zip`.
-2. Décompresse le zip dans un dossier stable.
-3. Ouvre `chrome://extensions`.
-4. Active **Mode développeur**.
-5. Clique **Charger l'extension non empaquetée**.
-6. Sélectionne le dossier décompressé.
+1. Download `xtension-chrome-vX.Y.Z.zip`.
+2. Extract the zip into a stable folder.
+3. Open `chrome://extensions`.
+4. Enable **Developer mode**.
+5. Click **Load unpacked**.
+6. Select the extracted folder.
 
 ## Firefox
 
-Firefox ne garde pas durablement les extensions non signées chargées via `about:debugging`.
+Firefox does not keep unsigned extensions permanently when they are loaded through `about:debugging`.
 
-Pour un test temporaire :
+For temporary testing:
 
-1. Télécharge `xtension-firefox-vX.Y.Z.zip`.
-2. Décompresse le zip.
-3. Ouvre `about:debugging#/runtime/this-firefox`.
-4. Clique **Charger un module complémentaire temporaire**.
-5. Sélectionne le fichier `manifest.json` dans le dossier décompressé.
+1. Download `xtension-firefox-vX.Y.Z.zip`.
+2. Extract the zip.
+3. Open `about:debugging#/runtime/this-firefox`.
+4. Click **Load Temporary Add-on**.
+5. Select `manifest.json` in the extracted folder.
 
-Pour une installation durable dans Firefox, l'extension doit être signée via Mozilla Add-ons.
+For permanent Firefox installation, the extension must be signed through Mozilla Add-ons.
 
-## Vérifier le checksum
+## Verify Checksums
 
-Dans PowerShell :
+In PowerShell:
 
 ```powershell
 Get-FileHash .\xtension-edge-vX.Y.Z.zip -Algorithm SHA256
 ```
 
-Compare la valeur avec la ligne correspondante dans `SHA256SUMS.txt`.
+Compare the value with the corresponding line in `SHA256SUMS.txt`.

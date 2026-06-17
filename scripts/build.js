@@ -1,13 +1,14 @@
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
+const { writeLocales } = require("./locales");
 
 const root = path.resolve(__dirname, "..");
 const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.4.0";
+const version = "0.4.1";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",
@@ -27,12 +28,13 @@ const hostPermissions = [
 
 const shared = {
   manifest_version: 3,
-  name: "Xtension",
+  name: "__MSG_extensionName__",
   short_name: "Xtension",
   version,
-  description: "Télécharge les articles, tweets et threads X/Twitter en PDF depuis le menu X.",
+  default_locale: "en",
+  description: "__MSG_extensionDescription__",
   action: {
-    default_title: "Xtension",
+    default_title: "__MSG_actionTitle__",
     default_icon: iconMap()
   },
   icons: iconMap(),
@@ -107,6 +109,7 @@ function copyExtensionFiles(targetDir) {
     copyFile(path.join(src, file), path.join(targetDir, file));
   }
 
+  writeLocales(targetDir);
   copyFile(path.join(assets, "pdf-menu-icon.png"), path.join(targetDir, "pdf-menu-icon.png"));
 
   for (const size of [16, 32, 48, 128]) {
@@ -250,15 +253,15 @@ const safariDir = path.join(browsers, "safari");
 fs.mkdirSync(safariDir, { recursive: true });
 fs.writeFileSync(path.join(safariDir, "README.md"), `# Safari
 
-Safari ne charge pas directement un dossier WebExtension comme Chrome, Edge ou Firefox.
+Safari does not load a WebExtension folder directly like Chrome, Edge, or Firefox.
 
-Utilise le package Chromium comme source, depuis macOS avec Xcode :
+Use the Chromium package as the source from macOS with Xcode:
 
 \`\`\`bash
 xcrun safari-web-extension-converter browsers/chrome --bundle-identifier com.example.xtension
 \`\`\`
 
-Le convertisseur génère un projet Xcode contenant l'extension Safari et l'app hôte requise pour publication App Store.
+The converter generates an Xcode project containing the Safari extension and the host app required for App Store distribution.
 `, "utf8");
 
 console.log(`Built ${Object.keys(targets).length} browser packages in ${path.relative(root, dist)}`);

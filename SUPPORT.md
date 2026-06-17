@@ -1,11 +1,11 @@
 # Support
 
-Pour signaler un bug, ouvre une issue GitHub et indique :
+To report a bug, open a GitHub issue and include:
 
-- Navigateur et version.
-- URL de l'article, tweet ou thread X/Twitter.
-- Si le PDF se télécharge.
-- Si les images apparaissent dans le PDF.
-- Capture d'écran si le rendu est incorrect.
+- Browser and version.
+- X/Twitter article, tweet, or thread URL.
+- Whether the PDF downloads.
+- Whether images appear in the PDF.
+- Screenshot if rendering is incorrect.
 
-N'inclus pas de cookie, token, capture contenant des messages privés ou informations personnelles.
+Do not include cookies, tokens, screenshots containing private messages, or personal information.

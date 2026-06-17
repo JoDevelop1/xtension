@@ -112,7 +112,7 @@ def draw_brand_header(draw, width, title, subtitle):
 def promo(width, height, path, marquee=False):
     img = Image.new("RGBA", (width, height), "#f7f9f9")
     d = ImageDraw.Draw(img)
-    draw_brand_header(d, width, "Xtension", "Articles, tweets et threads en PDF")
+    draw_brand_header(d, width, "Xtension", "Clean PDF exports from X/Twitter")
 
     left = 56 if marquee else 34
     top = 165 if marquee else 154
@@ -122,7 +122,7 @@ def promo(width, height, path, marquee=False):
 
     text_x = left + 32
     d.text((text_x, top + 28), "X/Twitter", fill="#0f1419", font=font(26 if marquee else 17, True))
-    d.text((text_x, top + 74), "Menu ...  ->  Télécharger en PDF", fill="#536471", font=font(18 if marquee else 12))
+    d.text((text_x, top + 74), "Menu ...  ->  Download as PDF", fill="#536471", font=font(18 if marquee else 12))
 
     pdf_x = width - (430 if marquee else 132)
     pdf_y = 160 if marquee else 146
@@ -134,8 +134,8 @@ def promo(width, height, path, marquee=False):
     rounded_rectangle(d, (pdf_x + (190 if marquee else 52), pdf_y + (250 if marquee else 78), pdf_x + (286 if marquee else 82), pdf_y + (310 if marquee else 100)), 10, "#e53935")
 
     if marquee:
-        d.text((730, 240), "Texte + images", fill="#0f1419", font=font(44, True))
-        d.text((730, 304), "Un PDF propre depuis le menu X.", fill="#536471", font=font(24))
+        d.text((730, 240), "Text + images", fill="#0f1419", font=font(44, True))
+        d.text((730, 304), "A clean PDF from the X menu.", fill="#536471", font=font(24))
 
     img.convert("RGB").save(path)
 
@@ -150,23 +150,23 @@ def screenshot(path, variant=1):
 
     rounded_rectangle(d, (90, 110, 690, 710), 22, "#ffffff", "#d8e0e5", 2)
     d.text((134, 150), "Thread X/Twitter", fill="#0f1419", font=font(34, True))
-    d.text((134, 205), "Texte, images et messages du même auteur.", fill="#536471", font=font(18))
+    d.text((134, 205), "Text, images, and same-author posts.", fill="#536471", font=font(18))
     for i in range(8):
         y = 270 + i * 34
         d.rectangle((134, y, 610 - (i % 3) * 60, y + 12), fill="#d8e0e5")
     rounded_rectangle(d, (134, 570, 610, 670), 14, "#e8f5fd", "#9bd4ff", 2)
-    d.text((164, 606), "Image intégrée dans le PDF", fill="#1d4f7a", font=font(20, True))
+    d.text((164, 606), "Image embedded in the PDF", fill="#1d4f7a", font=font(20, True))
 
     rounded_rectangle(d, (760, 138, 1136, 430), 18, "#ffffff", "#d8e0e5", 2)
     d.text((804, 180), "Menu ...", fill="#0f1419", font=font(24, True))
     d.rectangle((804, 238, 1090, 240), fill="#edf2f5")
-    d.text((836, 272), "Télécharger en PDF", fill="#0f1419", font=font(22, True))
-    d.text((836, 314), "Choisis le dossier avec Enregistrer sous.", fill="#536471", font=font(15))
+    d.text((836, 272), "Download as PDF", fill="#0f1419", font=font(22, True))
+    d.text((836, 314), "Choose the folder from Save As.", fill="#536471", font=font(15))
 
     if variant == 2:
         rounded_rectangle(d, (760, 470, 1136, 710), 18, "#ffffff", "#d8e0e5", 2)
-        d.text((804, 512), "PDF généré", fill="#0f1419", font=font(26, True))
-        d.text((804, 560), "Titres, paragraphes, listes et images.", fill="#536471", font=font(18))
+        d.text((804, 512), "PDF generated", fill="#0f1419", font=font(26, True))
+        d.text((804, 560), "Headings, paragraphs, lists, and images.", fill="#536471", font=font(18))
         d.rectangle((804, 612, 1090, 634), fill="#e53935")
 
     img.save(path)

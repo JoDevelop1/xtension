@@ -1,32 +1,38 @@
 # Changelog
 
+## v0.4.1
+
+- Added WebExtension localization with the same locale coverage as the PapaClip browser extension.
+- Localized extension metadata, the X/Twitter menu action, export progress messages, and PDF fallback text.
+- Switched public documentation and generated promotional visuals to English.
+
 ## v0.4.0
 
-- Ajout du bouton **Télécharger en PDF** sur les menus de tweets.
-- Ajout de l'export des threads X/Twitter en PDF.
-- Détection des messages contigus du même auteur et arrêt avant les réponses d'autres comptes.
-- Ajout du contenu des tweets inclus/cités dans le PDF.
-- Ajout d'un aperçu et d'une mention de source pour les vidéos, les PDF navigateurs ne lisant pas les vidéos de façon portable.
-- Libellés et textes de publication mis à jour pour couvrir articles, tweets et threads.
+- Added **Download as PDF** to X/Twitter tweet menus.
+- Added PDF export for X/Twitter threads.
+- Detects contiguous posts from the same author and stops before replies from other accounts.
+- Includes quoted tweets with their available text and media.
+- Adds video previews and source notes, because browser PDFs do not play video reliably across viewers.
+- Updated release and store copy to cover articles, tweets, and threads.
 
 ## v0.3.0
 
-- Renommage public en **Xtension**.
-- Nouveau logo basé sur un symbole mathématique `×`, distinct du logo officiel X.
-- Export PDF direct depuis le menu des articles X/Twitter.
-- Intégration des images média dans les PDF.
-- Packages séparés pour Edge, Chrome/Chromium et Firefox.
-- Documentation de sideload via GitHub Releases.
-- Workflow GitHub Actions pour générer les zips et les checksums.
+- Renamed the public project to **Xtension**.
+- Added a new logo based on a mathematical `x`, distinct from the official X logo.
+- Added direct PDF export from X/Twitter article menus.
+- Embedded media images in generated PDFs.
+- Added separate packages for Edge, Chrome/Chromium, and Firefox.
+- Added sideload documentation through GitHub Releases.
+- Added a GitHub Actions workflow to generate zips and checksums.
 
 ## v0.2.0
 
-- Ajout du téléchargement direct PDF avec boîte **Enregistrer sous**.
-- Ajout des images dans les PDF générés.
-- Premiers manifestes multi-navigateurs.
+- Added direct PDF download with the browser **Save As** dialog.
+- Added images to generated PDFs.
+- Added the first multi-browser manifests.
 
 ## v0.1.0
 
-- Prototype Edge/Chrome Manifest V3.
-- Ajout d'une action dans le menu des articles.
-- Extraction texte des articles long-form X.
+- Added the Edge/Chrome Manifest V3 prototype.
+- Added an action to the article menu.
+- Added text extraction for X long-form articles.

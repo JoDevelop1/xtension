@@ -1,24 +1,24 @@
 # Xtension
 
-Extension dédiée à X/Twitter qui ajoute **Télécharger en PDF** dans le menu `...` des articles, tweets et threads. Le PDF est généré localement, inclut le texte structuré, les tweets inclus/cités, les images disponibles et les aperçus vidéo.
+Xtension is a browser extension built to improve the X/Twitter experience with practical tools. The current feature set focuses on clean PDF exports from X/Twitter articles, tweets, and threads, including structured text, quoted tweets, available images, and video previews.
 
-> Xtension est un projet indépendant. Il n'est pas affilié à X Corp., Twitter, Microsoft, Google, Mozilla ou Apple.
+> Xtension is an independent project. It is not affiliated with X Corp., Twitter, Microsoft, Google, Mozilla, or Apple.
 
-## Dossiers générés à utiliser
+## Generated Folders
 
-Ces dossiers sont créés par `npm run build` et ne sont pas suivis dans Git.
+These folders are created by `npm run build` and are not tracked in Git.
 
-- `browsers/edge` : dossier décompressé à charger dans Microsoft Edge.
-- `browsers/chrome` : dossier décompressé à charger dans Chrome, Brave, Vivaldi ou Opera.
-- `browsers/firefox` : dossier décompressé à charger temporairement dans Firefox.
-- `browsers/safari` : instructions de conversion Safari via Xcode sur macOS.
-- `dist/*.zip` : archives prêtes pour les stores.
-- `store-assets/` : logo, images promotionnelles et screenshots pour les fiches store.
-- `store-listings/` : textes prêts à coller dans Chrome Web Store, Edge Add-ons et AMO.
+- `browsers/edge`: unpacked folder to load in Microsoft Edge.
+- `browsers/chrome`: unpacked folder to load in Chrome, Brave, Vivaldi, or Opera.
+- `browsers/firefox`: unpacked folder to load temporarily in Firefox.
+- `browsers/safari`: Safari conversion notes for Xcode on macOS.
+- `dist/*.zip`: store-ready archives.
+- `store-assets/`: logos, promotional images, and screenshots for store listings.
+- `store-listings/`: listing copy for Chrome Web Store, Edge Add-ons, and AMO.
 
 ## Build
 
-Prérequis : Node.js, Python et Pillow pour générer les icônes et visuels.
+Requirements: Node.js, Python, and Pillow for generated icons and promotional visuals.
 
 ```powershell
 python -m pip install pillow
@@ -29,31 +29,39 @@ npm run build
 npm run check
 ```
 
-## Installation locale
+## Localization
+
+Xtension uses the standard WebExtension `_locales` system. The generated browser packages include the same locale coverage used by the PapaClip browser extension:
+
+`ar`, `cs`, `da`, `de`, `en`, `es`, `fi`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `no`, `pl`, `pt_BR`, `pt_PT`, `ro`, `sv`, `tr`, `zh_CN`.
+
+The browser automatically selects the best matching locale from the user's UI language.
+
+## Local Installation
 
 ### Edge
 
-1. Ouvre `edge://extensions`.
-2. Active **Mode développeur**.
-3. Clique **Charger l'extension décompressée**.
-4. Sélectionne le dossier `browsers/edge`.
+1. Open `edge://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select `browsers/edge`.
 
 ### Chrome / Brave / Vivaldi / Opera
 
-1. Ouvre `chrome://extensions` ou la page équivalente du navigateur Chromium.
-2. Active **Mode développeur**.
-3. Clique **Charger l'extension non empaquetée**.
-4. Sélectionne le dossier `browsers/chrome`.
+1. Open `chrome://extensions` or the equivalent extension page for your Chromium browser.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select `browsers/chrome`.
 
 ### Firefox
 
-1. Ouvre `about:debugging#/runtime/this-firefox`.
-2. Clique **Charger un module complémentaire temporaire**.
-3. Sélectionne `browsers/firefox/manifest.json`.
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on**.
+3. Select `browsers/firefox/manifest.json`.
 
 ### Safari
 
-Safari nécessite Xcode sur macOS. Utilise `browsers/chrome` comme source avec le convertisseur Safari :
+Safari requires Xcode on macOS. Use `browsers/chrome` as the source with the Safari converter:
 
 ```bash
 xcrun safari-web-extension-converter browsers/chrome --bundle-identifier com.example.xtension
@@ -61,23 +69,23 @@ xcrun safari-web-extension-converter browsers/chrome --bundle-identifier com.exa
 
 ## Publication
 
-Voir [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
+See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
-Archives générées :
+Generated archives:
 
-- `dist/xtension-chrome-v0.4.0.zip`
-- `dist/xtension-edge-v0.4.0.zip`
-- `dist/xtension-firefox-v0.4.0.zip`
+- `dist/xtension-chrome-v0.4.1.zip`
+- `dist/xtension-edge-v0.4.1.zip`
+- `dist/xtension-firefox-v0.4.1.zip`
 - `dist/SHA256SUMS.txt`
 
-## Releases GitHub
+## GitHub Releases
 
-Voir [RELEASES.md](RELEASES.md) pour installer Xtension depuis une release GitHub en attendant la validation des stores.
+See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while store publication is pending.
 
 ## Permissions
 
-- `downloads` : ouvrir la boîte **Enregistrer sous** pour le PDF.
-- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*` : injecter l'action dans le menu des articles, tweets et threads X/Twitter.
-- `https://pbs.twimg.com/*`, `https://video.twimg.com/*`, `https://*.twimg.com/*`, `https://t.co/*` : rester compatible avec les médias et liens publics utilisés par X/Twitter.
+- `downloads`: open the browser **Save As** dialog for the PDF.
+- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: inject the action into X/Twitter article, tweet, and thread menus.
+- `https://pbs.twimg.com/*`, `https://video.twimg.com/*`, `https://*.twimg.com/*`, `https://t.co/*`: remain compatible with public X/Twitter media and public link domains.
 
-L'extension reste limitée aux domaines X/Twitter et aux domaines média associés.
+The extension is limited to X/Twitter and the related media domains listed above.

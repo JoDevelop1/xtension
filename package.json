@@ -1,12 +1,12 @@
 {
   "name": "xtension",
-  "version": "0.4.0",
-  "description": "Browser extension to download X/Twitter articles, tweets and threads as clean PDF files.",
+  "version": "0.4.1",
+  "description": "Browser extension to improve the X/Twitter experience with practical tools.",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "build": "npm run build:assets && node scripts/build.js",
     "build:assets": "python scripts/generate_assets.py",
-    "check": "node --check src/content.js && node --check src/background.js && node --check scripts/build.js"
+    "check": "node --check src/content.js && node --check src/background.js && node --check scripts/build.js && node --check scripts/locales.js"
   }
 }

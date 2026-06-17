@@ -1,10 +1,10 @@
 # Security
 
-Xtension ne collecte pas de données et ne communique pas avec un serveur applicatif tiers.
+Xtension does not collect data and does not communicate with a third-party application server.
 
-Pour signaler une vulnérabilité :
+To report a vulnerability:
 
-1. Ouvre une issue GitHub si le rapport ne contient pas de donnée sensible.
-2. Si le rapport contient des détails sensibles, contacte le mainteneur du repository par un canal privé avant publication.
+1. Open a GitHub issue if the report does not contain sensitive data.
+2. If the report contains sensitive details, contact the repository maintainer privately before public disclosure.
 
-N'inclus jamais de cookie, jeton, capture de messages privés ou information personnelle dans une issue publique.
+Never include cookies, tokens, screenshots of private messages, or personal information in a public issue.

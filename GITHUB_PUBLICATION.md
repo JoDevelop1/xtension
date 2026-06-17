@@ -1,36 +1,28 @@
-# Publication GitHub
+# GitHub Publication
 
-Ce fichier sert de mémo pour publier Xtension en repository GitHub public et créer une release utilisable avant publication sur les stores.
+This file is a maintenance memo for publishing Xtension as a public GitHub repository and creating release archives before store publication.
 
-## Description courte GitHub
+## GitHub Short Description
 
-À mettre dans le champ **Description** lors de la création du repository :
-
-```text
-Browser extension to download X/Twitter articles, tweets and threads as clean PDF files with images.
-```
-
-Version française possible :
+Use this in the repository **Description** field:
 
 ```text
-Extension navigateur pour télécharger les articles, tweets et threads X/Twitter en PDF propre avec leurs images.
+Browser extension to improve the X/Twitter experience with practical tools.
 ```
 
-## Création du repository
+## Repository Creation
 
-1. Va sur https://github.com/new
-2. Repository name : `xtension`
-3. Description : utilise une des descriptions ci-dessus.
-4. Visibility : **Public**
-5. Ne coche pas README, `.gitignore` ou license : ils existent déjà localement.
-6. Clique **Create repository**.
+1. Go to https://github.com/new
+2. Repository name: `xtension`
+3. Description: use the description above.
+4. Visibility: **Public**
+5. Do not add a README, `.gitignore`, or license: they already exist locally.
+6. Click **Create repository**.
 
-## Push initial
+## Initial Push
 
-Ne pousse pas l'historique Git local existant si l'objectif est une publication sans identité personnelle.
-Crée une branche publique sans historique, avec une identité Git neutre :
-
-Depuis le dossier du projet :
+Do not push an existing local Git history if the goal is publication without personal identity traces.
+Create a public branch with no prior history and a neutral Git identity:
 
 ```powershell
 npm run build
@@ -45,53 +37,55 @@ git commit -m "Initial public release"
 git branch -M main
 ```
 
-Ajoute ensuite le remote GitHub et pousse uniquement cette branche :
+Then add the GitHub remote and push only this branch:
 
 ```powershell
-git remote add origin https://github.com/TON_USERNAME/xtension.git
+git remote add origin https://github.com/YOUR_USERNAME/xtension.git
 git push -u origin main
 ```
 
-Remplace `TON_USERNAME` par ton pseudo GitHub.
+Replace `YOUR_USERNAME` with the GitHub account owner.
 
-## Permissions GitHub Actions
+## GitHub Actions Permissions
 
-Dans le repository GitHub :
+In the GitHub repository:
 
-1. Va dans **Settings**.
-2. Va dans **Actions** puis **General**.
-3. Dans **Workflow permissions**, choisis **Read and write permissions**.
-4. Sauvegarde.
+1. Open **Settings**.
+2. Open **Actions** then **General**.
+3. Under **Workflow permissions**, choose **Read and write permissions**.
+4. Save.
 
-## Créer la release
+The workflow also declares `contents: write` so it can attach generated zip files to releases.
 
-Créer le tag :
+## Create A Release
+
+Create the tag:
 
 ```powershell
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
-Le workflow GitHub Actions construit les packages :
+The GitHub Actions workflow builds:
 
-- `xtension-edge-v0.4.0.zip`
-- `xtension-chrome-v0.4.0.zip`
-- `xtension-firefox-v0.4.0.zip`
+- `xtension-edge-v0.4.1.zip`
+- `xtension-chrome-v0.4.1.zip`
+- `xtension-firefox-v0.4.1.zip`
 - `SHA256SUMS.txt`
 
-Si les fichiers ne sont pas attachés automatiquement à la release, crée ou édite la release manuellement et ajoute les fichiers depuis `dist/`.
+If the files are not attached automatically, create or edit the release manually and upload the files from `dist/`.
 
-## Texte de release
+## Release Notes
 
-Utilise le contenu de :
+Use the matching file:
 
 ```text
-release-notes/v0.4.0.md
+release-notes/v0.4.1.md
 ```
 
-## Vérification avant publication
+## Pre-Publication Check
 
-À refaire juste avant le push :
+Run this immediately before pushing:
 
 ```powershell
 npm run build
@@ -99,26 +93,27 @@ npm run check
 Get-Content dist\SHA256SUMS.txt
 ```
 
-Vérifie aussi :
+Also verify:
 
-- Le README ne contient pas de chemin personnel.
-- Aucun secret ou token n'est présent.
-- Les zips sont présents dans `dist/`.
-- Le logo est transparent et lisible dans `assets/icons/`.
+- The README contains no personal path.
+- No secret or token is present.
+- The zip files exist in `dist/`.
+- The extension packages include `_locales/`.
+- The logo is transparent and readable in `assets/icons/`.
 
-## Création via API GitHub
+## GitHub API Creation
 
-Si un token GitHub est disponible localement, le repository peut être créé sans passer par l'interface web.
-Le token ne doit jamais être commité ni affiché dans les logs.
+If a GitHub token is available locally, the repository can be created without using the web interface.
+Never commit or print the token.
 
-Documentation officielle :
+Official documentation:
 
 - https://docs.github.com/rest/repos/repos#create-a-repository-for-the-authenticated-user
 - https://docs.github.com/rest/overview/authenticating-to-the-rest-api
 
-Exemple PowerShell avec `$env:GITHUB_TOKEN` déjà défini :
+Example PowerShell with `$env:GITHUB_TOKEN` already set:
 
 ```powershell
-$body = @{ name = "xtension"; private = $false; description = "Browser extension to download X/Twitter articles, tweets and threads as clean PDF files with images." } | ConvertTo-Json
+$body = @{ name = "xtension"; private = $false; description = "Browser extension to improve the X/Twitter experience with practical tools." } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "https://api.github.com/user/repos" -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" } -Body $body -ContentType "application/json"
 ```

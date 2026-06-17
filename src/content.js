@@ -1,10 +1,13 @@
 (() => {
   "use strict";
 
+  const EXTENSION_API = globalThis.chrome || globalThis.browser;
+  const RUNTIME_API = EXTENSION_API?.runtime;
+  const I18N_API = EXTENSION_API?.i18n;
   const MENU_ITEM_SELECTOR = "[data-xtension-menu-item]";
   const MENU_ITEM_ATTRIBUTE = "data-xtension-menu-item";
   const MENU_ICON_ATTRIBUTE = "data-xtension-menu-icon";
-  const MENU_LABEL = "Télécharger en PDF";
+  const MENU_LABEL = localizedText("menuDownloadPdf", "Download as PDF");
   const PDF_MENU_ICON_PATH = "pdf-menu-icon.png";
   const LONGFORM_SELECTOR = [
     ".longform-header-one",
@@ -346,8 +349,7 @@
   }
 
   function getExtensionResourceUrl(path) {
-    const runtime = (globalThis.chrome || globalThis.browser)?.runtime;
-    return runtime?.getURL ? runtime.getURL(path) : path;
+    return RUNTIME_API?.getURL ? RUNTIME_API.getURL(path) : path;
   }
 
   function findInsertionPoint(dropdown) {
@@ -363,17 +365,17 @@
   }
 
   function exportCurrentArticle(context) {
-    showToast("Préparation du PDF...", { persistent: true });
+    showToast(localizedText("toastPreparingPdf", "Preparing the PDF..."), { persistent: true });
 
     const article = collectArticle(context);
 
     if (!article) {
-      showToast("Contenu X introuvable sur la page.");
+      showToast(localizedText("toastContentNotFound", "No X content was found on this page."));
       return;
     }
 
     downloadArticleAsPdf(article).catch((error) => {
-      showToast(error?.message || "Impossible de générer le PDF.");
+      showToast(error?.message || localizedText("toastPdfGenerationFailed", "Unable to generate the PDF."));
     });
   }
 
@@ -395,7 +397,7 @@
     const authorInfo = findArticleAuthorInfo(root, titleElement, context);
 
     return {
-      title: title || "Article X",
+      title: title || localizedText("fallbackArticleTitle", "X article"),
       author: cleanHandle(authorInfo?.handle || context?.author || ""),
       authorInfo,
       kind: "article",
@@ -1163,8 +1165,8 @@
 
     const isVideo = isVideoMediaElement(element, src);
     const alt = isVideo
-      ? "Apercu video"
-      : cleanText(element.getAttribute("alt")) || "Image";
+      ? localizedText("videoPreviewLabel", "Video preview")
+      : cleanText(element.getAttribute("alt")) || localizedText("imageAltFallback", "Image");
 
     return {
       type: "image",
@@ -1303,15 +1305,15 @@
   }
 
   async function downloadArticleAsPdf(article) {
-    showToast("Préparation du PDF...", { persistent: true });
+    showToast(localizedText("toastPreparingPdf", "Preparing the PDF..."), { persistent: true });
 
     await hydrateArticleImages(article);
 
-    showToast("Génération du PDF...", { persistent: true });
+    showToast(localizedText("toastGeneratingPdf", "Generating the PDF..."), { persistent: true });
     const pdfBytes = buildDirectPdfBytes(article);
     const dataUrl = `data:application/pdf;base64,${uint8ArrayToBase64(pdfBytes)}`;
     const filename = buildExportFilename(article);
-    showToast("Ouverture de la fenêtre d'enregistrement...", { persistent: true });
+    showToast(localizedText("toastOpeningSaveDialog", "Opening the save dialog..."), { persistent: true });
     const response = await sendRuntimeMessage({
       type: "xtension-download-pdf",
       filename,
@@ -1319,7 +1321,7 @@
     });
 
     if (!response?.ok) {
-      throw new Error(response?.error || "Le téléchargement a échoué.");
+      throw new Error(response?.error || localizedText("errorDownloadFailed", "The download failed."));
     }
 
     hideToast();
@@ -1333,7 +1335,11 @@
       return;
     }
 
-    showToast(`Téléchargement des images (${imageParts.length + avatarParts.length})...`, { persistent: true });
+    showToast(localizedTemplate(
+      "toastDownloadingImages",
+      { count: imageParts.length + avatarParts.length },
+      `Downloading images (${imageParts.length + avatarParts.length})...`
+    ), { persistent: true });
 
     await Promise.all(imageParts.map(async (part) => {
       try {
@@ -1351,13 +1357,13 @@
         });
 
         if (!response?.ok || !response.image?.dataUrl) {
-          part.imageError = response?.error || "image indisponible";
+          part.imageError = response?.error || localizedText("imageUnavailable", "image unavailable");
           return;
         }
 
         part.pdfImage = await convertDataUrlImageToPdfJpeg(response.image.dataUrl);
       } catch (error) {
-        part.imageError = error?.message || "image indisponible";
+        part.imageError = error?.message || localizedText("imageUnavailable", "image unavailable");
       }
     }));
 
@@ -1540,7 +1546,7 @@
         size: "large"
       });
     } else {
-      documentBuilder.addText(article.title || "Article X", {
+      documentBuilder.addText(article.title || localizedText("fallbackArticleTitle", "X article"), {
         font: "F2",
         size: 22,
         lineHeight: 28,
@@ -1636,7 +1642,11 @@
             after: part.mediaKind === "video" ? 8 : 20
           });
         } else {
-          documentBuilder.addText(`[Image non insérée] ${part.alt}`, {
+          documentBuilder.addText(localizedTemplate(
+            "imageNotInserted",
+            { alt: part.alt || "" },
+            `[Image not inserted] ${part.alt || ""}`
+          ), {
             font: "F3",
             size: 10,
             lineHeight: 14,
@@ -1652,9 +1662,18 @@
         }
 
         if (part.mediaKind === "video") {
-          documentBuilder.addText(part.sourceUrl
-            ? `Video : apercu uniquement. Ouvrir le tweet source pour lire la video - ${part.sourceUrl}`
-            : "Video : apercu uniquement. Ouvrir la source en fin de PDF pour lire la video.", {
+          const videoText = part.sourceUrl
+            ? localizedTemplate(
+                "videoPreviewOnlyWithSource",
+                { url: part.sourceUrl },
+                `Video: preview only. Open the source tweet to play the video - ${part.sourceUrl}`
+              )
+            : localizedText(
+                "videoPreviewOnlyPdfSource",
+                "Video: preview only. Open the PDF source link to play the video."
+              );
+
+          documentBuilder.addText(videoText, {
             font: "F3",
             size: 9,
             lineHeight: 12,
@@ -1777,7 +1796,7 @@
       renderPart(part);
     }
 
-    documentBuilder.addText("Source", {
+    documentBuilder.addText(localizedText("pdfSourceLabel", "Source"), {
       font: "F2",
       size: 11,
       lineHeight: 15,
@@ -1901,14 +1920,25 @@
             }
             height += imageBefore + drawHeight + imageAfter;
           } else {
-            height += 16 + wrapPdfText(`[Image non insérée] ${part.alt || ""}`, contentWidth, 10).length * 14 + 6;
+            height += 16 + wrapPdfText(localizedTemplate(
+              "imageNotInserted",
+              { alt: part.alt || "" },
+              `[Image not inserted] ${part.alt || ""}`
+            ), contentWidth, 10).length * 14 + 6;
             height += wrapPdfText(part.imageError ? `${part.imageError} - ${part.src}` : part.src || "", contentWidth, 8).length * 11 + 14;
           }
 
           if (part.mediaKind === "video") {
             const videoText = part.sourceUrl
-              ? `Video : apercu uniquement. Ouvrir le tweet source pour lire la video - ${part.sourceUrl}`
-              : "Video : apercu uniquement. Ouvrir la source en fin de PDF pour lire la video.";
+              ? localizedTemplate(
+                "videoPreviewOnlyWithSource",
+                { url: part.sourceUrl },
+                `Video: preview only. Open the source tweet to play the video - ${part.sourceUrl}`
+              )
+              : localizedText(
+                "videoPreviewOnlyPdfSource",
+                "Video: preview only. Open the PDF source link to play the video."
+              );
             height += wrapPdfText(videoText, contentWidth, 9).length * 12 + 8;
           }
         } else {
@@ -2185,7 +2215,11 @@
             writePdfImageCover(writer, name, part.pdfImage, innerX + (innerWidth - squareSize) / 2, cursorY, squareSize, squareSize);
             cursorY -= 6;
           } else if (partText) {
-            const lines = wrapPdfText(`[Image non insérée] ${partText}`, innerWidth, 9);
+            const lines = wrapPdfText(localizedTemplate(
+              "imageNotInserted",
+              { alt: partText },
+              `[Image not inserted] ${partText}`
+            ), innerWidth, 9);
             for (const line of lines) {
               writePdfTextLine(writer, line, innerX, cursorY, "F3", 9, 0.33, 0.39, 0.44);
               cursorY -= 12;
@@ -2309,7 +2343,11 @@
         if (part.pdfImage) {
           height += Math.min(options.imageMaxHeight, innerWidth) + 6;
         } else if (text) {
-          height += wrapPdfText(`[Image non insérée] ${text}`, innerWidth, 9).length * 12 + 4;
+          height += wrapPdfText(localizedTemplate(
+            "imageNotInserted",
+            { alt: text },
+            `[Image not inserted] ${text}`
+          ), innerWidth, 9).length * 12 + 4;
         }
       } else if (part.type === "link-card") {
         height += estimateLinkCardHeight(part, innerWidth, {
@@ -2884,8 +2922,27 @@
     return cleanMultilineText(element?.innerText || element?.textContent || "");
   }
 
+  function localizedText(key, fallback) {
+    return I18N_API?.getMessage?.(key) || fallback || key;
+  }
+
+  function localizedTemplate(key, replacements, fallback) {
+    let value = localizedText(key, fallback);
+
+    for (const [name, replacement] of Object.entries(replacements || {})) {
+      value = value.replaceAll(`{${name}}`, String(replacement ?? ""));
+    }
+
+    return value;
+  }
+
+  function getUiLocale() {
+    const rawLocale = I18N_API?.getUILanguage?.() || navigator.language || "en";
+    return rawLocale.replace("_", "-");
+  }
+
   function formatDate(date) {
-    return new Intl.DateTimeFormat("fr-FR", {
+    return new Intl.DateTimeFormat(getUiLocale(), {
       dateStyle: "medium",
       timeStyle: "short"
     }).format(date);

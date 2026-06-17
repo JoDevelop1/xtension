@@ -1,27 +1,27 @@
-# Politique de confidentialité
+# Privacy Policy
 
-Xtension ne collecte, ne vend et ne transmet aucune donnée personnelle.
+Xtension does not collect, sell, or transmit personal data.
 
-L'extension fonctionne localement dans le navigateur. Elle lit uniquement le contenu visible d'un article, tweet ou thread X/Twitter lorsque l'utilisateur clique sur **Télécharger en PDF**. Les images publiques affichées dans ce contenu sont récupérées depuis les domaines média utilisés par X/Twitter afin d'être intégrées dans le PDF.
+The extension runs locally in the browser. It reads only the visible content of an X/Twitter article, tweet, or thread when the user clicks **Download as PDF**. Public images displayed in that content are fetched from X/Twitter media domains so they can be embedded in the PDF.
 
-## Données traitées
+## Data Processed
 
-- Texte visible de l'article, tweet ou thread X/Twitter.
-- URL source du contenu exporté.
-- Images publiques affichées dans ce contenu.
+- Visible text from the X/Twitter article, tweet, or thread.
+- Source URL of the exported content.
+- Public images displayed in that content.
 
-## Données non collectées
+## Data Not Collected
 
-- Aucun compte utilisateur.
-- Aucun cookie.
-- Aucun jeton d'authentification.
-- Aucun historique de navigation.
-- Aucun envoi vers un serveur tiers.
+- No user account.
+- No cookie.
+- No authentication token.
+- No browsing history.
+- No upload to a third-party server.
 
-## Stockage
+## Storage
 
-Le PDF est généré localement et enregistré uniquement à l'emplacement choisi par l'utilisateur via la boîte **Enregistrer sous** du navigateur.
+The PDF is generated locally and saved only to the location selected by the user through the browser **Save As** dialog.
 
 ## Contact
 
-Support : voir `SUPPORT.md`.
+Support: see `SUPPORT.md`.
