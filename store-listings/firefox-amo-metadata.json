@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "fr": "Télécharge les articles, tweets et threads X/Twitter en PDF avec leurs images.",
+    "en-US": "Download X/Twitter articles, tweets and threads as PDF files with images."
+  },
+  "categories": {
+    "firefox": [
+      "productivity"
+    ]
+  },
+  "version": {
+    "license": "all-rights-reserved"
+  }
+}

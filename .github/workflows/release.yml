@@ -1,0 +1,54 @@
+name: Build release packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install asset dependencies
+        run: python -m pip install pillow
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Check source
+        run: npm run check
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xtension-packages
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+
+      - name: Attach assets to GitHub Release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes/v0.4.0.md
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS.txt

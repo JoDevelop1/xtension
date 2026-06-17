@@ -1,0 +1,30 @@
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Build outputs and generated local-extension files.
+/tmp/
+/browsers/
+/dist/
+/icons/
+/background.js
+/content.js
+/content.css
+/manifest.json
+/pdf-menu-icon.png
+/assets/icons/
+/assets/logo-1024.png
+/assets/pdf-menu-icon.png
+/store-assets/
+*.crx
+*.xpi
+web-ext-artifacts/
+.web-extension-id
+
+# Local secrets and machine-specific configuration.
+.env
+.env.*
+!.env.example
