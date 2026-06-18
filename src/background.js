@@ -1,31 +1,9 @@
 const extensionApi = globalThis.chrome || globalThis.browser;
 const runtimeApi = extensionApi?.runtime;
-const downloadsApi = extensionApi?.downloads;
 
 runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
     return false;
-  }
-
-  if (message.type === "xtension-download-pdf") {
-    downloadFile({
-      conflictAction: "uniquify",
-      filename: message.filename,
-      saveAs: true,
-      url: message.dataUrl
-    }).then((downloadId) => {
-      sendResponse({
-        downloadId,
-        ok: true
-      });
-    }).catch((error) => {
-      sendResponse({
-        error: error.message,
-        ok: false
-      });
-    });
-
-    return true;
   }
 
   if (message.type === "xtension-fetch-image") {
@@ -46,34 +24,6 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
-
-function downloadFile(options) {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!globalThis.chrome && globalThis.browser) {
-        downloadsApi.download(options).then(resolve, reject);
-        return;
-      }
-
-      const maybePromise = downloadsApi.download(options, (downloadId) => {
-        const error = runtimeApi.lastError;
-
-        if (error) {
-          reject(new Error(error.message));
-          return;
-        }
-
-        resolve(downloadId);
-      });
-
-      if (maybePromise && typeof maybePromise.then === "function") {
-        maybePromise.then(resolve, reject);
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
 
 async function fetchImageAsDataUrl(url) {
   const response = await fetch(url, {

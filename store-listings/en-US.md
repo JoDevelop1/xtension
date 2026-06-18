@@ -23,8 +23,7 @@ Key features:
 
 Permissions:
 
-- `downloads`: open the browser save dialog for the PDF.
 - `x.com` / `twitter.com`: add the action to the X/Twitter menu.
-- `pbs.twimg.com`, `video.twimg.com`, `twimg.com` and `t.co`: support public X/Twitter media and links.
+- `pbs.twimg.com`: fetch public X/Twitter images, avatars, card images and video preview thumbnails referenced by the selected content.
 
 The extension does not collect personal data, does not send content to a third-party server and does not modify your X/Twitter account.

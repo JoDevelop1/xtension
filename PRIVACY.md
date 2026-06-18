@@ -24,4 +24,4 @@ The PDF is generated locally and saved only to the location selected by the user
 
 ## Contact
 
-Support: see `SUPPORT.md`.
+Support: https://github.com/JoDevelop1/xtension/issues

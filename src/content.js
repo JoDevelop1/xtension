@@ -1349,20 +1349,30 @@
 
     showToast(localizedText("toastGeneratingPdf", "Generating the PDF..."), { persistent: true });
     const pdfBytes = buildDirectPdfBytes(article);
-    const dataUrl = `data:application/pdf;base64,${uint8ArrayToBase64(pdfBytes)}`;
     const filename = buildExportFilename(article);
     showToast(localizedText("toastOpeningSaveDialog", "Opening the save dialog..."), { persistent: true });
-    const response = await sendRuntimeMessage({
-      type: "xtension-download-pdf",
-      filename,
-      dataUrl
-    });
-
-    if (!response?.ok) {
-      throw new Error(response?.error || localizedText("errorDownloadFailed", "The download failed."));
-    }
+    triggerBrowserDownload(pdfBytes, filename);
 
     hideToast();
+  }
+
+  function triggerBrowserDownload(bytes, filename) {
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    link.style.display = "none";
+
+    (document.body || document.documentElement).append(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 30000);
   }
 
   async function hydrateArticleImages(article) {

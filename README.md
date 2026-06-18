@@ -74,9 +74,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.4.12.zip`
-- `dist/xtension-edge-v0.4.12.zip`
-- `dist/xtension-firefox-v0.4.12.zip`
+- `dist/xtension-chrome-v0.4.13.zip`
+- `dist/xtension-edge-v0.4.13.zip`
+- `dist/xtension-firefox-v0.4.13.zip`
 - `dist/SHA256SUMS.txt`
 
 ## GitHub Releases
@@ -85,8 +85,7 @@ See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while s
 
 ## Permissions
 
-- `downloads`: open the browser **Save As** dialog for the PDF.
 - `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: inject the action into X/Twitter article, tweet, and thread menus.
-- `https://pbs.twimg.com/*`, `https://video.twimg.com/*`, `https://*.twimg.com/*`, `https://t.co/*`: remain compatible with public X/Twitter media and public link domains.
+- `https://pbs.twimg.com/*`: fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the selected content.
 
 The extension is limited to X/Twitter and the related media domains listed above.

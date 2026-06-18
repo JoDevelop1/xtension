@@ -23,9 +23,8 @@ Fonctionnalités principales :
 
 Permissions utilisées :
 
-- `downloads` : ouvrir la boîte d'enregistrement du PDF.
 - `x.com` / `twitter.com` : ajouter l'action dans le menu X/Twitter.
-- `pbs.twimg.com`, `video.twimg.com`, `twimg.com` et `t.co` : rester compatible avec les médias et liens publics X/Twitter.
+- `pbs.twimg.com` : récupérer les images, avatars, cartes média et vignettes vidéo publiques X/Twitter liées au contenu sélectionné.
 
 L'extension ne collecte aucune donnée personnelle, n'envoie rien à un serveur tiers et ne modifie pas votre compte X/Twitter.
 

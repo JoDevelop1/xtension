@@ -1,5 +1,9 @@
 # Support
 
+Public support page:
+
+https://github.com/JoDevelop1/xtension/issues
+
 To report a bug, open a GitHub issue and include:
 
 - Browser and version.

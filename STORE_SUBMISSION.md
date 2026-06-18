@@ -24,6 +24,55 @@ Assets to provide:
 
 Chrome Web Store requires a 128x128 PNG icon in the zip, a 440x280 small promotional image, and at least one screenshot sized 1280x800 or 640x400.
 
+### Chrome Web Store Listing URLs
+
+Use public HTTPS URLs. The dashboard rejects local files, private repository pages, and unreachable links.
+
+```text
+Home page URL:
+https://github.com/JoDevelop1/xtension
+
+Support URL:
+https://github.com/JoDevelop1/xtension/issues
+
+Privacy policy URL:
+https://github.com/JoDevelop1/xtension/blob/main/PRIVACY.md
+```
+
+### Chrome Web Store Privacy Practices
+
+Use these values in the **Privacy practices** tab.
+
+Single purpose description:
+
+```text
+Xtension improves the X/Twitter experience by adding a focused menu action that lets users download visible X/Twitter articles, tweets, and same-author threads as local PDF files.
+```
+
+Remote code justification:
+
+```text
+Xtension does not load or execute remotely hosted code. All JavaScript, CSS, icons, and PDF-generation logic are packaged inside the extension. The extension may fetch public media files from X/Twitter media domains only as image data so those images can be embedded in the locally generated PDF; fetched media is not executed as code.
+```
+
+Host permission justification:
+
+```text
+The pbs.twimg.com host permission is required only so Xtension can fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the visible post, article, or thread selected by the user. These media files are fetched as image data for inclusion in the locally generated PDF. Xtension does not execute remote code and does not use this permission to read cookies, account data, or unrelated browsing activity.
+```
+
+If the Chrome Web Store dashboard groups the X/Twitter content script matches into the same host-permission field, use this broader justification instead:
+
+```text
+Xtension is limited to X/Twitter. The x.com and twitter.com matches are required to inject the "Download as PDF" action into the post, article, and thread menu and to read only the visible content selected by the user after they click that action. The pbs.twimg.com host permission is required only to fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by that selected content for inclusion in the locally generated PDF. Xtension does not read cookies, account credentials, private messages, unrelated pages, or browsing history.
+```
+
+Data usage certification:
+
+```text
+Xtension does not collect, sell, transmit, or store personal data on a developer server. Visible X/Twitter content is processed locally in the browser only after the user clicks the Xtension menu action. The generated PDF is saved only to the location selected by the user.
+```
+
 ## Microsoft Edge Add-ons
 
 Official documentation:
@@ -100,7 +149,7 @@ See:
 - Generate a real PDF from an X article with an image.
 - Generate a real PDF from a simple tweet.
 - Generate a real PDF from a thread and verify that it stops before replies from other accounts.
-- Verify that the **Save As** dialog appears.
+- Verify that the generated PDF downloads successfully.
 - Verify that images appear in the PDF.
 - Verify that the extension activates only in X/Twitter and related public media domains.
 - Verify that `_locales/` is present in every generated browser package.

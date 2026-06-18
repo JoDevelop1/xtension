@@ -1,5 +1,5 @@
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
@@ -30,6 +30,91 @@ def font(size, bold=False):
 
 def rounded_rectangle(draw, box, radius, fill, outline=None, width=1):
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
+
+
+def rounded_mask(size, radius):
+    mask = Image.new("L", size, 0)
+    d = ImageDraw.Draw(mask)
+    d.rounded_rectangle((0, 0, size[0] - 1, size[1] - 1), radius=radius, fill=255)
+    return mask
+
+
+def crop_cover(source, size, crop=None, centering=(0.5, 0.5)):
+    img = source.crop(crop) if crop else source.copy()
+    return ImageOps.fit(img, size, method=Image.Resampling.LANCZOS, centering=centering)
+
+
+def paste_rounded_image(base, image, xy, radius, outline="#d6e0e6", shadow=True):
+    x, y = xy
+    w, h = image.size
+
+    if shadow:
+        shadow_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+        sd = ImageDraw.Draw(shadow_layer)
+        sd.rounded_rectangle((x, y + 12, x + w, y + h + 12), radius=radius, fill=(15, 20, 25, 34))
+        shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(18))
+        base.alpha_composite(shadow_layer)
+
+    card = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    card.alpha_composite(image.convert("RGBA"))
+    cd = ImageDraw.Draw(card)
+    cd.rounded_rectangle((0, 0, w - 1, h - 1), radius=radius, outline=outline, width=2)
+    base.paste(card, xy, rounded_mask(image.size, radius))
+
+
+def draw_wrapped(draw, text, xy, max_width, text_font, fill, line_gap=8):
+    x, y = xy
+    lines = []
+    line = ""
+
+    for word in text.split():
+        candidate = word if not line else f"{line} {word}"
+        bbox = draw.textbbox((0, 0), candidate, font=text_font)
+        if bbox[2] - bbox[0] <= max_width:
+            line = candidate
+        else:
+            if line:
+                lines.append(line)
+            line = word
+
+    if line:
+        lines.append(line)
+
+    cursor_y = y
+    for line in lines:
+        draw.text((x, cursor_y), line, fill=fill, font=text_font)
+        bbox = draw.textbbox((0, 0), line, font=text_font)
+        cursor_y += bbox[3] - bbox[1] + line_gap
+
+    return cursor_y
+
+
+def draw_chip(draw, xy, label, color):
+    x, y = xy
+    chip_font = font(17, True)
+    bbox = draw.textbbox((0, 0), label, font=chip_font)
+    w = bbox[2] - bbox[0] + 46
+    h = 38
+    draw.rounded_rectangle((x, y, x + w, y + h), radius=19, fill="#ffffff", outline="#d8e0e5", width=1)
+    draw.ellipse((x + 14, y + 13, x + 24, y + 23), fill=color)
+    draw.text((x + 32, y + 8), label, fill="#0f1419", font=chip_font)
+    return w
+
+
+def load_store_screenshot():
+    source = STORE / "screenshot-1-1280x800.png"
+    if source.exists():
+        return Image.open(source).convert("RGB")
+
+    fallback = Image.new("RGB", (1280, 800), "#f7f9f9")
+    d = ImageDraw.Draw(fallback)
+    d.text((80, 80), "X/Twitter menu", fill="#0f1419", font=font(42, True))
+    d.rounded_rectangle((580, 80, 1120, 730), radius=28, fill="#ffffff", outline="#d8e0e5", width=2)
+    for i, label in enumerate(["Boost", "Pin to your profile", "View post activity", "Download as PDF", "Embed post"]):
+        y = 150 + i * 110
+        d.text((680, y), label, fill="#0f1419", font=font(30, True))
+    d.rounded_rectangle((600, 478, 1030, 590), radius=0, outline="#e53935", width=8)
+    return fallback
 
 
 def icon(size):
@@ -155,32 +240,52 @@ def draw_brand_header(draw, width, title, subtitle):
 
 
 def promo(width, height, path, marquee=False):
-    img = Image.new("RGBA", (width, height), "#f7f9f9")
+    img = Image.new("RGBA", (width, height), "#f5f8fa")
     d = ImageDraw.Draw(img)
-    draw_brand_header(d, width, "Xtension", "Clean PDF exports from X/Twitter")
+    source = load_store_screenshot()
 
-    left = 56 if marquee else 34
-    top = 165 if marquee else 154
-    card_w = 600 if marquee else 250
-    card_h = 310 if marquee else 96
-    rounded_rectangle(d, (left, top, left + card_w, top + card_h), 18, "#ffffff", "#d8e0e5", 2)
-
-    text_x = left + 32
-    d.text((text_x, top + 28), "X/Twitter", fill="#0f1419", font=font(26 if marquee else 17, True))
-    d.text((text_x, top + 74), "Menu ...  ->  Download as PDF", fill="#536471", font=font(18 if marquee else 12))
-
-    pdf_x = width - (430 if marquee else 132)
-    pdf_y = 160 if marquee else 146
-    rounded_rectangle(d, (pdf_x, pdf_y, pdf_x + (300 if marquee else 86), pdf_y + (330 if marquee else 105)), 22, "#ffffff", "#cfd9df", 2)
-    d.rectangle((pdf_x + 36, pdf_y + 62, pdf_x + (264 if marquee else 70), pdf_y + (86 if marquee else 72)), fill="#0f1419")
-    for i in range(6 if marquee else 3):
-        y = pdf_y + (118 if marquee else 82) + i * (30 if marquee else 10)
-        d.rectangle((pdf_x + 36, y, pdf_x + (264 if marquee else 70), y + (10 if marquee else 3)), fill="#d8e0e5")
-    rounded_rectangle(d, (pdf_x + (190 if marquee else 52), pdf_y + (250 if marquee else 78), pdf_x + (286 if marquee else 82), pdf_y + (310 if marquee else 100)), 10, "#e53935")
+    stripe_h = 8 if marquee else 6
+    stripe_w = width // 4
+    for i, color in enumerate(LOGO_COLORS):
+        d.rectangle((i * stripe_w, 0, (i + 1) * stripe_w if i < 3 else width, stripe_h), fill=color)
 
     if marquee:
-        d.text((730, 240), "Text + images", fill="#0f1419", font=font(44, True))
-        d.text((730, 304), "A clean PDF from the X menu.", fill="#536471", font=font(24))
+        screenshot_img = crop_cover(source, (742, 490), crop=(70, 0, 1240, 800), centering=(0.53, 0.55))
+        paste_rounded_image(img, screenshot_img, (612, 34), 28)
+
+        mark = icon(92)
+        img.alpha_composite(mark, (58, 44))
+        d.text((168, 46), "Xtension", fill="#0f1419", font=font(46, True))
+        d.text((170, 105), "Improve your X/Twitter experience", fill="#536471", font=font(25))
+
+        d.text((62, 190), "Useful tools,", fill="#0f1419", font=font(58, True))
+        d.text((62, 255), "inside the post menu.", fill="#0f1419", font=font(58, True))
+        draw_wrapped(
+            d,
+            "Add practical actions to X/Twitter where you already work with posts, threads, articles, and media.",
+            (66, 344),
+            470,
+            font(24),
+            "#536471",
+            9,
+        )
+
+        chip_x = 66
+        for label, color in [("Posts", "#4285f4"), ("Threads", "#34a853"), ("Articles", "#fbbc05")]:
+            chip_x += draw_chip(d, (chip_x, 462), label, color) + 12
+
+        d.rounded_rectangle((648, 444, 905, 492), radius=24, fill="#0f1419")
+        d.text((676, 454), "New action in the menu", fill="#ffffff", font=font(20, True))
+    else:
+        mark = icon(58)
+        img.alpha_composite(mark, (26, 22))
+        d.text((96, 27), "Xtension", fill="#0f1419", font=font(29, True))
+        d.text((98, 66), "Improve your X/Twitter experience", fill="#536471", font=font(16))
+
+        d.text((28, 114), "Tools in the X menu", fill="#0f1419", font=font(30, True))
+
+        screenshot_img = crop_cover(source, (392, 100), crop=(565, 555, 1225, 730), centering=(0.5, 0.56))
+        paste_rounded_image(img, screenshot_img, (24, 170), 18, shadow=True)
 
     img.convert("RGB").save(path)
 
@@ -206,7 +311,7 @@ def screenshot(path, variant=1):
     d.text((804, 180), "Menu ...", fill="#0f1419", font=font(24, True))
     d.rectangle((804, 238, 1090, 240), fill="#edf2f5")
     d.text((836, 272), "Download as PDF", fill="#0f1419", font=font(22, True))
-    d.text((836, 314), "Choose the folder from Save As.", fill="#536471", font=font(15))
+    d.text((836, 314), "PDF saved by the browser.", fill="#536471", font=font(15))
 
     if variant == 2:
         rounded_rectangle(d, (760, 470, 1136, 710), 18, "#ffffff", "#d8e0e5", 2)
@@ -219,10 +324,12 @@ def screenshot(path, variant=1):
 
 def main():
     save_icons()
+    if not (STORE / "screenshot-1-1280x800.png").exists():
+        screenshot(STORE / "screenshot-1-1280x800.png", 1)
+    if not (STORE / "screenshot-2-1280x800.png").exists():
+        screenshot(STORE / "screenshot-2-1280x800.png", 2)
     promo(440, 280, STORE / "promo-small-440x280.png", marquee=False)
     promo(1400, 560, STORE / "promo-marquee-1400x560.png", marquee=True)
-    screenshot(STORE / "screenshot-1-1280x800.png", 1)
-    screenshot(STORE / "screenshot-2-1280x800.png", 2)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.13
+
+- Removes the Chrome `downloads` permission and saves generated PDFs through a local browser download link.
+
 ## v0.4.12
 
 - Forces the X/Twitter menu item text and icon color to black so it cannot inherit red destructive-menu styling.

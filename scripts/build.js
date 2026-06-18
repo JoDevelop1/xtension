@@ -8,7 +8,7 @@ const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.4.12";
+const version = "0.4.13";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",
@@ -16,14 +16,7 @@ const contentMatches = [
   "https://*.twitter.com/*"
 ];
 const hostPermissions = [
-  "https://x.com/*",
-  "https://*.x.com/*",
-  "https://twitter.com/*",
-  "https://*.twitter.com/*",
-  "https://pbs.twimg.com/*",
-  "https://video.twimg.com/*",
-  "https://*.twimg.com/*",
-  "https://t.co/*"
+  "https://pbs.twimg.com/*"
 ];
 
 const shared = {
@@ -38,7 +31,6 @@ const shared = {
     default_icon: iconMap()
   },
   icons: iconMap(),
-  permissions: ["downloads"],
   content_scripts: [
     {
       matches: contentMatches,
