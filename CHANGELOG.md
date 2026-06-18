@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.15
+
+- Starts each X/Twitter thread tweet on a new page when its text and images would otherwise split across pages.
+- Keeps the extension package version visible as `0.4.15` so reloads are easy to verify.
+
+## v0.4.14
+
+- Keeps multiple images from the same X/Twitter post in a compact grid.
+- Keeps PDF image and hyperlink annotations as direct links for broad PDF viewer compatibility.
+- Fixes exported URLs where `https://` could appear on a separate line.
+
 ## v0.4.13
 
 - Removes the Chrome `downloads` permission and saves generated PDFs through a local browser download link.

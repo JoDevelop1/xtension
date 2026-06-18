@@ -20,7 +20,7 @@ The extension runs locally in the browser. It reads only the visible content of 
 
 ## Storage
 
-The PDF is generated locally and saved only to the location selected by the user through the browser **Save As** dialog.
+The PDF is generated locally and saved only to the location selected by the user's browser.
 
 ## Contact
 

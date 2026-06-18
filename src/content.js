@@ -4,7 +4,7 @@
   const EXTENSION_API = globalThis.chrome || globalThis.browser;
   const RUNTIME_API = EXTENSION_API?.runtime;
   const I18N_API = EXTENSION_API?.i18n;
-  const EXTENSION_VERSION = RUNTIME_API?.getManifest?.()?.version || "development";
+  const EXTENSION_VERSION = getExtensionVersion();
   const PDF_GENERATOR_NAME = `Xtension ${EXTENSION_VERSION} by JoDevelop`;
   const MENU_ITEM_SELECTOR = "[data-xtension-menu-item]";
   const MENU_ITEM_ATTRIBUTE = "data-xtension-menu-item";
@@ -387,7 +387,7 @@
   }
 
   function getExtensionResourceUrl(path) {
-    return RUNTIME_API?.getURL ? RUNTIME_API.getURL(path) : path;
+    return getRuntimeResourceUrl(path) || path;
   }
 
   function findInsertionPoint(dropdown) {
@@ -1586,6 +1586,7 @@
   function buildDirectPdfBytes(article) {
     const documentBuilder = createPdfLayout();
     const isTweetExport = article.kind === "tweet";
+    const pdfParts = preparePdfPartsForExport(article.parts || []);
 
     if (isTweetExport && article.authorInfo) {
       documentBuilder.addAuthorHeader(article.authorInfo, {
@@ -1688,7 +1689,8 @@
         if (part.pdfImage) {
           documentBuilder.addImage(part.pdfImage, {
             before: 16,
-            after: part.mediaKind === "video" ? 8 : 20
+            after: part.mediaKind === "video" ? 8 : 20,
+            url: getPdfImageOpenUrl(part)
           });
         } else {
           documentBuilder.addText(localizedTemplate(
@@ -1729,6 +1731,11 @@
             after: 8
           });
         }
+      } else if (part.type === "image-grid") {
+        documentBuilder.addImageGrid(part.images, {
+          before: 16,
+          after: 20
+        });
       } else {
         documentBuilder.addText(text, {
           font: "F1",
@@ -1794,7 +1801,7 @@
           continue;
         }
 
-        if (candidate.type === "image" && bodyPartCount > 0 && bodyPartCount <= 2 && bodyTextLength <= 360) {
+        if ((candidate.type === "image" || candidate.type === "image-grid") && bodyPartCount > 0 && bodyPartCount <= 2 && bodyTextLength <= 360) {
           keepParts.push(candidate);
         }
 
@@ -1825,12 +1832,12 @@
       });
     };
 
-    for (let index = 0; index < article.parts.length; index += 1) {
-      const part = article.parts[index];
+    for (let index = 0; index < pdfParts.length; index += 1) {
+      const part = pdfParts[index];
       if (part.type === "tweet-block") {
         documentBuilder.keepPartsTogether(part.parts, {
           allowNewPage: tweetBlockIndex > 0,
-          maxWastedHeight: 110,
+          maxWastedHeight: Number.POSITIVE_INFINITY,
           minStartHeight: 90
         });
 
@@ -1842,42 +1849,71 @@
         continue;
       }
 
-      keepHeadingWithFollowingContent(article.parts, index);
+      keepHeadingWithFollowingContent(pdfParts, index);
       renderPart(part);
     }
 
-    documentBuilder.addText(localizedText("pdfSourceLabel", "Source"), {
-      font: "F2",
-      size: 11,
-      lineHeight: 15,
-      before: 28,
-      after: 5
-    });
-    documentBuilder.addText(article.sourceUrl, {
-      font: "F1",
-      size: 8.5,
-      lineHeight: 12
-    });
-    documentBuilder.addLinkedText([{ text: localizedText("pdfFollowIntro", "Liked this article? To read more interesting content:") }], {
-      before: 18,
-      after: 2,
-      font: "F2",
-      size: 11.5,
-      lineHeight: 15.5,
-      align: "center",
-      color: [0, 0, 0],
-      linkColor: [0.1, 0.35, 0.62]
-    });
-    documentBuilder.addLinkedText(buildPdfFollowActionSegments(article), {
-      font: "F2",
-      size: 11.5,
-      lineHeight: 15.5,
-      align: "center",
-      color: [0, 0, 0],
-      linkColor: [0.1, 0.35, 0.62]
+    documentBuilder.addLastPageFooter({
+      followIntroSegments: [{
+        text: localizedText("pdfFollowIntro", "Liked this article? To read more interesting content:")
+      }],
+      followActionSegments: buildPdfFollowActionSegments(article),
+      sourceUrl: article.sourceUrl
     });
 
     return buildPdfBytesFromPages(documentBuilder.getDocument());
+  }
+
+  function preparePdfPartsForExport(parts) {
+    const prepared = [];
+
+    for (let index = 0; index < (parts || []).length; index += 1) {
+      const part = parts[index];
+
+      if (part?.type === "tweet-block") {
+        prepared.push({
+          ...part,
+          parts: preparePdfPartsForExport(part.parts || [])
+        });
+        continue;
+      }
+
+      if (part?.type === "embedded-tweet-card") {
+        prepared.push({
+          ...part,
+          parts: preparePdfPartsForExport(part.parts || [])
+        });
+        continue;
+      }
+
+      if (!isGridImagePart(part)) {
+        prepared.push(part);
+        continue;
+      }
+
+      const images = [];
+      while (index < parts.length && isGridImagePart(parts[index])) {
+        images.push(parts[index]);
+        index += 1;
+      }
+      index -= 1;
+
+      if (images.length > 1) {
+        prepared.push({
+          type: "image-grid",
+          images,
+          text: images.map((image) => image.alt || image.text || "").filter(Boolean).join("\n")
+        });
+      } else {
+        prepared.push(images[0]);
+      }
+    }
+
+    return prepared.filter(Boolean);
+  }
+
+  function isGridImagePart(part) {
+    return part?.type === "image" && part.mediaKind === "image";
   }
 
   function createPdfLayout() {
@@ -1886,7 +1922,7 @@
     const marginLeft = 54;
     const marginRight = 54;
     const marginTop = 42;
-    const marginBottom = 40;
+    const marginBottom = 76;
     const bodyHeight = pageHeight - marginTop - marginBottom;
     const contentWidth = pageWidth - marginLeft - marginRight;
     const pages = [];
@@ -2009,6 +2045,8 @@
               );
             height += wrapPdfText(videoText, contentWidth, 9).length * 12 + 8;
           }
+        } else if (part.type === "image-grid") {
+          height += 16 + getPdfImageGridLayout(part.images, contentWidth, bodyHeight - 36).height + 20;
         } else {
           height += wrapPdfText(text, contentWidth, 11.5).length * 16.5 + 6;
         }
@@ -2118,6 +2156,145 @@
       }
     };
 
+    const drawLinkedTextLine = (segments, options = {}) => {
+      const tokens = createRichTextTokens(segments || []);
+
+      if (tokens.length === 0) {
+        return;
+      }
+
+      if (!writer) {
+        newPage();
+      }
+
+      const font = options.font || "F1";
+      const maxWidth = options.maxWidth || contentWidth;
+      const minSize = options.minSize || 8.8;
+      const align = options.align || "left";
+      const color = options.color || [0, 0, 0];
+      const linkColor = options.linkColor || color;
+      const x = options.x ?? marginLeft;
+      const lineY = options.y;
+      let size = options.size || 11.5;
+      let lineWidth = measureRichTextTokens(tokens, size, font);
+
+      while (lineWidth > maxWidth && size > minSize) {
+        size = Math.max(minSize, size - 0.2);
+        lineWidth = measureRichTextTokens(tokens, size, font);
+      }
+
+      let cursorX = align === "center" ? x + Math.max(0, (maxWidth - lineWidth) / 2) : x;
+
+      for (const run of mergeRichTextRuns(tokens)) {
+        const runWidth = measurePdfText(run.text, size, font);
+        const [r, g, b] = run.url ? linkColor : color;
+        writePdfTextLine(writer, run.text, cursorX, lineY, font, size, r, g, b);
+
+        if (run.url && !/^\s+$/.test(run.text)) {
+          addLinkAnnotation(cursorX, lineY - 1.6, runWidth, size + 3.2, run.url);
+        }
+
+        cursorX += runWidth;
+      }
+    };
+
+    const drawLinkedTextBlock = (segments, options = {}) => {
+      const tokens = createRichTextTokens(segments || []);
+
+      if (tokens.length === 0) {
+        return;
+      }
+
+      if (!writer) {
+        newPage();
+      }
+
+      const font = options.font || "F1";
+      const size = options.size || 11.5;
+      const lineHeight = options.lineHeight || size * 1.2;
+      const maxWidth = options.maxWidth || contentWidth;
+      const align = options.align || "left";
+      const color = options.color || [0, 0, 0];
+      const linkColor = options.linkColor || color;
+      const x = options.x ?? marginLeft;
+      const lines = wrapRichTextTokens(tokens, maxWidth, size, font);
+
+      lines.forEach((line, index) => {
+        const lineY = options.y - index * lineHeight;
+        const lineWidth = measureRichTextTokens(line, size, font);
+        let cursorX = align === "center" ? x + Math.max(0, (maxWidth - lineWidth) / 2) : x;
+
+        for (const run of mergeRichTextRuns(line)) {
+          const runWidth = measurePdfText(run.text, size, font);
+          const [r, g, b] = run.url ? linkColor : color;
+          writePdfTextLine(writer, run.text, cursorX, lineY, font, size, r, g, b);
+
+          if (run.url && !/^\s+$/.test(run.text)) {
+            addLinkAnnotation(cursorX, lineY - 1.6, runWidth, size + 3.2, run.url);
+          }
+
+          cursorX += runWidth;
+        }
+      });
+    };
+
+    const addLastPageFooter = (footer = {}) => {
+      if (!writer) {
+        newPage();
+      }
+
+      const footerX = marginLeft;
+      const footerWidth = pageWidth - marginLeft - marginRight;
+      const linkColor = [0.1, 0.35, 0.62];
+      const footerSize = 11.5;
+
+      drawLinkedTextLine(footer.followIntroSegments || [], {
+        align: "center",
+        color: [0, 0, 0],
+        font: "F1",
+        linkColor,
+        maxWidth: footerWidth,
+        minSize: 10,
+        size: footerSize,
+        x: footerX,
+        y: 62
+      });
+
+      drawLinkedTextLine(footer.followActionSegments || [], {
+        align: "center",
+        color: [0, 0, 0],
+        font: "F1",
+        linkColor,
+        maxWidth: footerWidth,
+        minSize: 10,
+        size: footerSize,
+        x: footerX,
+        y: 47
+      });
+
+      if (footer.sourceUrl) {
+        drawLinkedTextBlock([
+          {
+            text: `${localizedText("pdfSourceLabel", "Source")}: `
+          },
+          {
+            text: footer.sourceUrl,
+            url: footer.sourceUrl
+          }
+        ], {
+          align: "center",
+          color: [0, 0, 0],
+          font: "F1",
+          linkColor,
+          lineHeight: 12.8,
+          maxWidth: footerWidth,
+          size: footerSize,
+          x: footerX,
+          y: 32
+        });
+      }
+    };
+
     const addPdfImageResource = (image) => {
       const name = `Im${images.length + 1}`;
       images.push({
@@ -2143,6 +2320,20 @@
         x,
         y
       });
+    };
+
+    const drawImageGridContent = (imageParts, x, topY, maxWidth, options = {}) => {
+      const layout = getPdfImageGridLayout(imageParts, maxWidth, options.maxHeight || 320);
+
+      for (const item of layout.items) {
+        const name = addPdfImageResource(item.part.pdfImage);
+        const drawX = x + item.x;
+        const drawY = topY - item.y - item.height;
+        writePdfImageCover(writer, name, item.part.pdfImage, drawX, drawY, item.width, item.height);
+        addLinkAnnotation(drawX, drawY, item.width, item.height, getPdfImageOpenUrl(item.part));
+      }
+
+      return topY - layout.height;
     };
 
     const addImage = (image, options = {}) => {
@@ -2173,6 +2364,35 @@
       const name = addPdfImageResource(image);
       y -= drawHeight;
       writePdfImage(writer, name, x, y, drawWidth, drawHeight);
+      addLinkAnnotation(x, y, drawWidth, drawHeight, options.url);
+
+      if (after) {
+        y -= after;
+      }
+    };
+
+    const addImageGrid = (imageParts, options = {}) => {
+      const before = options.before || 0;
+      const after = options.after || 0;
+      const indent = options.indent || 0;
+      const x = marginLeft + indent;
+      const maxWidth = pageWidth - marginLeft - marginRight - indent;
+      const maxHeight = pageHeight - marginTop - marginBottom - before - after;
+      const layout = getPdfImageGridLayout(imageParts, maxWidth, maxHeight);
+
+      if (layout.items.length === 0 || layout.height <= 0) {
+        return;
+      }
+
+      ensureSpace(before + layout.height + after);
+
+      if (before) {
+        y -= before;
+      }
+
+      y = drawImageGridContent(imageParts, x, y, maxWidth, {
+        maxHeight
+      });
 
       if (after) {
         y -= after;
@@ -2341,6 +2561,7 @@
             const name = addPdfImageResource(part.pdfImage);
             cursorY -= squareSize;
             writePdfImageCover(writer, name, part.pdfImage, innerX + (innerWidth - squareSize) / 2, cursorY, squareSize, squareSize);
+            addLinkAnnotation(innerX + (innerWidth - squareSize) / 2, cursorY, squareSize, squareSize, getPdfImageOpenUrl(part));
             cursorY -= 6;
           } else if (partText) {
             const lines = wrapPdfText(localizedTemplate(
@@ -2360,6 +2581,10 @@
             imageTextGap: 10,
             squareImage: true
           }) - 5;
+        } else if (part.type === "image-grid") {
+          cursorY = drawImageGridContent(part.images, innerX, cursorY - 4, innerWidth, {
+            maxHeight: 210
+          }) - 6;
         }
       }
 
@@ -2403,6 +2628,8 @@
       addAuthorHeader,
       addLinkedText,
       addEmbeddedTweetCard,
+      addImageGrid,
+      addLastPageFooter,
       keepPartsTogether,
       addLinkCard,
       getDocument() {
@@ -2521,6 +2748,23 @@
 
     for (const token of tokens) {
       if (/^\s+$/.test(token.text) && currentLine.length === 0) {
+        continue;
+      }
+
+      if (!/^\s+$/.test(token.text) && measurePdfText(token.text, fontSize, font) > maxWidth) {
+        const trimmedLine = trimRichTextLine(currentLine);
+        if (trimmedLine.length > 0) {
+          lines.push(trimmedLine);
+        }
+
+        for (const chunk of splitLongPdfWord(token.text, maxWidth, fontSize, font)) {
+          lines.push([{
+            text: chunk,
+            url: token.url || ""
+          }]);
+        }
+
+        currentLine = [];
         continue;
       }
 
@@ -2646,6 +2890,8 @@
           padding: 0,
           squareImage: true
         }) + 5;
+      } else if (part.type === "image-grid") {
+        height += 4 + getPdfImageGridLayout(part.images, innerWidth, options.imageMaxHeight || 210).height + 6;
       }
     }
 
@@ -2696,14 +2942,115 @@
     };
   }
 
-  function splitLongPdfWord(word, maxWidth, fontSize) {
+  function getPdfImageGridLayout(imageParts, maxWidth, maxHeight) {
+    const images = (imageParts || []).filter((part) => {
+      return part?.pdfImage?.bytes && part.pdfImage.width && part.pdfImage.height;
+    }).slice(0, 4);
+    const count = images.length;
+
+    if (count === 0) {
+      return {
+        height: 0,
+        items: [],
+        width: maxWidth
+      };
+    }
+
+    const gap = 4;
+    const width = maxWidth;
+    const items = [];
+
+    if (count === 1) {
+      const dimensions = fitPdfImage(images[0].pdfImage, width, maxHeight);
+      return {
+        height: dimensions.height,
+        items: [{
+          height: dimensions.height,
+          part: images[0],
+          width: dimensions.width,
+          x: (width - dimensions.width) / 2,
+          y: 0
+        }],
+        width
+      };
+    }
+
+    if (count === 2) {
+      const cellWidth = (width - gap) / 2;
+      const cellHeight = Math.min(maxHeight, Math.min(285, Math.max(190, cellWidth * 1.05)));
+
+      return {
+        height: cellHeight,
+        items: images.map((part, index) => ({
+          height: cellHeight,
+          part,
+          width: cellWidth,
+          x: index * (cellWidth + gap),
+          y: 0
+        })),
+        width
+      };
+    }
+
+    if (count === 3) {
+      const leftWidth = (width - gap) / 2;
+      const rightWidth = leftWidth;
+      const gridHeight = Math.min(maxHeight, Math.min(360, Math.max(260, width * 0.72)));
+      const smallHeight = (gridHeight - gap) / 2;
+
+      return {
+        height: gridHeight,
+        items: [
+          {
+            height: gridHeight,
+            part: images[0],
+            width: leftWidth,
+            x: 0,
+            y: 0
+          },
+          {
+            height: smallHeight,
+            part: images[1],
+            width: rightWidth,
+            x: leftWidth + gap,
+            y: 0
+          },
+          {
+            height: smallHeight,
+            part: images[2],
+            width: rightWidth,
+            x: leftWidth + gap,
+            y: smallHeight + gap
+          }
+        ],
+        width
+      };
+    }
+
+    const cellWidth = (width - gap) / 2;
+    const cellHeight = Math.min((maxHeight - gap) / 2, cellWidth);
+
+    return {
+      height: cellHeight * 2 + gap,
+      items: images.map((part, index) => ({
+        height: cellHeight,
+        part,
+        width: cellWidth,
+        x: (index % 2) * (cellWidth + gap),
+        y: Math.floor(index / 2) * (cellHeight + gap)
+      })),
+      width
+    };
+  }
+
+  function splitLongPdfWord(word, maxWidth, fontSize, font = "F1") {
     const lines = [];
     let current = "";
 
     for (const character of word) {
       const candidate = current + character;
 
-      if (current && measurePdfText(candidate, fontSize) > maxWidth) {
+      if (current && measurePdfText(candidate, fontSize, font) > maxWidth) {
         lines.push(current);
         current = character;
       } else {
@@ -3439,12 +3786,37 @@
     return name || fallback;
   }
 
+  function getPdfImageOpenUrl(part) {
+    return part?.src || "";
+  }
+
+  function getExtensionVersion() {
+    try {
+      return RUNTIME_API?.getManifest?.()?.version || "development";
+    } catch (error) {
+      return "development";
+    }
+  }
+
+  function getRuntimeResourceUrl(path) {
+    try {
+      const runtime = (globalThis.chrome || globalThis.browser)?.runtime || RUNTIME_API;
+      return runtime?.getURL ? runtime.getURL(path) : "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getExtensionReloadMessage() {
+    return "Extension rechargée : rechargez aussi l'onglet X, puis générez un nouveau PDF.";
+  }
+
   function sendRuntimeMessage(message) {
     return new Promise((resolve, reject) => {
       const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
 
       if (!runtime?.sendMessage) {
-        reject(new Error("API d'extension indisponible."));
+        reject(new Error(getExtensionReloadMessage()));
         return;
       }
 
@@ -3469,7 +3841,7 @@
           maybePromise.then(resolve, reject);
         }
       } catch (error) {
-        reject(error);
+        reject(new Error(error?.message === "Extension context invalidated." ? getExtensionReloadMessage() : error?.message || getExtensionReloadMessage()));
       }
     });
   }
@@ -3503,7 +3875,7 @@
   }
 
   function cleanMultilineText(value) {
-    return String(value || "")
+    return normalizeUrlFragments(String(value || ""))
       .replace(/\u00a0/g, " ")
       .replace(/[ \t\r\f\v]+/g, " ")
       .replace(/\n\s+/g, "\n")
@@ -3511,12 +3883,22 @@
       .trim();
   }
 
+  function normalizeUrlFragments(value) {
+    return String(value || "")
+      .replace(/\b(https?:\/\/)\s*\n\s*/gi, "$1")
+      .replace(/\b(https?:\/\/)\s+([A-Za-z0-9.-]+\.[A-Za-z]{2,})/gi, "$1$2");
+  }
+
   function extractVisibleText(element) {
     return cleanMultilineText(element?.innerText || element?.textContent || "");
   }
 
   function localizedText(key, fallback) {
-    return I18N_API?.getMessage?.(key) || fallback || key;
+    try {
+      return I18N_API?.getMessage?.(key) || fallback || key;
+    } catch (error) {
+      return fallback || key;
+    }
   }
 
   function localizedTemplate(key, replacements, fallback) {
@@ -3530,7 +3912,15 @@
   }
 
   function getUiLocale() {
-    const rawLocale = I18N_API?.getUILanguage?.() || navigator.language || "en";
+    let rawLocale = "";
+
+    try {
+      rawLocale = I18N_API?.getUILanguage?.() || "";
+    } catch (error) {
+      rawLocale = "";
+    }
+
+    rawLocale ||= navigator.language || "en";
     return rawLocale.replace("_", "-");
   }
 

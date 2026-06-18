@@ -74,9 +74,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.4.13.zip`
-- `dist/xtension-edge-v0.4.13.zip`
-- `dist/xtension-firefox-v0.4.13.zip`
+- `dist/xtension-chrome-v0.4.15.zip`
+- `dist/xtension-edge-v0.4.15.zip`
+- `dist/xtension-firefox-v0.4.15.zip`
 - `dist/SHA256SUMS.txt`
 
 ## GitHub Releases
