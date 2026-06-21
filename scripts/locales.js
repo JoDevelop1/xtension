@@ -730,8 +730,8 @@ const replyFeatureDefaultMessages = {
   optionsSectionBridge: "AI Bridge",
   optionsEnableAi: "Enable reply suggestions and draft tools",
   optionsBridgeDownloadTitle: "Local bridge is required",
-  optionsBridgeDownloadHint: "Chrome and Edge cannot install desktop AI tools from an extension. Download and install the signed Windows bridge service, then it will keep running in the background.",
-  optionsBridgeDownload: "Download bridge",
+  optionsBridgeDownloadHint: "Chrome and Edge cannot install desktop AI tools from an extension. Download and run the signed Windows installer, then the bridge will keep running in the background.",
+  optionsBridgeDownload: "Download installer",
   optionsReplyProvider: "Reply provider",
   optionsProviderCodex: "Codex",
   optionsProviderGrok: "Grok",
@@ -786,6 +786,7 @@ const replyFeatureDefaultMessages = {
   optionsTestFailed: "Connection test failed.",
   optionsBridgeTestOk: "Bridge is running. Provider detected: {provider}.",
   optionsBridgeTestFailed: "Bridge test failed.",
+  optionsBridgeMissing: "Xtension Bridge was not detected. Download and run the installer, then test the bridge again.",
   optionsBridgeProviderMissing: "{provider} was not detected by the bridge.",
   optionsRuntimeUnavailable: "Extension runtime is unavailable."
 };
@@ -902,8 +903,8 @@ Object.assign(replyFeatureMessages.fr, {
   optionsSectionBridge: "Bridge IA",
   optionsEnableAi: "Activer les réponses proposées et les outils de brouillon",
   optionsBridgeDownloadTitle: "Le bridge local est nécessaire",
-  optionsBridgeDownloadHint: "Chrome et Edge ne peuvent pas installer d'outils IA de bureau depuis une extension. Téléchargez et installez le service Windows signé du bridge, puis il restera actif en arrière-plan.",
-  optionsBridgeDownload: "Télécharger le bridge",
+  optionsBridgeDownloadHint: "Chrome et Edge ne peuvent pas installer d'outils IA de bureau depuis une extension. Téléchargez et lancez l'installateur Windows signé, puis le bridge restera actif en arrière-plan.",
+  optionsBridgeDownload: "Télécharger l'installateur",
   optionsReplyProvider: "Fournisseur de réponses",
   optionsProviderCodex: "Codex",
   optionsProviderGrok: "Grok",
@@ -958,6 +959,7 @@ Object.assign(replyFeatureMessages.fr, {
   optionsTestFailed: "Le test de connexion a échoué.",
   optionsBridgeTestOk: "Le bridge fonctionne. Fournisseur détecté : {provider}.",
   optionsBridgeTestFailed: "Le test du bridge a échoué.",
+  optionsBridgeMissing: "Xtension Bridge n'a pas été détecté. Téléchargez et lancez l'installateur, puis retestez le bridge.",
   optionsBridgeProviderMissing: "{provider} n'a pas été détecté par le bridge.",
   optionsRuntimeUnavailable: "Le runtime de l'extension est indisponible."
 });

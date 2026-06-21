@@ -7,11 +7,11 @@ Until Xtension is published in browser stores, users can install it manually fro
 - Microsoft Edge: `xtension-edge-vX.Y.Z.zip`
 - Chrome, Brave, Vivaldi, Opera: `xtension-chrome-vX.Y.Z.zip`
 - Firefox: `xtension-firefox-vX.Y.Z.zip`
-- Optional Windows AI bridge: `XtensionBridge-Windows.zip`
+- Optional Windows AI bridge installer: `XtensionBridgeSetup.exe`
 
 `SHA256SUMS.txt` lets you verify that the downloaded archives match the files generated during the release.
 
-The Windows bridge archive also includes `XtensionBridge-Windows.SHA256.txt`.
+The Windows bridge installer also includes `XtensionBridgeSetup.SHA256.txt`.
 
 ## Edge
 
@@ -47,13 +47,9 @@ For permanent Firefox installation, the extension must be signed through Mozilla
 
 ## Optional AI Bridge for Windows
 
-The browser extension cannot install desktop executables by itself. To use Codex, Grok, Gemini, or Claude from Xtension, download `XtensionBridge-Windows.zip`, extract it, then run PowerShell as Administrator in the extracted folder:
+The browser extension cannot install desktop executables by itself. To use Codex, Grok, Gemini, or Claude from Xtension, download and run `XtensionBridgeSetup.exe`.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install-bridge-service.ps1
-```
-
-The installer creates the automatic `XtensionBridge` Windows service, starts it, and verifies the local bridge endpoint.
+The installer requests administrator rights, copies the signed bridge files, creates the automatic `XtensionBridge` Windows service, starts it, and verifies the local bridge endpoint.
 
 ## Verify Checksums
 

@@ -13,9 +13,9 @@ The browser packages live in `releases/browser/`:
 
 ## Windows Bridge
 
-The signed Windows bridge package lives in `releases/windows/`:
+The signed Windows bridge installer lives in `releases/windows/`:
 
-- `XtensionBridge-Windows.zip`
-- `XtensionBridge-Windows.SHA256.txt`
+- `XtensionBridgeSetup.exe`
+- `XtensionBridgeSetup.SHA256.txt`
 
-Chrome Web Store and Edge Add-ons cannot install the Windows service automatically. Users install the browser extension from the store, then download and install this bridge package only if they want optional AI features through Codex, Grok, Gemini, or Claude.
+Chrome Web Store and Edge Add-ons cannot install the Windows service automatically. Users install the browser extension from the store, then download and run this installer only if they want optional AI features through Codex, Grok, Gemini, or Claude.

@@ -105,8 +105,9 @@ function cleanDirectory(dir) {
 
 function cleanDistDirectory() {
   fs.mkdirSync(dist, { recursive: true });
+  const preservedEntries = new Set(["bridge", "bridge-service", "bridge-installer", "bridge-installer-payload"]);
   for (const entry of fs.readdirSync(dist, { withFileTypes: true })) {
-    if (entry.name === "bridge" || entry.name === "bridge-service" || entry.name.startsWith("XtensionBridge-")) {
+    if (preservedEntries.has(entry.name) || entry.name.startsWith("XtensionBridgeSetup.")) {
       continue;
     }
     fs.rmSync(path.join(dist, entry.name), { force: true, recursive: true });

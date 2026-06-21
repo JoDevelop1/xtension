@@ -26,6 +26,8 @@ Thumbs.db
 /vendor/
 /bridge-service/bin/
 /bridge-service/obj/
+/bridge-installer/bin/
+/bridge-installer/obj/
 *.crx
 *.xpi
 web-ext-artifacts/

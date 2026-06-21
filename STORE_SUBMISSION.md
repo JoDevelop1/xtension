@@ -66,7 +66,7 @@ The x.com and twitter.com matches are required to inject Xtension actions into X
 Bridge download disclosure:
 
 ```text
-Xtension's optional AI features require a separate signed Windows bridge service. Chrome Web Store cannot install native executables for an extension, so Xtension displays a download button in Options that opens the public bridge archive hosted in the same source repository. The extension remains usable for PDF export without installing the bridge.
+Xtension's optional AI features require a separate signed Windows bridge installer. Chrome Web Store cannot install native executables for an extension, so Xtension displays a download button in Options that opens the public installer hosted in the same source repository. The extension remains usable for PDF export without installing the bridge.
 ```
 
 Native messaging permission:
@@ -162,7 +162,7 @@ See:
 - Verify that the extension popup opens the dedicated Xtension settings page.
 - Verify that AI tools fail clearly when Xtension Bridge is not running.
 - Verify that Xtension Bridge detects installed Codex, Grok, Gemini, and Claude CLIs.
-- Verify that `XtensionBridge.exe` and `XtensionBridgeService.exe` are signed before publishing the Windows bridge archive.
+- Verify that `XtensionBridge.exe`, `XtensionBridgeService.exe`, and `XtensionBridgeSetup.exe` are signed before publishing the Windows installer.
 - Verify that the browser manifest requests only `storage`, the exact default bridge hosts, and public X/Twitter media host access.
 - Verify correction, translation, generation, and reply suggestions through Xtension Bridge.
 - Verify that the extension activates only in X/Twitter and related public media domains.

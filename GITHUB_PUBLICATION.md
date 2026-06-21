@@ -79,10 +79,11 @@ The signed Windows bridge is built locally because it uses the Trusted Signing s
 npm run bridge:build
 npm run bridge:service:build
 npm run bridge:sign
-npm run bridge:package
+npm run bridge:installer:build
+npm run bridge:installer:sign
 ```
 
-Upload `dist/XtensionBridge-Windows.zip` and `dist/XtensionBridge-Windows.SHA256.txt`, or use the mirrored copies committed under `releases/windows/`.
+Upload `dist/XtensionBridgeSetup.exe` and `dist/XtensionBridgeSetup.SHA256.txt`, or use the mirrored copies committed under `releases/windows/`.
 
 If the browser files are not attached automatically, create or edit the release manually and upload the files from `dist/`.
 
@@ -102,10 +103,11 @@ Run this immediately before pushing:
 npm run build
 npm run check
 npm run bridge:sign
-npm run bridge:package
+npm run bridge:installer:build
+npm run bridge:installer:sign
 Get-Content dist\SHA256SUMS.txt
-Get-Content dist\XtensionBridge-Windows.SHA256.txt
-Get-AuthenticodeSignature dist\bridge\XtensionBridge.exe,dist\bridge-service\XtensionBridgeService.exe
+Get-Content dist\XtensionBridgeSetup.SHA256.txt
+Get-AuthenticodeSignature dist\bridge\XtensionBridge.exe,dist\bridge-service\XtensionBridgeService.exe,dist\XtensionBridgeSetup.exe
 ```
 
 Also verify:

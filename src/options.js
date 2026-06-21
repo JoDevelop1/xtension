@@ -141,6 +141,7 @@
   const replyStyleInput = document.querySelector("#reply-ai-style");
   const replyLanguageModeInput = document.querySelector("#reply-ai-language-mode");
   const statusElement = document.querySelector("#reply-ai-status");
+  const bridgeDownloadLink = document.querySelector("#reply-ai-bridge-download");
   const testButton = document.querySelector("#reply-ai-test");
   const logsRefreshButton = document.querySelector("#reply-ai-logs-refresh");
   const logsClearButton = document.querySelector("#reply-ai-logs-clear");
@@ -155,6 +156,7 @@
     localizePage();
     setupTabs();
     await loadConfig();
+    refreshBridgeStatusOnLoad();
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -284,12 +286,32 @@
     }
   }
 
+  function refreshBridgeStatusOnLoad() {
+    testBridgeConnection(getFormConfig()).then((message) => {
+      showStatus(message, "success");
+    }).catch((error) => {
+      if (error?.bridgeMissing) {
+        activateSettingsTab("bridge");
+        bridgeDownloadLink?.focus();
+      }
+      showStatus(error?.message || localizedText("optionsTestFailed", "Connection test failed."), "error");
+    });
+  }
+
   async function testBridgeConnection(config) {
     const bridgeUrl = String(config.codexBridgeUrl || DEFAULT_CODEX_BRIDGE_URL).trim().replace(/\/+$/, "");
-    const response = await fetch(`${bridgeUrl}/providers`, {
-      method: "GET",
-      headers: buildBridgeAuthHeaders(config)
-    });
+    let response;
+    try {
+      response = await fetch(`${bridgeUrl}/providers`, {
+        method: "GET",
+        headers: buildBridgeAuthHeaders(config)
+      });
+    } catch (error) {
+      const bridgeError = new Error(localizedText("optionsBridgeMissing", "Xtension Bridge was not detected. Download and run the installer, then test the bridge again."));
+      bridgeError.cause = error;
+      bridgeError.bridgeMissing = true;
+      throw bridgeError;
+    }
 
     if (!response.ok) {
       throw new Error(`${localizedText("optionsBridgeTestFailed", "Bridge test failed.")} (${response.status})`);
