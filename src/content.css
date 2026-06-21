@@ -460,6 +460,15 @@
   z-index: 0;
 }
 
+.xtension-reply-suggestions.is-inline {
+  margin: 10px 0 0;
+  max-height: none !important;
+  overflow: visible;
+  position: static;
+  width: 100%;
+  z-index: auto;
+}
+
 .xtension-reply-suggestions.is-noninteractive-status {
   pointer-events: none;
 }

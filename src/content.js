@@ -2297,6 +2297,14 @@
       return;
     }
 
+    if (panel.classList.contains("is-inline")) {
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("width");
+      panel.style.removeProperty("max-height");
+      return;
+    }
+
     if (!panel.classList.contains("is-floating")) {
       panel.style.removeProperty("left");
       panel.style.removeProperty("top");
@@ -2320,8 +2328,19 @@
   }
 
   function attachReplySuggestionsPanel(editor, panel) {
+    const dialog = findVisibleReplyDialog(editor);
+    if (dialog && shouldMountReplySuggestionsInline(editor, panel, dialog)) {
+      const mountedInline = mountReplySuggestionsPanelInline(panel, editor, dialog);
+      if (mountedInline) {
+        panel.classList.remove("is-floating", "is-reply-layer-mounted");
+        panel.classList.add("is-inline");
+        return;
+      }
+    }
+
+    panel.classList.remove("is-inline");
     panel.classList.add("is-floating");
-    if (findVisibleReplyDialog(editor)) {
+    if (dialog) {
       panel.classList.add("is-reply-layer-mounted");
       mountXtensionOverlayInsideXLayers(panel, editor);
       return;
@@ -2329,6 +2348,65 @@
 
     panel.classList.remove("is-reply-layer-mounted");
     mountXtensionOverlayBelowXLayers(panel);
+  }
+
+  function shouldMountReplySuggestionsInline(editor, panel, dialog) {
+    const dialogRect = dialog?.getBoundingClientRect?.();
+    if (!dialogRect?.width || !dialogRect?.height) {
+      return false;
+    }
+
+    const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    const composer = findReplyComposerContainer(editor);
+    const controlsRect = getReplyComposerControlsRect(composer);
+    const anchorBottom = Math.max(controlsRect?.bottom || 0, dialogRect.bottom || 0);
+    const estimatedPanelHeight = Math.min(Math.max(panel?.offsetHeight || 240, 180), 340);
+    const availableBelow = viewportHeight - anchorBottom - 16;
+    const dialogTouchesViewportBottom = dialogRect.bottom >= viewportHeight - 96;
+    const dialogNearlyFullHeight = dialogRect.height >= viewportHeight - 180;
+
+    return (dialogTouchesViewportBottom || dialogNearlyFullHeight) && availableBelow < Math.min(estimatedPanelHeight, 220);
+  }
+
+  function mountReplySuggestionsPanelInline(panel, editor, dialog) {
+    const placement = getReplySuggestionsInlinePlacement(editor, dialog);
+    if (!placement?.parent) {
+      return false;
+    }
+
+    if (panel.parentElement !== placement.parent || panel.nextSibling !== (placement.before || null)) {
+      placement.parent.insertBefore(panel, placement.before || null);
+    }
+
+    return true;
+  }
+
+  function getReplySuggestionsInlinePlacement(editor, dialog) {
+    const composer = findReplyComposerContainer(editor);
+    const actionRow = findComposerActionRow(composer);
+    if (actionRow?.parentElement && dialog?.contains?.(actionRow.parentElement)) {
+      return {
+        parent: actionRow.parentElement,
+        before: actionRow.nextSibling
+      };
+    }
+
+    if (composer?.parentElement && dialog?.contains?.(composer.parentElement)) {
+      return {
+        parent: composer.parentElement,
+        before: composer.nextSibling
+      };
+    }
+
+    const editorRoot = editor?.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    if (editorRoot?.parentElement && dialog?.contains?.(editorRoot.parentElement)) {
+      return {
+        parent: editorRoot.parentElement,
+        before: editorRoot.nextSibling
+      };
+    }
+
+    return null;
   }
 
   function mountXtensionOverlayBelowXLayers(element) {
