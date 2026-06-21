@@ -1,0 +1,440 @@
+:root {
+  --text: #111827;
+  --muted: #536471;
+  --border: #d7dde3;
+  --surface: #ffffff;
+  --page: #f6f8fa;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --success: #047857;
+  --danger: #be123c;
+  --disabled: #eef2f5;
+}
+
+body {
+  background: var(--page);
+  color: var(--text);
+  font: 500 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.options-shell {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 1040px;
+  padding: 32px 20px 40px;
+  width: 100%;
+}
+
+.options-header {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 22px;
+  min-width: 0;
+}
+
+.options-header > div:last-child {
+  min-width: 0;
+}
+
+.brand-mark {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.brand-mark img {
+  border-radius: 8px;
+}
+
+.options-header h1 {
+  font-size: 28px;
+  line-height: 34px;
+  margin: 0;
+}
+
+.options-header p,
+.provider-summary,
+.field-note {
+  color: var(--muted);
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.options-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.08);
+  box-sizing: border-box;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.options-tabs {
+  background: #edf2f7;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  padding: 4px;
+}
+
+.options-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #334155;
+  cursor: pointer;
+  font: 800 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 38px;
+  padding: 9px 10px;
+}
+
+.options-tab.is-active {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12);
+  color: var(--text);
+}
+
+.settings-tab-panel {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.settings-tab-panel[hidden] {
+  display: none;
+}
+
+.setting-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  min-width: 0;
+  padding: 18px;
+}
+
+.setting-section legend {
+  color: var(--text);
+  font: 800 16px/22px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 0 8px;
+}
+
+.setting-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.setting-row.is-disabled {
+  opacity: 0.58;
+}
+
+.options-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.route-grid {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  padding: 12px;
+}
+
+.bridge-download {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 14px;
+}
+
+.download-button {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 8px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: 800 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 40px;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.download-button:hover {
+  background: var(--accent-strong);
+}
+
+.field-title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.field-title label,
+.options-toggle span {
+  color: var(--text);
+  font-weight: 800;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.field-help {
+  appearance: none;
+  align-items: center;
+  background: #e8f0fe;
+  border: 1px solid #bfd3ff;
+  border-radius: 50%;
+  color: var(--accent-strong);
+  cursor: help;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: 900 12px/16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 20px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 20px;
+}
+
+.field-help::after {
+  background: #111827;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.2);
+  box-sizing: border-box;
+  color: #fff;
+  content: attr(data-help);
+  display: none;
+  font: 600 12px/17px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  left: 50%;
+  max-width: min(320px, calc(100vw - 48px));
+  min-width: 230px;
+  padding: 10px 11px;
+  position: absolute;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  white-space: normal;
+  z-index: 20;
+}
+
+.field-help:hover::after,
+.field-help:focus-visible::after {
+  display: block;
+}
+
+.options-toggle {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.setting-row.is-toggle {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.options-toggle input {
+  flex: 0 0 auto;
+  height: 18px;
+  margin: 0;
+  width: 18px;
+}
+
+.options-toggle.is-disabled {
+  color: #64748b;
+  opacity: 0.58;
+}
+
+.setting-row input[type="text"],
+.setting-row input[type="url"],
+.setting-row input[type="password"],
+.setting-row select,
+.setting-row textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--text);
+  font: 500 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 42px;
+  min-width: 0;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.setting-row input:disabled,
+.setting-row select:disabled {
+  background: var(--disabled);
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.setting-row textarea {
+  font: 500 13px/19px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  min-height: 220px;
+  resize: vertical;
+}
+
+.reply-prompt-profiles {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.reply-prompt-profile {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.options-actions,
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.options-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.options-actions button,
+.inline-actions button {
+  appearance: none;
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: 800 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 40px;
+  padding: 10px 16px;
+}
+
+.options-actions button:hover,
+.inline-actions button:hover {
+  background: var(--accent-strong);
+}
+
+.options-actions button.secondary,
+.inline-actions button.secondary {
+  background: #eef2f7;
+  color: var(--text);
+}
+
+.options-actions button.secondary:hover,
+.inline-actions button.secondary:hover {
+  background: #dfe6ee;
+}
+
+.inline-actions button.danger {
+  color: var(--danger);
+}
+
+.diagnostic-log-output {
+  background: #111827;
+  border: 1px solid #233044;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #e5e7eb;
+  font: 500 12px/18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  margin: 0;
+  max-height: 420px;
+  min-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  width: 100%;
+}
+
+.options-status {
+  color: var(--muted);
+  min-height: 20px;
+}
+
+.options-status.error {
+  color: var(--danger);
+}
+
+.options-status.success {
+  color: var(--success);
+}
+
+@media (max-width: 700px) {
+  .options-shell {
+    padding: 20px 12px 28px;
+  }
+
+  .options-header {
+    align-items: flex-start;
+  }
+
+  .options-header h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .options-form {
+    padding: 12px;
+  }
+
+  .options-tabs,
+  .options-grid,
+  .route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bridge-download {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .setting-row.is-toggle {
+    align-items: flex-start;
+  }
+
+  .field-help::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+}

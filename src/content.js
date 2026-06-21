@@ -11,6 +11,53 @@
   const MENU_ICON_ATTRIBUTE = "data-xtension-menu-icon";
   const MENU_LABEL = localizedText("menuDownloadPdf", "Download as PDF");
   const PDF_MENU_ICON_PATH = "pdf-menu-icon.png";
+  const REPLY_BUTTON_SELECTOR = "[data-xtension-reply-button]";
+  const REPLY_BUTTON_ATTRIBUTE = "data-xtension-reply-button";
+  const DRAFT_ACTIONS_SELECTOR = "[data-xtension-draft-actions]";
+  const DRAFT_ACTIONS_ATTRIBUTE = "data-xtension-draft-actions";
+  const DRAFT_ACTIONS_HOST_SELECTOR = "[data-xtension-draft-actions-host]";
+  const DRAFT_ACTIONS_HOST_ATTRIBUTE = "data-xtension-draft-actions-host";
+  const DRAFT_ACTIONS_HOST_VERSION = "composer-submit-cleanup-v2";
+  const CONTENT_BUILD_ATTRIBUTE = "data-xtension-content-build";
+  const DRAFT_ACTION_BUTTON_ATTRIBUTE = "data-xtension-draft-action-button";
+  const DRAFT_GENERATION_LANGUAGE_STORAGE_KEY = "draftGenerationLanguage";
+  const DRAFT_ACTION_TIMINGS_STORAGE_KEY = "draftActionTimings";
+  const REPLY_SUGGESTIONS_PANEL_SELECTOR = "[data-xtension-reply-suggestions]";
+  const REPLY_SUGGESTIONS_PANEL_ATTRIBUTE = "data-xtension-reply-suggestions";
+  const X_LAYERS_ID = "layers";
+  const X_REACT_ROOT_ID = "react-root";
+  const XTENSION_OVERLAY_ROOT_ATTRIBUTE = "data-xtension-overlay-root";
+  const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
+  const COMPOSER_SUBMIT_SUPPRESSION_MS = 12000;
+  const DEFAULT_DRAFT_ACTION_DURATION_MS = {
+    correct: 12000,
+    translate: 14000,
+    generate: 18000
+  };
+  const DRAFT_ACTION_ICON_SVGS = {
+    correct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    translate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11.5 5c-.7 2.7-2.6 5.2-5.5 7.2M6.5 8.2c1 1.4 2.2 2.5 3.8 3.4M14 19l3.2-8 3.3 8M15.1 16.4h4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    generate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 13.8 8l5.2 1.8-5.2 1.8L12 16.8l-1.8-5.2L5 9.8 10.2 8 12 2.8ZM5.5 14.5l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4ZM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7L18 15Z" fill="currentColor"/></svg>',
+    suggestions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14M5 12h10M5 17.5h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M18 15.5 19.2 18l2.3 1-2.3 1-1.2 2.5-1.2-2.5-2.3-1 2.3-1 1.2-2.5Z" fill="currentColor"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7H4v4M4.6 10.4A8 8 0 1 0 7.4 5.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  const DRAFT_GENERATION_LANGUAGES = [
+    { id: "auto", iconPath: "flags/auto.svg", code: "AUTO", nativeName: "Auto", labelKey: "draftLanguageAuto", fallback: "Auto" },
+    { id: "fr", iconPath: "flags/fr.svg", code: "FR", nativeName: "Français", labelKey: "draftLanguageFrench", fallback: "French" },
+    { id: "en", iconPath: "flags/gb.svg", code: "EN", nativeName: "English", labelKey: "draftLanguageEnglish", fallback: "English" },
+    { id: "es", iconPath: "flags/es.svg", code: "ES", nativeName: "Español", labelKey: "draftLanguageSpanish", fallback: "Spanish" },
+    { id: "de", iconPath: "flags/de.svg", code: "DE", nativeName: "Deutsch", labelKey: "draftLanguageGerman", fallback: "German" },
+    { id: "ja", iconPath: "flags/jp.svg", code: "JA", nativeName: "日本語", labelKey: "draftLanguageJapanese", fallback: "Japanese" }
+  ];
+  const REPLY_EDITOR_SELECTOR = [
+    '[data-testid="tweetTextarea_0"][contenteditable="true"]',
+    '[data-testid="tweetTextarea_1"][contenteditable="true"]',
+    '[data-testid^="tweetTextarea_"][contenteditable="true"]',
+    '[data-testid^="tweetTextarea_"][role="textbox"]',
+    '[data-testid^="tweetTextarea_"] [contenteditable="true"]',
+    '[data-testid^="tweetTextarea_"] [role="textbox"]',
+    'div[role="textbox"][contenteditable="true"]'
+  ].join(", ");
   const LONGFORM_SELECTOR = [
     ".longform-header-one",
     ".longform-header-one-narrow",
@@ -96,29 +143,79 @@
 
   let enhanceQueued = false;
   let lastMenuContext = null;
+  let pageObserver = null;
+  let extensionContextInvalidated = false;
 
   function start() {
-    document.addEventListener("pointerdown", rememberMenuTriggerContext, true);
-    document.addEventListener("keydown", rememberMenuTriggerContext, true);
-    enhanceDropdowns();
+    if (extensionContextInvalidated) {
+      return;
+    }
 
-    const observer = new MutationObserver(scheduleEnhancement);
-    observer.observe(document.body || document.documentElement, {
+    document.documentElement?.setAttribute?.(CONTENT_BUILD_ATTRIBUTE, DRAFT_ACTIONS_HOST_VERSION);
+    document.addEventListener("pointerdown", rememberMenuTriggerContext, true);
+    document.addEventListener("click", rememberDraftComposerSubmit, true);
+    document.addEventListener("keydown", rememberMenuTriggerContext, true);
+    document.addEventListener("focusin", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.addEventListener("focusout", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.addEventListener("input", scheduleEnhancement, true);
+    document.addEventListener("pointerup", handleDraftActionPointerUp, true);
+    document.addEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
+    enhancePage();
+
+    pageObserver?.disconnect();
+    pageObserver = new MutationObserver((mutations) => {
+      if (extensionContextInvalidated || mutations.every(isXtensionOverlayMutation)) {
+        return;
+      }
+
+      scheduleEnhancement();
+    });
+    pageObserver.observe(document.body || document.documentElement, {
       childList: true,
       subtree: true
     });
   }
 
   function scheduleEnhancement() {
-    if (enhanceQueued) {
+    if (extensionContextInvalidated || enhanceQueued) {
       return;
     }
 
     enhanceQueued = true;
     requestAnimationFrame(() => {
       enhanceQueued = false;
-      enhanceDropdowns();
+      if (extensionContextInvalidated) {
+        return;
+      }
+
+      enhancePage();
     });
+  }
+
+  function scheduleEnhancementUnlessNativeMediaControl(event) {
+    if (isNativeComposerMediaControl(event?.target) || isNativeComposerMediaControl(event?.relatedTarget)) {
+      return;
+    }
+
+    scheduleEnhancement();
+  }
+
+  function enhancePage() {
+    if (extensionContextInvalidated) {
+      return;
+    }
+
+    enhanceDropdowns();
+    if (extensionContextInvalidated) {
+      return;
+    }
+
+    enhanceReplyButtons();
+    if (extensionContextInvalidated) {
+      return;
+    }
+
+    enhanceCorrectionButtons();
   }
 
   function enhanceDropdowns() {
@@ -141,6 +238,3656 @@
         dropdown.append(menuItem);
       }
     });
+  }
+
+  function enhanceReplyButtons() {
+    document.querySelectorAll('article[data-testid="tweet"] [data-testid="User-Name"]').forEach((userName) => {
+      if (userName.querySelector(REPLY_BUTTON_SELECTOR)) {
+        return;
+      }
+
+      const tweet = userName.closest('article[data-testid="tweet"]');
+      if (!tweet) {
+        return;
+      }
+
+      const host = findReplyButtonHost(userName);
+      if (!host || host.querySelector(REPLY_BUTTON_SELECTOR)) {
+        return;
+      }
+
+      host.setAttribute("data-xtension-reply-host", "true");
+      markReplyMetadataLine(userName, host);
+      host.append(createReplyButton(tweet));
+    });
+  }
+
+  function enhanceCorrectionButtons() {
+    cleanupMisplacedDraftActionBars();
+
+    document.querySelectorAll(REPLY_EDITOR_SELECTOR).forEach((editor) => {
+      if (!isVisibleElement(editor)) {
+        return;
+      }
+
+      const composer = findReplyComposerContainer(editor);
+      if (!composer) {
+        return;
+      }
+
+      if (isComposerRecentlySubmitted(editor, composer)) {
+        return;
+      }
+
+      if (shouldUseDedicatedDraftActionRow(editor, composer) && !isDraftActionComposerActive(editor, composer)) {
+        return;
+      }
+
+      const host = findCorrectionButtonHost(editor, composer);
+      if (!host || host.querySelector(DRAFT_ACTIONS_SELECTOR)) {
+        maybeShowAutomaticReplySuggestions(editor, composer);
+        return;
+      }
+
+      const actions = createDraftActionButtons(editor);
+      if (extensionContextInvalidated) {
+        return;
+      }
+
+      host.append(actions);
+      maybeShowAutomaticReplySuggestions(editor, composer);
+    });
+  }
+
+  function findCorrectionButtonHost(editor, existingComposer) {
+    const composer = existingComposer || findReplyComposerContainer(editor);
+    if (!composer) {
+      return null;
+    }
+
+    const existingHost = findExistingDraftActionHost(editor, composer);
+    const placement = findDraftActionHostPlacement(editor, composer);
+    if (!placement) {
+      return null;
+    }
+
+    if (existingHost) {
+      existingHost._xtensionDraftComposer = composer;
+      if (findEditableReplyEditor(editor)) {
+        existingHost._xtensionDraftEditor = editor;
+      }
+      applyDraftActionHostPlacement(existingHost, placement);
+      return existingHost;
+    }
+
+    const host = document.createElement("div");
+    host.className = "xtension-draft-actions-host";
+    host.setAttribute(DRAFT_ACTIONS_HOST_ATTRIBUTE, DRAFT_ACTIONS_HOST_VERSION);
+    host._xtensionDraftEditor = editor;
+    host._xtensionDraftComposer = composer;
+    applyDraftActionHostPlacement(host, placement);
+    return host;
+  }
+
+  function findExistingDraftActionHost(editor, composer) {
+    return Array.from(document.querySelectorAll(DRAFT_ACTIONS_HOST_SELECTOR)).find((host) => {
+      return host.getAttribute(DRAFT_ACTIONS_HOST_ATTRIBUTE) === DRAFT_ACTIONS_HOST_VERSION
+        && (host._xtensionDraftEditor === editor || host._xtensionDraftComposer === composer || composer?.contains?.(host));
+    }) || null;
+  }
+
+  function applyDraftActionHostPlacement(host, placement) {
+    host.classList.toggle("is-permission-row", placement.kind === "permission");
+    host.classList.toggle("is-permission-slot", placement.kind === "permission-slot");
+    host.classList.toggle("is-action-row", placement.kind === "action");
+    host.classList.toggle("is-dedicated-row", placement.kind === "dedicated");
+    if (placement.kind === "permission-slot") {
+      host.style.setProperty("--xtension-draft-slot-top", `${Math.max(0, Math.round(placement.top || 0))}px`);
+    } else {
+      host.style.removeProperty("--xtension-draft-slot-top");
+    }
+
+    const alreadyPlaced = host.parentElement === placement.parent
+      && (placement.before ? host.nextSibling === placement.before : host.nextSibling === null);
+
+    if (!alreadyPlaced) {
+      placement.parent.insertBefore(host, placement.before || null);
+    }
+  }
+
+  function cleanupMisplacedDraftActionBars() {
+    cleanupOrphanDraftLanguageMenus();
+
+    document.querySelectorAll(`${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host`).forEach((host) => {
+      if (host.getAttribute(DRAFT_ACTIONS_HOST_ATTRIBUTE) !== DRAFT_ACTIONS_HOST_VERSION) {
+        removeDraftActionHost(host);
+        return;
+      }
+
+      const editor = host._xtensionDraftEditor;
+      if (!editor?.isConnected || !isVisibleElement(editor)) {
+        removeDraftActionHost(host);
+        return;
+      }
+
+      const composer = host._xtensionDraftComposer || findReplyComposerContainer(editor);
+      if (!composer?.isConnected || !isVisibleElement(composer)) {
+        removeDraftActionHost(host);
+        return;
+      }
+
+      if (isComposerRecentlySubmitted(editor, composer)) {
+        removeDraftActionHost(host);
+        return;
+      }
+
+      if (!host._xtensionDraftActionBusy && !isDraftActionComposerActive(editor, composer)) {
+        removeDraftActionHost(host);
+      }
+    });
+
+    document.querySelectorAll(DRAFT_ACTIONS_SELECTOR).forEach((bar) => {
+      const host = bar.closest(DRAFT_ACTIONS_HOST_SELECTOR);
+      if (!host || host.getAttribute(DRAFT_ACTIONS_HOST_ATTRIBUTE) !== DRAFT_ACTIONS_HOST_VERSION) {
+        bar.remove();
+      }
+    });
+  }
+
+  function removeDraftActionHost(host) {
+    host?.querySelectorAll?.(".xtension-draft-language-picker").forEach(removeDraftLanguageMenuForPicker);
+    host?.remove?.();
+  }
+
+  function cleanupOrphanDraftLanguageMenus() {
+    document.querySelectorAll(".xtension-draft-language-menu").forEach((menu) => {
+      const picker = menu._xtensionDraftLanguagePicker;
+      if (!picker?.isConnected) {
+        menu.remove();
+      }
+    });
+  }
+
+  function findDraftActionHostPlacement(editor, composer) {
+    if (shouldUseDedicatedDraftActionRow(editor, composer)) {
+      return findDraftActionDedicatedPlacement(editor, composer);
+    }
+
+    const permissionButton = findComposerReplyPermissionButton(editor, composer);
+    if (permissionButton) {
+      const permissionRow = findComposerPermissionRow(permissionButton, composer);
+      if (permissionRow) {
+        if (isPaintedElement(permissionRow)) {
+          return {
+            kind: "permission",
+            parent: permissionRow,
+            before: null
+          };
+        }
+
+        const permissionSlot = findComposerHiddenPermissionSlot(permissionRow, composer);
+        if (permissionSlot) {
+          const rowRect = permissionRow.getBoundingClientRect();
+          const slotRect = permissionSlot.getBoundingClientRect();
+          return {
+            kind: "permission-slot",
+            parent: permissionSlot,
+            before: null,
+            top: rowRect.top - slotRect.top + 4
+          };
+        }
+      }
+    }
+
+    return findDraftActionRowPlacement(composer)
+      || findDraftActionDedicatedPlacement(editor, composer);
+  }
+
+  function shouldUseDedicatedDraftActionRow(editor, composer) {
+    const submitButton = findComposerSubmitButton(composer);
+    const submitLabel = cleanText(`${submitButton?.getAttribute?.("aria-label") || ""} ${submitButton?.textContent || ""}`).toLowerCase();
+    const composerText = cleanText(composer?.textContent || "").toLowerCase();
+    const editorRoot = editor.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    const editorLabel = cleanText(`${editorRoot?.getAttribute?.("aria-label") || ""} ${editorRoot?.textContent || ""}`).toLowerCase();
+
+    return /\breply\b|répond|repond|antwort|respuesta|返信/.test(submitLabel)
+      || /\breplying to\b|répondre à|repondre a|en réponse à|en reponse a/.test(composerText)
+      || /\bpost your reply\b|publier votre réponse|publier votre reponse|réponse|reponse/.test(editorLabel);
+  }
+
+  function findDraftActionDedicatedPlacement(editor, composer) {
+    const editorBlock = findComposerEditorBlock(editor, composer);
+    if (
+      editorBlock?.parentElement &&
+      composer.contains(editorBlock.parentElement) &&
+      !isInsideReplyTextArea(editorBlock, editor)
+    ) {
+      return {
+        kind: "dedicated",
+        parent: editorBlock.parentElement,
+        before: editorBlock.nextSibling
+      };
+    }
+
+    const actionRow = findComposerActionRow(composer);
+    if (actionRow?.parentElement && composer.contains(actionRow.parentElement)) {
+      return {
+        kind: "dedicated",
+        parent: actionRow.parentElement,
+        before: actionRow
+      };
+    }
+
+    return null;
+  }
+
+  function findDraftActionRowPlacement(composer) {
+    const actionRow = findComposerActionRow(composer);
+    const submitButton = findComposerSubmitButton(composer);
+    if (!actionRow || !submitButton || !composer.contains(actionRow)) {
+      return null;
+    }
+
+    const submitContainer = findDirectChildContaining(actionRow, submitButton);
+    return {
+      kind: "action",
+      parent: actionRow,
+      before: submitContainer || submitButton
+    };
+  }
+
+  function findDirectChildContaining(parent, descendant) {
+    let current = descendant;
+    while (current?.parentElement && current.parentElement !== parent) {
+      current = current.parentElement;
+    }
+    return current?.parentElement === parent ? current : null;
+  }
+
+  function findComposerHiddenPermissionSlot(permissionRow, composer) {
+    let current = permissionRow.parentElement;
+
+    for (let depth = 0; current && current !== composer && depth < 6; depth += 1) {
+      if (isPaintedElement(current)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function isPaintedElement(element) {
+    if (!isVisibleElement(element)) {
+      return false;
+    }
+
+    let current = element;
+    for (let depth = 0; current && depth < 8; depth += 1, current = current.parentElement) {
+      const style = getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function isInsideReplyTextArea(element, editor) {
+    const editorRoot = editor?.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    return Boolean(
+      element?.closest?.('[data-testid^="tweetTextarea_"], [role="textbox"]') ||
+      (editorRoot && element !== editorRoot && editorRoot.contains(element))
+    );
+  }
+
+  function isDraftActionComposerActive(editor, composer) {
+    if (!editor?.isConnected || !composer?.isConnected) {
+      return false;
+    }
+
+    const activeElement = document.activeElement;
+    const editorRoot = editor.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    const existingHost = findExistingDraftActionHost(editor, composer);
+
+    if (existingHost?._xtensionDraftActionBusy) {
+      return true;
+    }
+
+    if (getReplyEditorText(findEditableReplyEditor(editor) || editor)) {
+      return true;
+    }
+
+    if (isReplySuggestionsPanelForEditor(editor)) {
+      return true;
+    }
+
+    if (existingHost?.contains?.(activeElement)) {
+      return true;
+    }
+
+    if (isNativeComposerMediaControl(activeElement)) {
+      return true;
+    }
+
+    if (isDraftLanguageMenuActive(existingHost, activeElement)) {
+      return true;
+    }
+
+    if (activeElement && (editor.contains(activeElement) || editorRoot?.contains?.(activeElement))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function isDraftLanguageMenuActive(host, activeElement) {
+    if (!host || !activeElement) {
+      return false;
+    }
+
+    return Array.from(host.querySelectorAll(".xtension-draft-language-picker")).some((picker) => {
+      return picker._xtensionDraftLanguageMenu?.contains?.(activeElement);
+    });
+  }
+
+  function findComposerReplyPermissionButton(editor, composer) {
+    const editorRoot = editor.closest('[data-testid^="tweetTextarea_"]') || editor;
+    const toolbar = findComposerToolbar(composer);
+    const candidates = Array.from(composer?.querySelectorAll?.('button[aria-label]') || []).filter(isVisibleElement);
+
+    return candidates.find((button) => {
+      if (button.matches?.('[data-testid="tweetButton"], [data-testid="tweetButtonInline"], [data-testid="reply"]')) {
+        return false;
+      }
+
+      if (button.closest?.('[data-testid="toolBar"], article[data-testid="tweet"]')) {
+        return false;
+      }
+
+      if (editorRoot && !isElementAfter(editorRoot, button)) {
+        return false;
+      }
+
+      if (toolbar && !isElementBeforeOrSame(button, toolbar)) {
+        return false;
+      }
+
+      const label = cleanText(`${button.getAttribute("aria-label") || ""} ${button.textContent || ""}`).toLowerCase();
+      return /\breply\b|répond|repond|respond|antwort|respuesta|返信/.test(label);
+    }) || null;
+  }
+
+  function findComposerPermissionRow(permissionButton, composer) {
+    const buttonRect = permissionButton.getBoundingClientRect();
+    let current = permissionButton.parentElement;
+
+    for (let depth = 0; current && current !== composer && depth < 8; depth += 1) {
+      const rect = current.getBoundingClientRect();
+      const style = getComputedStyle(current);
+      const className = getClassName(current, "");
+      const isHorizontalRow = (style.display === "flex" && style.flexDirection !== "column")
+        || className.includes("r-18u37iz");
+      const hasRoomForButtons = rect.width >= Math.max(220, buttonRect.width + 180);
+      const isCompact = rect.height > 0 && rect.height <= 64;
+
+      if (isHorizontalRow && hasRoomForButtons && isCompact) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return permissionButton.parentElement || null;
+  }
+
+  function findReplyComposerContainer(editor) {
+    let current = editor?.parentElement || null;
+    let fallback = null;
+
+    for (let depth = 0; current && depth < 40; depth += 1) {
+      const hasToolbar = Boolean(findComposerToolbar(current));
+      const hasSubmit = Boolean(findComposerSubmitButton(current));
+
+      if ((hasToolbar || hasSubmit) && !fallback) {
+        fallback = current;
+      }
+
+      if (hasToolbar && hasSubmit) {
+        return current;
+      }
+
+      if (fallback && current.matches?.('[role="dialog"], article')) {
+        return fallback;
+      }
+
+      current = current.parentElement;
+    }
+
+    return fallback;
+  }
+
+  function findReplyComposerContainerFromSubmitButton(button) {
+    let current = button?.parentElement || null;
+    let fallback = null;
+
+    for (let depth = 0; current && depth < 40; depth += 1) {
+      const hasEditor = Boolean(current.querySelector?.(REPLY_EDITOR_SELECTOR));
+      const hasToolbar = Boolean(findComposerToolbar(current));
+      const hasSubmit = Boolean(findComposerSubmitButton(current));
+
+      if (hasEditor && (hasToolbar || hasSubmit) && !fallback) {
+        fallback = current;
+      }
+
+      if (hasEditor && hasToolbar && hasSubmit) {
+        return current;
+      }
+
+      if (fallback && current.matches?.('[role="dialog"], article')) {
+        return fallback;
+      }
+
+      current = current.parentElement;
+    }
+
+    return fallback;
+  }
+
+  function findComposerActionRow(composer) {
+    const toolbar = findComposerToolbar(composer);
+    const tweetButton = findComposerSubmitButton(composer);
+
+    if (toolbar && tweetButton) {
+      const common = findSmallestCommonAncestor(toolbar, tweetButton, composer);
+      if (common && common !== composer) {
+        return common;
+      }
+    }
+
+    if (toolbar?.parentElement && composer.contains(toolbar.parentElement)) {
+      return toolbar.parentElement;
+    }
+
+    if (tweetButton?.parentElement && composer.contains(tweetButton.parentElement)) {
+      return tweetButton.parentElement;
+    }
+
+    return null;
+  }
+
+  function findComposerEditorBlock(editor, composer) {
+    let current = editor;
+    let best = editor;
+
+    for (let depth = 0; current?.parentElement && current.parentElement !== composer && depth < 12; depth += 1) {
+      const parent = current.parentElement;
+      const rect = parent.getBoundingClientRect();
+      const style = getComputedStyle(parent);
+      const isComposerWidth = rect.width >= Math.max(220, editor.getBoundingClientRect().width * 0.8);
+      const isVerticalBlock = style.display !== "inline" && style.display !== "inline-flex";
+
+      if (isComposerWidth && isVerticalBlock) {
+        best = parent;
+      }
+
+      current = parent;
+    }
+
+    return best;
+  }
+
+  function findComposerToolbar(scope) {
+    return findVisibleDescendant(scope, '[data-testid="toolBar"], [role="toolbar"]');
+  }
+
+  function findComposerSubmitButton(scope) {
+    return findVisibleDescendant(scope, '[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
+  }
+
+  function isNativeComposerMediaControl(element) {
+    if (!(element instanceof Element)) {
+      return false;
+    }
+
+    const button = element.closest?.('button[aria-label], [role="button"][aria-label], [data-testid]');
+    if (!button || button.closest?.(DRAFT_ACTIONS_HOST_SELECTOR)) {
+      return false;
+    }
+
+    const toolbar = button.closest?.('[data-testid="toolBar"], [role="toolbar"]');
+    if (!toolbar) {
+      return false;
+    }
+
+    const marker = cleanText([
+      button.getAttribute("aria-label"),
+      button.getAttribute("data-testid"),
+      button.textContent
+    ].filter(Boolean).join(" ")).toLowerCase();
+    const compactMarker = marker.replace(/[^\p{L}\p{N}]+/gu, "");
+
+    return /(?:gif|emoji|emojis|émoji|émojis|emotic[oô]ne|emotic[oô]nes|media|m[eé]dia|image|photo|photos|video|vid[eé]o|poll|sondage|schedule|programmer|calendar|calendrier|location|emplacement|gallery|galerie)/i.test(marker)
+      || /(?:gif|emoji|emojis|media|image|photo|photos|video|poll|schedule|calendar|location|gallery)/i.test(compactMarker);
+  }
+
+  function rememberDraftComposerSubmit(event) {
+    const button = event.target?.closest?.('[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
+    if (!button || !isVisibleElement(button) || isDisabledButton(button)) {
+      return;
+    }
+
+    const composer = findReplyComposerContainerFromSubmitButton(button);
+    const editors = Array.from(composer?.querySelectorAll?.(REPLY_EDITOR_SELECTOR) || []).filter(isVisibleElement);
+    if (!composer || !editors.some((editor) => getReplyEditorText(editor))) {
+      return;
+    }
+
+    const submittedAt = Date.now();
+    composer._xtensionDraftSubmittedAt = submittedAt;
+    editors.forEach((editor) => {
+      editor._xtensionDraftSubmittedAt = submittedAt;
+      const host = findExistingDraftActionHost(editor, composer);
+      if (host) {
+        removeDraftActionHost(host);
+      }
+    });
+
+    scheduleEnhancement();
+  }
+
+  function isDisabledButton(button) {
+    return button?.disabled
+      || button?.getAttribute?.("aria-disabled") === "true"
+      || button?.getAttribute?.("disabled") !== null;
+  }
+
+  function isComposerRecentlySubmitted(editor, composer) {
+    const submittedAt = Math.max(
+      Number(editor?._xtensionDraftSubmittedAt || 0),
+      Number(composer?._xtensionDraftSubmittedAt || 0)
+    );
+
+    if (!submittedAt) {
+      return false;
+    }
+
+    const target = findEditableReplyEditor(editor) || editor;
+    if (getReplyEditorText(target)) {
+      clearComposerSubmitSuppression(editor, composer);
+      return false;
+    }
+
+    if (Date.now() - submittedAt <= COMPOSER_SUBMIT_SUPPRESSION_MS || hasPostSentNotice()) {
+      return true;
+    }
+
+    clearComposerSubmitSuppression(editor, composer);
+    return false;
+  }
+
+  function clearComposerSubmitSuppression(editor, composer) {
+    if (editor) {
+      editor._xtensionDraftSubmittedAt = 0;
+    }
+    if (composer) {
+      composer._xtensionDraftSubmittedAt = 0;
+    }
+  }
+
+  function hasPostSentNotice() {
+    const notices = document.querySelectorAll('[role="status"], [aria-live], [data-testid="toast"]');
+    return Array.from(notices).some((notice) => {
+      const text = cleanText(notice.textContent).toLowerCase();
+      return /your post was sent|post was sent|post sent|votre post a été envoyé|votre post a ete envoye|réponse envoyée|reponse envoyee|publication envoyée|publication envoyee/.test(text);
+    });
+  }
+
+  function findVisibleDescendant(scope, selector) {
+    if (!scope?.querySelectorAll) {
+      return null;
+    }
+
+    return Array.from(scope.querySelectorAll(selector)).find(isVisibleElement) || null;
+  }
+
+  function findSmallestCommonAncestor(first, second, boundary) {
+    let current = first;
+
+    while (current && current !== boundary.parentElement) {
+      if (current.contains(second)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function createDraftActionButtons(editor) {
+    const wrapper = document.createElement("div");
+
+    wrapper.className = "xtension-draft-actions";
+    wrapper.setAttribute(DRAFT_ACTIONS_ATTRIBUTE, "true");
+
+    getDraftActionDefinitions().forEach((action) => {
+      const button = document.createElement("button");
+      const label = localizedText(action.labelKey, action.fallback);
+
+      button.type = "button";
+      button.className = `xtension-draft-action-button is-${action.id}`;
+      button.setAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE, action.id);
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.append(createDraftActionIcon(action.id));
+      button.addEventListener("pointerdown", stopDraftActionButtonEvent, true);
+      button.addEventListener("mousedown", stopDraftActionButtonEvent, true);
+      button.addEventListener("click", async (event) => {
+        stopDraftActionButtonEvent(event);
+        await activateDraftActionButton(button, editor, action.id);
+      });
+      wrapper.append(button);
+    });
+
+    wrapper.append(createDraftGenerationLanguagePicker());
+
+    return wrapper;
+  }
+
+  function stopDraftActionButtonEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }
+
+  function handleDraftActionPointerUp(event) {
+    const button = event.target?.closest?.(`[${DRAFT_ACTION_BUTTON_ATTRIBUTE}]`);
+    if (!button || button.disabled || !button.isConnected) {
+      return;
+    }
+
+    if (typeof event.button === "number" && event.button !== 0) {
+      return;
+    }
+
+    stopDraftActionButtonEvent(event);
+    activateDraftActionButton(button, null, button.getAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE)).catch(() => {});
+  }
+
+  async function activateDraftActionButton(button, fallbackEditor, action) {
+    const now = Date.now();
+    if (button._xtensionDraftActionLastActivatedAt && now - button._xtensionDraftActionLastActivatedAt < 450) {
+      return;
+    }
+
+    button._xtensionDraftActionLastActivatedAt = now;
+    await handleDraftActionButtonClick(button, resolveDraftActionEditor(button, fallbackEditor), action);
+  }
+
+  function createDraftActionIcon(action) {
+    const icon = document.createElement("span");
+    const actionId = normalizeDraftAction(action);
+
+    icon.className = "xtension-draft-action-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = DRAFT_ACTION_ICON_SVGS[actionId] || DRAFT_ACTION_ICON_SVGS.generate;
+    return icon;
+  }
+
+  function renderDraftActionButtonIcon(button, action) {
+    const actionId = normalizeDraftAction(action);
+    const iconId = button.classList.contains("is-undo") ? "undo" : actionId;
+    const icon = button.querySelector(".xtension-draft-action-icon") || createDraftActionIcon(iconId);
+
+    icon.innerHTML = DRAFT_ACTION_ICON_SVGS[iconId] || DRAFT_ACTION_ICON_SVGS.generate;
+    if (!icon.isConnected) {
+      button.replaceChildren(icon);
+    }
+  }
+
+  function createDraftGenerationLanguagePicker() {
+    const picker = document.createElement("div");
+    const trigger = document.createElement("button");
+    const flag = document.createElement("span");
+    const code = document.createElement("span");
+    const chevron = document.createElement("span");
+    const menu = document.createElement("div");
+    const label = localizedText("draftLanguagePickerLabel", "Output language");
+
+    picker.className = "xtension-draft-language-picker";
+    picker.title = label;
+
+    trigger.type = "button";
+    trigger.className = "xtension-draft-language-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", label);
+    trigger.setAttribute("aria-controls", getDraftLanguageMenuId());
+    trigger.title = label;
+    trigger.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      stopDraftLanguagePickerEvent(event);
+      picker._xtensionDraftLanguageLastPointerToggleAt = Date.now();
+      setDraftLanguageMenuOpen(picker, !isDraftLanguageMenuOpen(picker), true);
+    }, true);
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      stopDraftLanguagePickerEvent(event);
+      if (Date.now() - (picker._xtensionDraftLanguageLastPointerToggleAt || 0) < 500) {
+        return;
+      }
+      setDraftLanguageMenuOpen(picker, !isDraftLanguageMenuOpen(picker), true);
+    });
+    trigger.addEventListener("keydown", handleDraftLanguageTriggerKeyDown);
+
+    flag.className = "xtension-draft-language-flag";
+    flag.setAttribute("aria-hidden", "true");
+
+    code.className = "xtension-draft-language-code";
+    code.setAttribute("aria-hidden", "true");
+
+    chevron.className = "xtension-draft-language-chevron";
+    chevron.textContent = "▾";
+    chevron.setAttribute("aria-hidden", "true");
+
+    menu.className = "xtension-draft-language-menu";
+    menu.id = trigger.getAttribute("aria-controls");
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", label);
+    menu.hidden = true;
+    menu._xtensionDraftLanguagePicker = picker;
+    picker._xtensionDraftLanguageMenu = menu;
+
+    DRAFT_GENERATION_LANGUAGES.forEach((language) => {
+      const option = document.createElement("button");
+      const optionFlag = document.createElement("span");
+      const optionLabel = document.createElement("span");
+      const languageLabel = getDraftLanguageMenuLabel(language);
+
+      option.type = "button";
+      option.className = "xtension-draft-language-option";
+      option.dataset.language = language.id;
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      option.title = languageLabel;
+      option.setAttribute("aria-label", languageLabel);
+      option.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        stopDraftLanguagePickerEvent(event);
+        option._xtensionDraftLanguageLastPointerSelectAt = Date.now();
+        selectDraftGenerationLanguage(picker, language.id);
+      }, true);
+      option.addEventListener("click", (event) => {
+        event.preventDefault();
+        stopDraftLanguagePickerEvent(event);
+        if (Date.now() - (option._xtensionDraftLanguageLastPointerSelectAt || 0) < 500) {
+          return;
+        }
+        selectDraftGenerationLanguage(picker, language.id);
+      });
+      option.addEventListener("keydown", handleDraftLanguageOptionKeyDown);
+
+      optionFlag.className = "xtension-draft-language-option-flag";
+      optionFlag.setAttribute("aria-hidden", "true");
+      optionFlag.style.backgroundImage = getDraftLanguageFlagBackground(language);
+
+      optionLabel.className = "xtension-draft-language-option-label";
+      optionLabel.textContent = languageLabel;
+
+      option.append(optionFlag, optionLabel);
+      menu.append(option);
+    });
+
+    trigger.append(flag, code, chevron);
+    picker.append(trigger);
+    appendDraftLanguageMenu(menu, picker);
+    picker.addEventListener("focusout", () => {
+      queueDraftLanguageMenuClose(picker);
+    });
+    menu.addEventListener("focusout", () => {
+      queueDraftLanguageMenuClose(picker);
+    });
+
+    updateDraftGenerationLanguagePicker(picker, getDefaultDraftGenerationLanguage());
+
+    getDraftGenerationLanguage().then((languageId) => {
+      updateDraftGenerationLanguagePicker(picker, languageId);
+    });
+
+    return picker;
+  }
+
+  function updateDraftGenerationLanguagePicker(picker, languageId) {
+    const normalized = normalizeDraftGenerationLanguage(languageId);
+    const language = getDraftGenerationLanguageDefinition(normalized);
+    const trigger = picker.querySelector(".xtension-draft-language-trigger");
+    const flag = picker.querySelector(".xtension-draft-language-flag");
+    const code = picker.querySelector(".xtension-draft-language-code");
+    const languageLabel = getDraftLanguageMenuLabel(language);
+    const menu = getDraftLanguageMenu(picker);
+
+    picker.dataset.language = language.id;
+    menu?.querySelectorAll(".xtension-draft-language-option").forEach((option) => {
+      const selected = option.dataset.language === language.id;
+      option.classList.toggle("is-selected", selected);
+      option.setAttribute("aria-selected", selected ? "true" : "false");
+    });
+    if (trigger) {
+      const label = localizedText("draftLanguagePickerLabel", "Output language");
+      trigger.title = `${label}: ${languageLabel}`;
+      trigger.setAttribute("aria-label", `${label}: ${languageLabel}`);
+    }
+    if (flag) {
+      flag.textContent = "";
+      flag.style.backgroundImage = getDraftLanguageFlagBackground(language);
+    }
+    if (code) {
+      code.textContent = language.code;
+    }
+  }
+
+  function selectDraftGenerationLanguage(picker, languageId) {
+    const normalized = normalizeDraftGenerationLanguage(languageId);
+    updateDraftGenerationLanguagePicker(picker, normalized);
+    storageSet({ [DRAFT_GENERATION_LANGUAGE_STORAGE_KEY]: normalized });
+    setDraftLanguageMenuOpen(picker, false, false);
+    picker.querySelector(".xtension-draft-language-trigger")?.focus?.({ preventScroll: true });
+  }
+
+  function isDraftLanguageMenuOpen(picker) {
+    return picker?.classList?.contains("is-open") || false;
+  }
+
+  function setDraftLanguageMenuOpen(picker, open, focusSelectedOption) {
+    const trigger = picker?.querySelector?.(".xtension-draft-language-trigger");
+    const menu = getDraftLanguageMenu(picker);
+    if (!trigger || !menu) {
+      return;
+    }
+
+    picker.classList.toggle("is-open", open);
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    appendDraftLanguageMenu(menu, picker);
+    menu.hidden = !open;
+
+    if (open) {
+      positionDraftLanguageMenu(picker, menu);
+    }
+
+    if (open && focusSelectedOption) {
+      const selected = menu.querySelector(".xtension-draft-language-option.is-selected")
+        || menu.querySelector(".xtension-draft-language-option");
+      selected?.focus?.({ preventScroll: true });
+    }
+  }
+
+  function handleDraftLanguageTriggerKeyDown(event) {
+    if (!["ArrowDown", "Enter", " "].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    stopDraftLanguagePickerEvent(event);
+    setDraftLanguageMenuOpen(event.currentTarget.closest(".xtension-draft-language-picker"), true, true);
+  }
+
+  function handleDraftLanguageOptionKeyDown(event) {
+    const picker = event.currentTarget.closest(".xtension-draft-language-menu")?._xtensionDraftLanguagePicker || null;
+    if (!picker) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      stopDraftLanguagePickerEvent(event);
+      setDraftLanguageMenuOpen(picker, false, false);
+      picker.querySelector(".xtension-draft-language-trigger")?.focus?.({ preventScroll: true });
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      stopDraftLanguagePickerEvent(event);
+      focusDraftLanguageOption(picker, event.currentTarget, event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      stopDraftLanguagePickerEvent(event);
+      selectDraftGenerationLanguage(picker, event.currentTarget.dataset.language);
+    }
+  }
+
+  function focusDraftLanguageOption(picker, currentOption, delta) {
+    const options = Array.from(getDraftLanguageMenu(picker)?.querySelectorAll(".xtension-draft-language-option") || []);
+    const currentIndex = Math.max(0, options.indexOf(currentOption));
+    const nextIndex = (currentIndex + delta + options.length) % options.length;
+    options[nextIndex]?.focus?.({ preventScroll: true });
+  }
+
+  function getDraftLanguageMenuId() {
+    return `xtension-draft-language-menu-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getDraftLanguageMenu(picker) {
+    return picker?._xtensionDraftLanguageMenu || null;
+  }
+
+  function appendDraftLanguageMenu(menu, picker) {
+    if (!menu) {
+      return;
+    }
+
+    const editor = resolveDraftActionEditor(picker?.closest?.(DRAFT_ACTIONS_HOST_SELECTOR), null)
+      || picker?.closest?.(REPLY_EDITOR_SELECTOR)
+      || findVisibleDialogReplyEditor();
+    if (findVisibleReplyDialog(editor || picker)) {
+      mountXtensionOverlayInsideXLayers(menu, editor || picker);
+      return;
+    }
+
+    mountXtensionOverlayBelowXLayers(menu);
+  }
+
+  function removeDraftLanguageMenuForPicker(picker) {
+    const menu = getDraftLanguageMenu(picker);
+    menu?.remove?.();
+    if (picker) {
+      picker._xtensionDraftLanguageMenu = null;
+    }
+  }
+
+  function queueDraftLanguageMenuClose(picker) {
+    window.setTimeout(() => {
+      const menu = getDraftLanguageMenu(picker);
+      const activeElement = document.activeElement;
+      if (!picker?.contains?.(activeElement) && !menu?.contains?.(activeElement)) {
+        setDraftLanguageMenuOpen(picker, false, false);
+      }
+    }, 0);
+  }
+
+  function positionDraftLanguageMenu(picker, menu) {
+    const trigger = picker?.querySelector?.(".xtension-draft-language-trigger");
+    const rect = trigger?.getBoundingClientRect?.();
+    if (!rect) {
+      return;
+    }
+
+    const menuWidth = menu.offsetWidth || 148;
+    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
+    const top = Math.max(8, Math.min(window.innerHeight - 8, rect.bottom + 6));
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
+  }
+
+  function getDraftLanguageMenuLabel(language) {
+    return cleanText(language?.nativeName || localizedText(language?.labelKey, language?.fallback || ""));
+  }
+
+  function getDraftLanguageFlagBackground(language) {
+    const path = cleanText(language?.iconPath || "");
+    if (!path) {
+      return "";
+    }
+
+    const url = getRuntimeResourceUrl(path) || path;
+    return `url("${url.replace(/"/g, "%22")}")`;
+  }
+
+  function getDraftGenerationLanguageDefinition(languageId) {
+    const normalized = normalizeDraftGenerationLanguage(languageId);
+    return DRAFT_GENERATION_LANGUAGES.find((language) => language.id === normalized)
+      || DRAFT_GENERATION_LANGUAGES[0];
+  }
+
+  function stopDraftLanguagePickerEvent(event) {
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }
+
+  function resolveDraftActionEditor(button, fallbackEditor) {
+    const host = button?.closest?.(DRAFT_ACTIONS_HOST_SELECTOR) || null;
+    const hostEditor = resolveDraftActionEditorFromHost(host);
+    if (hostEditor) {
+      return hostEditor;
+    }
+
+    if (fallbackEditor?.isConnected && isVisibleElement(fallbackEditor)) {
+      return fallbackEditor;
+    }
+
+    const composer = findDraftActionsComposer(host);
+    const composerEditor = Array.from(composer?.querySelectorAll?.(REPLY_EDITOR_SELECTOR) || []).find(isVisibleElement);
+
+    return composerEditor
+      || findVisibleDialogReplyEditor()
+      || document.activeElement?.closest?.(REPLY_EDITOR_SELECTOR)
+      || fallbackEditor
+      || null;
+  }
+
+  function resolveDraftActionEditorFromHost(host) {
+    const editor = host?._xtensionDraftEditor;
+    if (editor?.isConnected && isVisibleElement(editor)) {
+      return editor;
+    }
+
+    const composer = host?._xtensionDraftComposer;
+    const composerEditor = Array.from(composer?.querySelectorAll?.(REPLY_EDITOR_SELECTOR) || []).find(isVisibleElement);
+    if (composerEditor) {
+      return composerEditor;
+    }
+
+    return null;
+  }
+
+  function findDraftActionsComposer(host) {
+    if (host?._xtensionDraftComposer?.isConnected) {
+      return host._xtensionDraftComposer;
+    }
+
+    let current = host?.parentElement || null;
+
+    for (let depth = 0; current && depth < 30; depth += 1) {
+      if (current.querySelector?.(REPLY_EDITOR_SELECTOR) && (findComposerToolbar(current) || findComposerSubmitButton(current))) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function getDraftActionDefinitions() {
+    return [
+      {
+        id: "correct",
+        messageType: "xtension-correct-reply-draft",
+        responseKey: "correctedText",
+        labelKey: "correctionButtonLabel",
+        loadingKey: "correctionButtonLoading",
+        emptyKey: "toastCorrectionEmpty",
+        failedKey: "toastCorrectionFailed",
+        unchangedKey: "toastCorrectionUnchanged",
+        fallback: "Correction",
+        loadingFallback: "Correction in progress...",
+        emptyFallback: "Type a reply before asking for correction.",
+        failedFallback: "Unable to correct this reply.",
+        unchangedFallback: "No correction needed."
+      },
+      {
+        id: "translate",
+        messageType: "xtension-translate-reply-draft",
+        responseKey: "translatedText",
+        labelKey: "translationButtonLabel",
+        loadingKey: "translationButtonLoading",
+        emptyKey: "toastTranslationEmpty",
+        failedKey: "toastTranslationFailed",
+        unchangedKey: "toastTranslationUnchanged",
+        fallback: "Translate",
+        loadingFallback: "Translation in progress...",
+        emptyFallback: "Type a reply before translating it.",
+        failedFallback: "Unable to translate this reply.",
+        unchangedFallback: "This reply is already in the target language."
+      },
+      {
+        id: "generate",
+        messageType: "xtension-generate-reply-draft",
+        responseKey: "generatedText",
+        labelKey: "generateButtonLabel",
+        loadingKey: "generateButtonLoading",
+        emptyKey: "toastGenerateEmpty",
+        failedKey: "toastGenerateFailed",
+        unchangedKey: "toastGenerateUnchanged",
+        fallback: "Generate",
+        loadingFallback: "Generation in progress...",
+        emptyFallback: "Type instructions before generating a reply.",
+        failedFallback: "Unable to generate this reply.",
+        unchangedFallback: "The generated reply did not change the draft."
+      },
+      {
+        id: "suggestions",
+        labelKey: "suggestionsButtonLabel",
+        fallback: "Suggestions"
+      }
+    ];
+  }
+
+  function findReplyButtonHost(userName) {
+    const verifiedIcon = userName.querySelector('[data-testid="icon-verified"], svg[aria-label*="Verified"]');
+    const verifiedRow = verifiedIcon ? findTightAuthorNameRow(verifiedIcon, userName) : null;
+
+    if (verifiedRow) {
+      return verifiedRow;
+    }
+
+    const displayNameElement = findDisplayNameElement(userName);
+    return displayNameElement
+      ? findTightAuthorNameRow(displayNameElement, userName) || displayNameElement.closest('div[dir="ltr"]') || displayNameElement.parentElement || userName
+      : userName.firstElementChild || userName;
+  }
+
+  function findTightAuthorNameRow(reference, boundary) {
+    let current = reference;
+    let best = null;
+
+    while (current?.parentElement && current.parentElement !== boundary) {
+      const parent = current.parentElement;
+
+      if (parent.querySelector("time") || /@[A-Za-z0-9_]{1,20}/.test(cleanText(parent.textContent))) {
+        break;
+      }
+
+      if (isTightAuthorNameRow(parent)) {
+        best = parent;
+      }
+
+      current = parent;
+    }
+
+    return best;
+  }
+
+  function isTightAuthorNameRow(element) {
+    if (!element || element.querySelector("time")) {
+      return false;
+    }
+
+    const text = cleanText(element.textContent);
+    if (!text || /@[A-Za-z0-9_]{1,20}/.test(text)) {
+      return false;
+    }
+
+    const children = Array.from(element.children);
+    const hasVerifiedIcon = Boolean(element.querySelector('[data-testid="icon-verified"], svg[aria-label*="Verified"]'));
+    const namedChildren = children.filter((child) => {
+      const childText = cleanText(child.textContent);
+      return childText && !/@[A-Za-z0-9_]{1,20}/.test(childText);
+    });
+
+    return namedChildren.length > 0 && (hasVerifiedIcon || children.length <= 3);
+  }
+
+  function findDisplayNameElement(userName) {
+    return Array.from(userName.querySelectorAll("span, div")).find((element) => {
+      const text = cleanText(element.textContent);
+      return text && !element.querySelector("time") && !/@[A-Za-z0-9_]{1,20}/.test(text);
+    }) || null;
+  }
+
+  function markReplyMetadataLine(userName, host) {
+    const metadata = findReplyMetadataElement(userName, host);
+
+    if (!metadata) {
+      return;
+    }
+
+    userName.setAttribute("data-xtension-reply-user-name", "true");
+    metadata.setAttribute("data-xtension-reply-metadata", "true");
+  }
+
+  function findReplyMetadataElement(userName, host) {
+    const candidates = Array.from(userName.querySelectorAll("span, div")).filter((element) => {
+      if (element === host || host.contains(element) || element.querySelector(REPLY_BUTTON_SELECTOR)) {
+        return false;
+      }
+
+      const text = cleanText(element.textContent);
+      return /@[A-Za-z0-9_]{1,20}/.test(text) || Boolean(element.querySelector("time"));
+    });
+
+    return candidates.find((element) => element.parentElement === host.parentElement)
+      || candidates.find((element) => element.closest('[data-testid="User-Name"]') === userName)
+      || null;
+  }
+
+  function createReplyButton(tweet) {
+    const button = document.createElement("button");
+    const label = localizedText("replyButtonLabel", "Reply");
+
+    button.type = "button";
+    button.setAttribute(REPLY_BUTTON_ATTRIBUTE, "true");
+    button.setAttribute("data-xtension-reply-label", label);
+    button.setAttribute("aria-label", label);
+    button.title = label;
+
+    button.addEventListener("pointerdown", stopReplyButtonEvent, true);
+    button.addEventListener("click", (event) => {
+      stopReplyButtonEvent(event);
+      openReplyComposerWithSuggestions(tweet);
+    }, true);
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      stopReplyButtonEvent(event);
+      openReplyComposerWithSuggestions(tweet);
+    }, true);
+
+    return button;
+  }
+
+  function stopReplyButtonEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }
+
+  async function openReplyComposerWithSuggestions(tweet) {
+    const nativeReplyButton = findNativeReplyButton(tweet);
+    if (!nativeReplyButton) {
+      showToast(localizedText("toastReplyComposerNotFound", "Unable to open the reply composer."));
+      return;
+    }
+
+    const existingEditors = new WeakSet(
+      Array.from(document.querySelectorAll(REPLY_EDITOR_SELECTOR)).filter(isVisibleElement)
+    );
+    nativeReplyButton.click();
+
+    try {
+      const editor = await waitForReplyEditor(existingEditors);
+      await showReplySuggestions(editor, tweet);
+    } catch (error) {
+      showToast(localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+    }
+  }
+
+  function findNativeReplyButton(tweet) {
+    return Array.from(tweet.querySelectorAll('[data-testid="reply"]')).find((button) => {
+      const ownerTweet = button.closest('article[data-testid="tweet"]');
+      return ownerTweet === tweet;
+    }) || null;
+  }
+
+  function waitForReplyEditor(existingEditors) {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now();
+      const timeoutMs = 5000;
+
+      function check() {
+        const editor = findActiveReplyEditor(existingEditors);
+        if (editor) {
+          resolve(editor);
+          return;
+        }
+
+        if (Date.now() - startedAt >= timeoutMs) {
+          reject(new Error("Reply editor not found."));
+          return;
+        }
+
+        window.setTimeout(check, 80);
+      }
+
+      check();
+    });
+  }
+
+  function findActiveReplyEditor(existingEditors) {
+    const dialogEditor = findVisibleDialogReplyEditor();
+    if (dialogEditor) {
+      return dialogEditor;
+    }
+
+    const activeEditor = document.activeElement?.closest?.(REPLY_EDITOR_SELECTOR);
+    if (activeEditor && isVisibleElement(activeEditor) && !existingEditors?.has(activeEditor)) {
+      return activeEditor;
+    }
+
+    const editors = Array.from(document.querySelectorAll(REPLY_EDITOR_SELECTOR)).filter((editor) => {
+      return isVisibleElement(editor)
+        && !existingEditors?.has(editor)
+        && !editor.closest('[data-xtension-menu-item]');
+    });
+
+    return editors.find((editor) => editor.closest('[role="dialog"]')) || editors[0] || null;
+  }
+
+  function findVisibleDialogReplyEditor() {
+    const dialogs = Array.from(document.querySelectorAll('[role="dialog"]')).filter(isVisibleElement);
+
+    for (const dialog of dialogs.reverse()) {
+      const editors = Array.from(dialog.querySelectorAll(REPLY_EDITOR_SELECTOR)).filter((editor) => {
+        return isVisibleElement(editor) && !editor.closest('[data-xtension-menu-item]');
+      });
+
+      const focusedEditor = editors.find((editor) => editor.contains(document.activeElement));
+      if (focusedEditor) {
+        return focusedEditor;
+      }
+
+      if (editors.length) {
+        return editors[editors.length - 1];
+      }
+    }
+
+    return null;
+  }
+
+  function maybeShowAutomaticReplySuggestions(editor, composer) {
+    if (!shouldUseDedicatedDraftActionRow(editor, composer) || !isDraftActionComposerActive(editor, composer)) {
+      return;
+    }
+
+    const target = findEditableReplyEditor(editor);
+    if (!target || getReplyEditorText(target) || target._xtensionAutoReplySuggestionsRequested) {
+      return;
+    }
+
+    if (isReplySuggestionsPanelForEditor(target)) {
+      return;
+    }
+
+    target._xtensionAutoReplySuggestionsRequested = true;
+    window.setTimeout(async () => {
+      if (!target.isConnected || !isVisibleElement(target) || getReplyEditorText(target)) {
+        target._xtensionAutoReplySuggestionsRequested = false;
+        return;
+      }
+
+      const targetComposer = findReplyComposerContainer(target) || composer;
+      if (!isDraftActionComposerActive(target, targetComposer)) {
+        target._xtensionAutoReplySuggestionsRequested = false;
+        return;
+      }
+
+      const shown = await showReplySuggestionsForDraftEditor(target);
+      if (!shown) {
+        target._xtensionAutoReplySuggestionsRequested = false;
+      }
+    }, 350);
+  }
+
+  function isReplySuggestionsPanelForEditor(editor) {
+    return Boolean(getReplySuggestionsPanelForEditor(editor));
+  }
+
+  function getReplySuggestionsPanelForEditor(editor) {
+    const panel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
+    const panelEditor = panel?._xtensionReplyEditor;
+    return panel && panelEditor && (panelEditor === editor || resolveLiveReplyEditor(panelEditor) === editor)
+      ? panel
+      : null;
+  }
+
+  async function showReplySuggestions(editor, tweet) {
+    const activeEditor = resolveLiveReplyEditor(editor) || editor;
+    if (activeEditor?._xtensionReplySuggestionsPromise) {
+      await activeEditor._xtensionReplySuggestionsPromise.catch(() => false);
+      return;
+    }
+
+    const panel = createReplySuggestionsPanel(activeEditor);
+    const generationPromise = (async () => {
+      setReplySuggestionsPanelLoading(panel, "preparing");
+      placeReplySuggestionsPanel(activeEditor, panel);
+
+      try {
+        const context = await collectReplySuggestionContext(tweet);
+        await showReplySuggestionsForContext(activeEditor, context, panel);
+      } catch (error) {
+        setReplySuggestionsPanelError(panel, "generation_failed", error?.message || "");
+      }
+    })();
+
+    activeEditor._xtensionReplySuggestionsPromise = generationPromise;
+    try {
+      await generationPromise;
+    } finally {
+      if (activeEditor._xtensionReplySuggestionsPromise === generationPromise) {
+        activeEditor._xtensionReplySuggestionsPromise = null;
+      }
+    }
+  }
+
+  async function showReplySuggestionsForDraftEditor(editor, options = {}) {
+    const target = findEditableReplyEditor(editor) || editor;
+    const existingPanel = getReplySuggestionsPanelForEditor(target);
+    if (existingPanel && !options.force) {
+      attachReplySuggestionsPanel(target, existingPanel);
+      positionReplySuggestionsPanel(target, existingPanel);
+      return true;
+    }
+    if (existingPanel && options.force) {
+      removeReplySuggestionsPanel(existingPanel);
+    }
+
+    if (target?._xtensionReplySuggestionsPromise) {
+      await target._xtensionReplySuggestionsPromise.catch(() => false);
+      return true;
+    }
+
+    const generationPromise = showReplySuggestionsForDraftEditorOnce(target, options);
+    if (target) {
+      target._xtensionReplySuggestionsPromise = generationPromise;
+    }
+
+    try {
+      return await generationPromise;
+    } finally {
+      if (target?._xtensionReplySuggestionsPromise === generationPromise) {
+        target._xtensionReplySuggestionsPromise = null;
+      }
+    }
+  }
+
+  async function toggleReplySuggestionsForDraftEditor(editor) {
+    const target = findEditableReplyEditor(editor) || editor;
+    const panel = getReplySuggestionsPanelForEditor(target);
+    if (panel) {
+      removeReplySuggestionsPanel(panel);
+      return false;
+    }
+
+    return await showReplySuggestionsForDraftEditor(target, {
+      instruction: getReplyEditorText(target)
+    });
+  }
+
+  async function showReplySuggestionsForDraftEditorOnce(target, options = {}) {
+    const panel = createReplySuggestionsPanel(target);
+
+    setReplySuggestionsPanelLoading(panel, "preparing");
+    placeReplySuggestionsPanel(target, panel);
+
+    const baseContext = await getReplyDraftContext(target);
+    const context = {
+      ...baseContext
+    };
+    const instruction = cleanMultilineText(options.instruction || "");
+    if (instruction) {
+      context.userDraftInstruction = instruction;
+    } else {
+      delete context.userDraftInstruction;
+    }
+    if (!hasUsableReplySuggestionContext(context)) {
+      removeReplySuggestionsPanel(panel);
+      return false;
+    }
+
+    await showReplySuggestionsForContext(target, context, panel);
+    return true;
+  }
+
+  function hasUsableReplySuggestionContext(context) {
+    return Boolean(
+      cleanText(context?.tweetText || "") ||
+      cleanText(context?.authorName || "") ||
+      cleanText(context?.authorHandle || "") ||
+      context?.mediaContext?.length ||
+      context?.quotedTweets?.length ||
+      context?.linkCards?.length
+    );
+  }
+
+  async function showReplySuggestionsForContext(editor, context, existingPanel) {
+    const activeEditor = resolveLiveReplyEditor(editor) || editor;
+    const panel = existingPanel || createReplySuggestionsPanel(activeEditor);
+    activeEditor._xtensionReplyContext = context;
+
+    if (!panel.isConnected) {
+      placeReplySuggestionsPanel(activeEditor, panel);
+    }
+
+    try {
+      const profilesResponse = await sendRuntimeMessage({
+        type: "xtension-get-reply-prompt-profiles"
+      });
+
+      if (!profilesResponse?.ok) {
+        setReplySuggestionsPanelError(panel, profilesResponse?.code, profilesResponse?.error);
+        return;
+      }
+
+      const profiles = normalizeReplyPromptProfilesForUi(profilesResponse.profiles);
+      setReplySuggestionsPanelStreaming(panel, panel._xtensionReplyEditor || activeEditor, profiles);
+      const tasks = profiles.map((profile, index) => {
+        return sendRuntimeMessage({
+          type: "xtension-generate-reply-suggestion-profile",
+          locale: getUiLocale(),
+          context,
+          profileIndex: index
+        }).then((response) => {
+          if (!response?.ok) {
+            setReplySuggestionsPanelProfileError(panel, index, response?.error || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+            return false;
+          }
+
+          setReplySuggestionsPanelProfileReply(panel, panel._xtensionReplyEditor || activeEditor, index, response.reply);
+          return true;
+        }).catch((error) => {
+          setReplySuggestionsPanelProfileError(panel, index, error?.message || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+          return false;
+        });
+      });
+
+      const results = await Promise.allSettled(tasks);
+      const hasReply = results.some((result) => result.status === "fulfilled" && result.value);
+      finishReplySuggestionsPanelStreaming(panel);
+      if (!hasReply) {
+        setReplySuggestionsPanelError(panel, "generation_failed", localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+      }
+    } catch (error) {
+      setReplySuggestionsPanelError(panel, "generation_failed", error?.message || "");
+    }
+  }
+
+  async function collectReplySuggestionContext(tweet) {
+    await ensureOriginalTweetTextVisible(tweet);
+    const status = getTweetStatusContext(tweet);
+    const authorInfo = getTweetAuthorInfo(tweet, status);
+    const tweetTextElement = findPrimaryTweetText(tweet);
+    const tweetText = extractVisibleText(tweetTextElement) || cleanText(tweet.textContent);
+    const authorHandle = cleanHandle(authorInfo?.handle || status?.author || "");
+
+    return {
+      authorName: authorInfo?.displayName || "",
+      authorHandle,
+      sourceUrl: status?.url || "",
+      tweetLanguage: findTweetLanguage(tweet, tweetTextElement),
+      tweetText,
+      toneSignals: detectReplyToneSignals(tweet, tweetText),
+      mediaContext: collectReplyMediaContext(tweet),
+      authorProfileContext: collectVisibleAuthorProfileContext(authorHandle),
+      linkCards: collectReplyLinkCards(tweet),
+      quotedTweets: collectReplyQuotedTweets(tweet),
+      visibleUrls: collectReplyVisibleUrls(tweet)
+    };
+  }
+
+  async function ensureOriginalTweetTextVisible(tweet) {
+    const tweetTextElement = findPrimaryTweetText(tweet);
+    const originalButton = findShowOriginalTweetButton(tweet, tweetTextElement);
+
+    if (!tweetTextElement || !originalButton) {
+      return false;
+    }
+
+    const previousText = extractVisibleText(tweetTextElement);
+    const previousLang = findTweetLanguage(tweet, tweetTextElement);
+
+    originalButton.click();
+    await waitForOriginalTweetText(tweet, previousText, previousLang);
+    return true;
+  }
+
+  function findShowOriginalTweetButton(tweet, tweetTextElement) {
+    if (!tweet || !tweetTextElement) {
+      return null;
+    }
+
+    const checked = new Set();
+    const candidates = [];
+    let current = tweetTextElement.previousElementSibling;
+
+    for (let index = 0; current && index < 4; index += 1) {
+      candidates.push(current);
+      current = current.previousElementSibling;
+    }
+
+    const parent = tweetTextElement.parentElement;
+    if (parent) {
+      candidates.push(...Array.from(parent.children).filter((child) => {
+        return child !== tweetTextElement
+          && isElementBeforeOrSame(child, tweetTextElement)
+          && !child.contains(tweetTextElement);
+      }).slice(-4));
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate || checked.has(candidate) || !isLikelyTranslationBanner(candidate)) {
+        continue;
+      }
+
+      checked.add(candidate);
+      const button = Array.from(candidate.querySelectorAll("button")).find((item) => {
+        return isVisibleElement(item) && item.closest('article[data-testid="tweet"]') === tweet;
+      });
+
+      if (button) {
+        return button;
+      }
+    }
+
+    return null;
+  }
+
+  function isLikelyTranslationBanner(element) {
+    if (!element || !isVisibleElement(element) || !element.querySelector("button")) {
+      return false;
+    }
+
+    if (element.querySelector('[data-testid="User-Name"], [data-testid="caret"], [data-testid="reply"], [role="group"]')) {
+      return false;
+    }
+
+    const text = cleanText(element.innerText || element.textContent || "");
+    const buttonCount = element.querySelectorAll("button").length;
+    const hasTranslationCue = /original|origine|trad|translat|übersetz|traduc|mostrar|afficher|show|元|翻訳|原文|원문|번역/i.test(text);
+
+    return buttonCount <= 2
+      && text.length > 0
+      && text.length < 240
+      && (hasTranslationCue || Boolean(element.querySelector("svg")));
+  }
+
+  async function waitForOriginalTweetText(tweet, previousText, previousLang) {
+    const deadline = Date.now() + 1800;
+
+    while (Date.now() < deadline) {
+      await nextFrame();
+      const tweetTextElement = findPrimaryTweetText(tweet);
+      const currentText = extractVisibleText(tweetTextElement);
+      const currentLang = findTweetLanguage(tweet, tweetTextElement);
+
+      if ((currentText && currentText !== previousText) || (currentLang && currentLang !== previousLang)) {
+        return;
+      }
+    }
+  }
+
+  function detectReplyToneSignals(tweet, tweetText) {
+    const text = `${tweetText || ""} ${tweet?.textContent || ""}`;
+    const signals = [];
+
+    if (/\b(?:mdr|ptdr|lol|lmao|haha|ahah|😂|🤣)\b/i.test(text)) {
+      signals.push("humor marker / laugh");
+    }
+    if (/\b(?:karma|cheh|ratio|dunk|seum|bien fait|retour de baton|retour de bâton)\b/i.test(text)) {
+      signals.push("dunk or karma angle");
+    }
+    if (/\b(?:patreon|youtube|chaine|chaîne|demonet|démonét|strike|ban|sauter)\b/i.test(text)) {
+      signals.push("platform/account sanction context");
+    }
+    if (tweet?.querySelector?.('video, [aria-label*="GIF" i], [data-testid*="gif" i]')) {
+      signals.push("visible GIF or meme reaction");
+    }
+    if (/[!?]{2,}|…/.test(text)) {
+      signals.push("dramatic or punchy phrasing");
+    }
+
+    return uniqueStrings(signals).slice(0, 8);
+  }
+
+  function collectReplyMediaContext(tweet) {
+    const items = [];
+
+    if (tweet?.querySelector?.('video, [aria-label*="GIF" i], [data-testid*="gif" i]')) {
+      items.push({
+        type: "gif_or_video",
+        description: "A GIF/video reaction is visible in the tweet. Treat it as part of the joke/meme context when toneSignals indicate humor."
+      });
+    }
+
+    Array.from(tweet?.querySelectorAll?.("img") || []).forEach((image) => {
+      const alt = cleanText(image.getAttribute("alt") || "");
+      const src = getReplyImageSource(image);
+
+      if (!src || /profile_images/i.test(src) || image.matches(PROFILE_IMAGE_SELECTOR)) {
+        return;
+      }
+
+      items.push({
+        type: "image",
+        description: alt || "Tweet image",
+        imageUrl: src
+      });
+    });
+
+    return items.slice(0, 6);
+  }
+
+  function getReplyImageSource(image) {
+    const src = image.currentSrc || image.getAttribute("src") || image.src || "";
+
+    if (!src || /^data:/i.test(src) || /^blob:/i.test(src)) {
+      return "";
+    }
+
+    if (!/twimg\.com\/(?:media|card_img|ext_tw_video_thumb|amplify_video_thumb)|\/media\//i.test(src)) {
+      return "";
+    }
+
+    try {
+      const url = new URL(src, window.location.href);
+      if (/pbs\.twimg\.com\/media/i.test(url.href)) {
+        url.searchParams.set("name", "large");
+      }
+      return url.href;
+    } catch (error) {
+      return src;
+    }
+  }
+
+  function collectVisibleAuthorProfileContext(authorHandle) {
+    const handle = cleanHandle(authorHandle).toLowerCase();
+    if (!handle) {
+      return "";
+    }
+
+    const candidates = Array.from(document.querySelectorAll([
+      '[data-testid="UserCell"]',
+      '[data-testid="HoverCard"]',
+      '[data-testid="placementTracking"]',
+      'aside [role="link"]',
+      'aside [dir="ltr"]'
+    ].join(", ")));
+
+    for (const candidate of candidates) {
+      const text = extractVisibleText(candidate);
+      if (!text || !text.toLowerCase().includes(`@${handle}`)) {
+        continue;
+      }
+
+      return cleanAuthorProfileText(text, handle);
+    }
+
+    return "";
+  }
+
+  function cleanAuthorProfileText(text, handle) {
+    return truncateReplyContextText(
+      cleanText(text)
+        .replace(new RegExp(`@${escapeRegExp(handle)}`, "ig"), `@${handle}`)
+        .replace(/\b(?:Follow|Following|Abonné|Abonnée|Vous suit|Follows you)\b/gi, " ")
+        .replace(/\s+/g, " "),
+      900
+    );
+  }
+
+  function truncateReplyContextText(value, maxLength) {
+    const text = cleanText(value);
+    if (text.length <= maxLength) {
+      return text;
+    }
+
+    return `${text.slice(0, maxLength - 1).replace(/\s+\S*$/, "")}…`;
+  }
+
+  function findTweetLanguage(tweet, tweetTextElement) {
+    const candidates = [
+      tweetTextElement,
+      tweetTextElement?.closest?.("[lang]"),
+      tweet.querySelector('[data-testid="tweetText"][lang]'),
+      tweet.querySelector("[lang]")
+    ];
+
+    for (const candidate of candidates) {
+      const lang = cleanText(candidate?.getAttribute?.("lang") || candidate?.lang || "");
+      if (lang && lang.toLowerCase() !== "und") {
+        return lang;
+      }
+    }
+
+    return "";
+  }
+
+  function collectReplyLinkCards(tweet) {
+    return collectLinkCardParts(tweet, new Set()).map((card) => {
+      return {
+        domain: card.domain || "",
+        title: card.title || "",
+        description: card.description || "",
+        url: card.url || ""
+      };
+    });
+  }
+
+  function collectReplyQuotedTweets(tweet) {
+    return getEmbeddedTweetContainers(tweet).map((embeddedTweet) => {
+      const status = getTweetStatusContext(embeddedTweet)
+        || findStatusContextInElement(embeddedTweet)
+        || parseStatusContextFromText(embeddedTweet.innerHTML || "");
+      const authorInfo = getTweetAuthorInfo(embeddedTweet, status);
+      const tweetTextElement = findPrimaryTweetText(embeddedTweet);
+      const text = extractVisibleText(tweetTextElement);
+
+      return {
+        authorName: authorInfo?.displayName || "",
+        authorHandle: cleanHandle(authorInfo?.handle || status?.author || ""),
+        text,
+        sourceUrl: status?.url || ""
+      };
+    }).filter((quotedTweet) => quotedTweet.text || quotedTweet.authorName || quotedTweet.sourceUrl);
+  }
+
+  function collectReplyVisibleUrls(tweet) {
+    return uniqueStrings(
+      Array.from(tweet.querySelectorAll("a[href]"))
+        .map((link) => normalizeLinkHref(link.getAttribute("href") || link.href || ""))
+        .filter((href) => {
+          return href
+            && !parseStatusContext(href)
+            && !/^(?:#|javascript:)/i.test(href);
+        })
+    ).slice(0, 5);
+  }
+
+  function createReplySuggestionsPanel(editor) {
+    const panel = document.createElement("div");
+
+    panel.className = "xtension-reply-suggestions";
+    panel.setAttribute(REPLY_SUGGESTIONS_PANEL_ATTRIBUTE, "true");
+    panel.setAttribute("role", "region");
+    panel.setAttribute("aria-live", "polite");
+    panel._xtensionReplyEditor = editor;
+
+    return panel;
+  }
+
+  function placeReplySuggestionsPanel(editor, panel) {
+    const previousPanel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
+    if (previousPanel) {
+      removeReplySuggestionsPanel(previousPanel);
+    }
+
+    panel._xtensionReplyEditor = resolveLiveReplyEditor(editor) || editor;
+    panel._xtensionReplyDialog = findVisibleReplyDialog(panel._xtensionReplyEditor);
+    const reposition = () => {
+      if (!panel.isConnected) {
+        panel._xtensionReplyCleanup?.();
+        return;
+      }
+
+      const liveEditor = resolveLiveReplyEditor(panel._xtensionReplyEditor || editor);
+      const liveDialog = findVisibleReplyDialog(liveEditor);
+
+      if (liveDialog) {
+        panel._xtensionReplyDialog = liveDialog;
+      }
+
+      if (!isReplyComposerAlive(liveEditor, panel._xtensionReplyDialog)) {
+        removeReplySuggestionsPanel(panel);
+        return;
+      }
+
+      panel._xtensionReplyEditor = liveEditor;
+      attachReplySuggestionsPanel(liveEditor, panel);
+      positionReplySuggestionsPanel(liveEditor, panel);
+    };
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.every(isXtensionOverlayMutation)) {
+        return;
+      }
+
+      reposition();
+    });
+    panel._xtensionReplyCleanup = () => {
+      window.removeEventListener("resize", reposition, true);
+      window.removeEventListener("scroll", reposition, true);
+      observer.disconnect();
+    };
+
+    attachReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+    window.addEventListener("resize", reposition, true);
+    window.addEventListener("scroll", reposition, true);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    reposition();
+    requestAnimationFrame(reposition);
+  }
+
+  function removeReplySuggestionsPanel(panel) {
+    clearReplySuggestionsPanelProgress(panel);
+    const editor = panel?._xtensionReplyEditor;
+    if (editor?._xtensionReplySuggestionsPromise) {
+      editor._xtensionReplySuggestionsPromise = null;
+    }
+    panel?._xtensionReplyCleanup?.();
+    panel?.remove();
+  }
+
+  function createReplySuggestionsHeader(panel) {
+    const header = document.createElement("div");
+    const title = document.createElement("div");
+    const close = document.createElement("button");
+
+    header.className = "xtension-reply-suggestions-header";
+    title.className = "xtension-reply-suggestions-title";
+    title.textContent = localizedText("replySuggestionsTitle", "Suggested replies");
+    close.type = "button";
+    close.className = "xtension-reply-suggestions-close";
+    close.setAttribute("aria-label", localizedText("replySuggestionsClose", "Close suggested replies"));
+    close.textContent = "×";
+    close.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeReplySuggestionsPanel(panel);
+    });
+
+    header.append(title, close);
+    return header;
+  }
+
+  function isReplyComposerAlive(editor, dialog) {
+    if (!editor?.isConnected || !isVisibleElement(editor)) {
+      return false;
+    }
+
+    return !dialog || (dialog.isConnected && isVisibleElement(dialog));
+  }
+
+  function positionReplySuggestionsPanel(editor, panel) {
+    if (!editor || !panel?.isConnected) {
+      return;
+    }
+
+    if (!panel.classList.contains("is-floating")) {
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("width");
+      panel.style.maxHeight = "min(420px, calc(100vh - 24px))";
+      return;
+    }
+
+    const rect = getReplySuggestionsPlacementRect(editor);
+    const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    const maxWidth = Math.max(320, viewportWidth - 24);
+    const width = Math.min(Math.max(rect.width || 520, 420), maxWidth);
+    const left = clamp(rect.left + ((rect.width || width) - width) / 2, 12, Math.max(12, viewportWidth - width - 12));
+    let top = rect.bottom + 12;
+    top = clamp(top, 16, Math.max(16, viewportHeight - 80));
+    panel.style.left = `${Math.round(left)}px`;
+    panel.style.top = `${Math.round(top)}px`;
+    panel.style.width = `${Math.round(width)}px`;
+    panel.style.maxHeight = `${Math.max(120, Math.round(viewportHeight - top - 16))}px`;
+  }
+
+  function attachReplySuggestionsPanel(editor, panel) {
+    panel.classList.add("is-floating");
+    if (findVisibleReplyDialog(editor)) {
+      panel.classList.add("is-reply-layer-mounted");
+      mountXtensionOverlayInsideXLayers(panel, editor);
+      return;
+    }
+
+    panel.classList.remove("is-reply-layer-mounted");
+    mountXtensionOverlayBelowXLayers(panel);
+  }
+
+  function mountXtensionOverlayBelowXLayers(element) {
+    const mount = getXtensionOverlayMount();
+
+    if (!mount) {
+      return;
+    }
+
+    if (element.parentElement !== mount) {
+      mount.append(element);
+    }
+  }
+
+  function mountXtensionOverlayInsideXLayers(element, editor) {
+    const mount = getXtensionLayerOverlayMount(editor);
+
+    if (!mount) {
+      mountXtensionOverlayBelowXLayers(element);
+      return;
+    }
+
+    if (element.parentElement !== mount) {
+      mount.append(element);
+    }
+  }
+
+  function getXtensionLayerOverlayMount(editor) {
+    const layers = document.getElementById(X_LAYERS_ID);
+    if (!layers) {
+      return null;
+    }
+
+    let overlayRoot = layers.querySelector?.(`:scope > [${XTENSION_OVERLAY_ROOT_ATTRIBUTE}][data-xtension-layer-overlay="true"]`) || null;
+    if (!overlayRoot) {
+      overlayRoot = document.createElement("div");
+      overlayRoot.setAttribute(XTENSION_OVERLAY_ROOT_ATTRIBUTE, "true");
+      overlayRoot.setAttribute("data-xtension-layer-overlay", "true");
+    }
+
+    const referenceNode = getXtensionLayerOverlayReference(layers, editor);
+    if (referenceNode) {
+      layers.insertBefore(overlayRoot, referenceNode);
+    } else if (overlayRoot.parentElement !== layers || overlayRoot.nextSibling) {
+      layers.append(overlayRoot);
+    }
+
+    return overlayRoot;
+  }
+
+  function getXtensionLayerOverlayReference(layers, editor) {
+    const dialog = findVisibleReplyDialog(editor);
+    const anchor = getDirectChildContaining(layers, dialog || editor);
+    let referenceNode = anchor?.nextSibling || null;
+
+    while (referenceNode instanceof Element && referenceNode.hasAttribute(XTENSION_OVERLAY_ROOT_ATTRIBUTE)) {
+      referenceNode = referenceNode.nextSibling;
+    }
+
+    return referenceNode;
+  }
+
+  function getDirectChildContaining(parent, child) {
+    if (!parent || !child) {
+      return null;
+    }
+
+    let current = child;
+    while (current?.parentElement && current.parentElement !== parent) {
+      current = current.parentElement;
+    }
+
+    return current?.parentElement === parent ? current : null;
+  }
+
+  function getXtensionOverlayMount() {
+    const layers = document.getElementById(X_LAYERS_ID);
+    const layersParent = layers?.parentElement;
+
+    if (layersParent) {
+      let overlayRoot = layersParent.querySelector?.(`:scope > [${XTENSION_OVERLAY_ROOT_ATTRIBUTE}]`) || null;
+      if (!overlayRoot) {
+        overlayRoot = document.createElement("div");
+        overlayRoot.setAttribute(XTENSION_OVERLAY_ROOT_ATTRIBUTE, "true");
+      }
+
+      if (overlayRoot.parentElement !== layersParent || overlayRoot.nextSibling !== layers) {
+        layersParent.insertBefore(overlayRoot, layers);
+      }
+
+      return overlayRoot;
+    }
+
+    return document.getElementById(X_REACT_ROOT_ID)
+      || document.body
+      || document.documentElement
+      || null;
+  }
+
+  function isXtensionOverlayMutation(mutation) {
+    if (!mutation) {
+      return false;
+    }
+
+    const nodes = [
+      ...Array.from(mutation.addedNodes || []),
+      ...Array.from(mutation.removedNodes || [])
+    ];
+
+    return nodes.length > 0 && nodes.every(isXtensionOverlayNode);
+  }
+
+  function isXtensionOverlayNode(node) {
+    if (!(node instanceof Element)) {
+      return false;
+    }
+
+    return node.matches?.(`${REPLY_SUGGESTIONS_PANEL_SELECTOR}, .xtension-draft-language-menu, .xtension-toast`)
+      || node.hasAttribute?.(XTENSION_OVERLAY_ROOT_ATTRIBUTE)
+      || Boolean(node.querySelector?.(`${REPLY_SUGGESTIONS_PANEL_SELECTOR}, .xtension-draft-language-menu, .xtension-toast`));
+  }
+
+  function getReplySuggestionsPlacementRect(editor) {
+    const dialogRect = findVisibleReplyDialog(editor)?.getBoundingClientRect();
+    if (dialogRect?.width) {
+      return {
+        left: dialogRect.left,
+        top: dialogRect.top,
+        bottom: dialogRect.bottom,
+        width: dialogRect.width
+      };
+    }
+
+    const composer = findReplyComposerContainer(editor);
+    const composerControlRect = getReplyComposerControlsRect(composer);
+    if (composerControlRect?.width >= 240) {
+      return composerControlRect;
+    }
+
+    const textboxRoot = editor.closest('[data-testid^="tweetTextarea_"]') || editor;
+    const textboxRect = textboxRoot.getBoundingClientRect();
+
+    if (textboxRect.width >= 240) {
+      return textboxRect;
+    }
+
+    if (dialogRect?.width) {
+      const leftOffset = Math.min(64, Math.max(24, dialogRect.width * 0.12));
+      return {
+        left: dialogRect.left + leftOffset,
+        top: textboxRect.top || dialogRect.top + 120,
+        bottom: textboxRect.bottom || dialogRect.top + 190,
+        width: Math.max(320, dialogRect.width - leftOffset - 24)
+      };
+    }
+
+    return textboxRect;
+  }
+
+  function getReplyComposerControlsRect(composer) {
+    if (!composer) {
+      return null;
+    }
+
+    const candidates = [
+      findComposerActionRow(composer),
+      findComposerToolbar(composer),
+      findComposerSubmitButton(composer),
+      composer.querySelector?.(DRAFT_ACTIONS_HOST_SELECTOR)
+    ].filter((element) => element && isVisibleElement(element));
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    return unionElementRects(candidates);
+  }
+
+  function unionElementRects(elements) {
+    const rects = elements
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+
+    if (!rects.length) {
+      return null;
+    }
+
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+
+    return {
+      left,
+      top,
+      bottom,
+      width: right - left
+    };
+  }
+
+  function resolveLiveReplyEditor(editor) {
+    return findVisibleDialogReplyEditor()
+      || (editor && isVisibleElement(editor) ? editor : null);
+  }
+
+  function findVisibleReplyDialog(editor) {
+    const currentDialog = editor?.closest?.('[role="dialog"]');
+    if (currentDialog && isVisibleElement(currentDialog)) {
+      return currentDialog;
+    }
+
+    return Array.from(document.querySelectorAll('[role="dialog"]'))
+      .filter((dialog) => isVisibleElement(dialog) && dialog.querySelector(REPLY_EDITOR_SELECTOR))
+      .at(-1)
+      || null;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function setReplySuggestionsPanelLoading(panel, phase = "generating") {
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    panel.classList.remove("is-noninteractive-status");
+    panel.setAttribute("aria-busy", "true");
+    const header = createReplySuggestionsHeader(panel);
+    const body = document.createElement("div");
+    const status = document.createElement("div");
+    const progress = document.createElement("div");
+    const progressBar = document.createElement("div");
+    const steps = getReplySuggestionsLoadingSteps(phase);
+    const draftAction = getDraftActionFromLoadingPhase(phase);
+    const isDraftAction = Boolean(draftAction);
+    let stepIndex = 0;
+
+    body.className = "xtension-reply-suggestions-status";
+    body.classList.add("xtension-reply-suggestions-loading");
+    status.className = "xtension-reply-suggestions-loading-text";
+    progress.className = "xtension-reply-suggestions-progress";
+    progressBar.className = "xtension-reply-suggestions-progress-bar";
+    progress.classList.toggle("is-determinate", isDraftAction);
+    progressBar.classList.toggle("is-determinate", isDraftAction);
+
+    progress.append(progressBar);
+    body.append(status, progress);
+
+    if (isDraftAction) {
+      const list = createDraftActionProgressList(steps);
+      body.append(list);
+      startDraftActionProgress(panel, draftAction, status, progressBar, steps, list);
+    } else {
+      const skeletons = createReplySuggestionsSkeletonList();
+      body.append(skeletons);
+      const updateStep = () => {
+        status.textContent = steps[stepIndex] || steps.at(-1) || "";
+        stepIndex += 1;
+        if (stepIndex < steps.length) {
+          panel._xtensionReplyProgressTimer = window.setTimeout(updateStep, 1400);
+        } else {
+          panel._xtensionReplyProgressTimer = null;
+        }
+      };
+
+      updateStep();
+    }
+
+    panel.append(header, body);
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+  }
+
+  function createReplySuggestionsSkeletonList() {
+    const skeletons = document.createElement("div");
+    skeletons.className = "xtension-reply-suggestions-skeleton-list";
+
+    for (let index = 0; index < 3; index += 1) {
+      const card = document.createElement("div");
+      const title = document.createElement("div");
+      const lineA = document.createElement("div");
+      const lineB = document.createElement("div");
+
+      card.className = "xtension-reply-suggestions-skeleton";
+      title.className = "xtension-reply-suggestions-skeleton-title";
+      lineA.className = "xtension-reply-suggestions-skeleton-line";
+      lineB.className = "xtension-reply-suggestions-skeleton-line is-short";
+      card.append(title, lineA, lineB);
+      skeletons.append(card);
+    }
+
+    return skeletons;
+  }
+
+  function createDraftActionProgressList(steps) {
+    const list = document.createElement("ol");
+    list.className = "xtension-draft-action-progress-list";
+
+    steps.forEach((step, index) => {
+      const item = document.createElement("li");
+      item.className = "xtension-draft-action-progress-step";
+      item.setAttribute("data-xtension-progress-step", String(index));
+      item.textContent = step;
+      list.append(item);
+    });
+
+    return list;
+  }
+
+  function startDraftActionProgress(panel, action, status, progressBar, steps, list) {
+    const actionId = normalizeDraftAction(action);
+    const baselineMs = DEFAULT_DRAFT_ACTION_DURATION_MS[actionId] || DEFAULT_DRAFT_ACTION_DURATION_MS.correct;
+    const estimatedMs = Math.max(baselineMs, getDraftActionEstimatedDuration(action));
+    const startedAt = Date.now();
+    const pendingStepCount = Math.max(1, steps.length - 2);
+    const stepRatios = getDraftActionProgressStepRatios(pendingStepCount);
+
+    panel._xtensionDraftActionProgress = {
+      action: actionId,
+      status,
+      progressBar,
+      steps,
+      list,
+      startedAt,
+      estimatedMs,
+      pendingStepCount,
+      stepRatios,
+      manualStage: "",
+      currentIndex: -1,
+      lastProgress: 7
+    };
+
+    const tick = () => {
+      const state = panel._xtensionDraftActionProgress;
+      if (!state || state.manualStage) {
+        return;
+      }
+
+      const elapsedMs = Date.now() - state.startedAt;
+      const elapsedRatio = Math.max(0, elapsedMs / state.estimatedMs);
+      const index = getDraftActionScheduledStepIndex(state.stepRatios, elapsedRatio);
+      const easedRatio = 1 - Math.pow(1 + elapsedRatio * 2.4, -2);
+      const targetProgress = clamp(7 + easedRatio * 90, 7, 98.6);
+      const creepStep = state.lastProgress < 84 ? 0.72 : state.lastProgress < 94 ? 0.32 : 0.08;
+      const progressValue = clamp(Math.max(targetProgress, state.lastProgress + creepStep), 7, 98.6);
+      updateDraftActionProgress(panel, index, progressValue);
+      panel._xtensionReplyProgressTimer = window.setTimeout(tick, 250);
+    };
+
+    updateDraftActionProgress(panel, 0, 7);
+    panel._xtensionReplyProgressTimer = window.setTimeout(tick, 250);
+  }
+
+  function getDraftActionProgressStepRatios(count) {
+    if (count <= 1) {
+      return [0];
+    }
+
+    if (count === 5) {
+      return [0, 0.16, 0.46, 0.74, 0.9];
+    }
+
+    return Array.from({ length: count }, (_, index) => {
+      const ratio = index / Math.max(1, count - 1);
+      return clamp(Math.pow(ratio, 1.35) * 0.9, 0, 0.9);
+    });
+  }
+
+  function getDraftActionScheduledStepIndex(stepRatios, elapsedRatio) {
+    const ratios = Array.isArray(stepRatios) && stepRatios.length ? stepRatios : [0];
+    let index = 0;
+
+    for (let itemIndex = 0; itemIndex < ratios.length; itemIndex += 1) {
+      if (elapsedRatio >= ratios[itemIndex]) {
+        index = itemIndex;
+      }
+    }
+
+    return index;
+  }
+
+  async function markDraftActionPanelProgress(panel, stage) {
+    const state = panel?._xtensionDraftActionProgress;
+    if (!state) {
+      return;
+    }
+
+    if (panel._xtensionReplyProgressTimer) {
+      window.clearTimeout(panel._xtensionReplyProgressTimer);
+      panel._xtensionReplyProgressTimer = null;
+    }
+
+    state.manualStage = stage;
+    if (stage === "response") {
+      await showDraftActionProgressThrough(panel, Math.max(0, state.steps.length - 2), Math.max(state.lastProgress || 0, 98.8), 180);
+      return;
+    }
+    if (stage === "insert") {
+      await showDraftActionProgressThrough(panel, state.steps.length - 1, Math.max(state.lastProgress || 0, 99.4), 160);
+      return;
+    }
+    if (stage === "done") {
+      updateDraftActionProgress(panel, state.steps.length - 1, 100);
+    }
+  }
+
+  async function showDraftActionProgressThrough(panel, targetIndex, targetProgress, visibleMs) {
+    const state = panel?._xtensionDraftActionProgress;
+    if (!state || !state.steps.length) {
+      return;
+    }
+
+    const normalizedTarget = Math.max(0, Math.min(targetIndex, state.steps.length - 1));
+    const current = Math.max(-1, state.currentIndex);
+    if (current >= normalizedTarget) {
+      updateDraftActionProgress(panel, current, targetProgress);
+      await delay(Math.min(visibleMs, 180));
+      return;
+    }
+
+    for (let index = current + 1; index <= normalizedTarget; index += 1) {
+      const ratio = index / Math.max(1, state.steps.length - 1);
+      const progress = Math.max(state.lastProgress || 0, Math.min(targetProgress, 9 + ratio * (targetProgress - 9)));
+      updateDraftActionProgress(panel, index, progress);
+      await delay(visibleMs);
+    }
+  }
+
+  function updateDraftActionProgress(panel, index, progressValue) {
+    const state = panel?._xtensionDraftActionProgress;
+    if (!state || !state.steps.length) {
+      return;
+    }
+
+    const normalizedIndex = Math.max(0, Math.min(index, state.steps.length - 1));
+    const monotonicIndex = Math.max(state.currentIndex || 0, normalizedIndex);
+    if (state.currentIndex !== monotonicIndex) {
+      state.currentIndex = monotonicIndex;
+      const stepText = state.steps[monotonicIndex] || "";
+      state.status.textContent = `${stepText} (${monotonicIndex + 1}/${state.steps.length})`;
+      Array.from(state.list?.children || []).forEach((item, itemIndex) => {
+        item.classList.toggle("is-complete", itemIndex < monotonicIndex);
+        item.classList.toggle("is-current", itemIndex === monotonicIndex);
+      });
+    }
+
+    const normalizedProgress = clamp(Number(progressValue) || 0, 0, 100);
+    state.lastProgress = Math.max(state.lastProgress || 0, normalizedProgress);
+    state.progressBar.style.width = `${state.lastProgress.toFixed(state.lastProgress >= 99.5 ? 0 : 1)}%`;
+  }
+
+  function getReplySuggestionsLoadingSteps(phase) {
+    if (phase === "draft-correct") {
+      return [
+        localizedText("draftActionLoadingRead", "Reading the draft..."),
+        localizedText("draftActionLoadingPrepareCorrect", "Preparing correction instructions..."),
+        localizedText("draftActionLoadingSendCorrect", "Sending request to the AI..."),
+        localizedText("draftActionLoadingAiCorrect", "AI is correcting grammar and syntax..."),
+        localizedText("draftActionLoadingCheckCorrect", "Checking corrected text..."),
+        localizedText("draftActionLoadingPrepareInsert", "Preparing insertion..."),
+        localizedText("draftActionLoadingInsertCorrect", "Applying the correction...")
+      ];
+    }
+
+    if (phase === "draft-translate") {
+      return [
+        localizedText("draftActionLoadingRead", "Reading the draft..."),
+        localizedText("draftActionLoadingPrepareTranslate", "Preparing target language..."),
+        localizedText("draftActionLoadingSendTranslate", "Sending request to the AI..."),
+        localizedText("draftActionLoadingAiTranslate", "AI is translating the text..."),
+        localizedText("draftActionLoadingCheckTranslate", "Checking translated text..."),
+        localizedText("draftActionLoadingPrepareInsert", "Preparing insertion..."),
+        localizedText("draftActionLoadingInsertTranslate", "Applying the translation...")
+      ];
+    }
+
+    if (phase === "draft-generate") {
+      return [
+        localizedText("draftActionLoadingRead", "Reading the draft..."),
+        localizedText("draftActionLoadingPrepareGenerate", "Preparing writing context..."),
+        localizedText("draftActionLoadingSendGenerate", "Sending request to the AI..."),
+        localizedText("draftActionLoadingAiGenerate", "AI is drafting the reply..."),
+        localizedText("draftActionLoadingCheckGenerate", "Checking tone and length..."),
+        localizedText("draftActionLoadingPrepareInsert", "Preparing insertion..."),
+        localizedText("draftActionLoadingInsertGenerate", "Applying the generated text...")
+      ];
+    }
+
+    if (phase === "preparing") {
+      return [
+        localizedText("replySuggestionsPreparing", "Reading the post..."),
+        localizedText("replySuggestionsLoadingAnalyze", "Understanding the context...")
+      ];
+    }
+
+    return [
+      localizedText("replySuggestionsLoading", "Generating replies..."),
+      localizedText("replySuggestionsLoadingStance", "Choosing a clear stance..."),
+      localizedText("replySuggestionsLoadingWriting", "Writing postable replies..."),
+      localizedText("replySuggestionsLoadingFinalizing", "Checking tone and facts...")
+    ];
+  }
+
+  function getDraftActionFromLoadingPhase(phase) {
+    const normalized = cleanText(phase).toLowerCase();
+    if (normalized === "draft-correct") {
+      return "correct";
+    }
+    if (normalized === "draft-translate") {
+      return "translate";
+    }
+    if (normalized === "draft-generate") {
+      return "generate";
+    }
+    return "";
+  }
+
+  function getDraftActionEstimatedDuration(action) {
+    const actionId = normalizeDraftAction(action);
+    const value = Number(window.__xtensionDraftActionEstimatedMs?.[actionId] || 0);
+    return Number.isFinite(value) && value > 0
+      ? value
+      : DEFAULT_DRAFT_ACTION_DURATION_MS[actionId] || DEFAULT_DRAFT_ACTION_DURATION_MS.correct;
+  }
+
+  function clearReplySuggestionsPanelProgress(panel) {
+    if (panel?._xtensionReplyProgressTimer) {
+      window.clearTimeout(panel._xtensionReplyProgressTimer);
+      panel._xtensionReplyProgressTimer = null;
+    }
+    panel?.querySelectorAll?.(".xtension-reply-suggestion").forEach(clearReplySuggestionOptionProgress);
+    if (panel?._xtensionReplyAutoCloseTimer) {
+      window.clearTimeout(panel._xtensionReplyAutoCloseTimer);
+      panel._xtensionReplyAutoCloseTimer = null;
+    }
+    panel?.removeAttribute?.("aria-busy");
+  }
+
+  function showDraftActionPanelLoading(editor, action) {
+    const target = findEditableReplyEditor(editor) || editor;
+    const existingPanel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
+    const panel = existingPanel || createReplySuggestionsPanel(target);
+
+    panel._xtensionReplyEditor = target;
+    setReplySuggestionsPanelLoading(panel, `draft-${normalizeDraftAction(action)}`);
+    if (!panel.isConnected) {
+      placeReplySuggestionsPanel(target, panel);
+    } else {
+      positionReplySuggestionsPanel(target, panel);
+    }
+
+    return panel;
+  }
+
+  function setDraftActionPanelMessage(panel, message, detail = "", options = {}) {
+    if (!panel) {
+      return;
+    }
+
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    panel.classList.toggle("is-noninteractive-status", Boolean(options.nonInteractive));
+    const header = createReplySuggestionsHeader(panel);
+    const body = document.createElement("div");
+
+    body.className = "xtension-reply-suggestions-status";
+    body.classList.toggle("is-success", options.tone === "success");
+    body.classList.toggle("is-warning", options.tone === "warning");
+    body.classList.toggle("is-error", options.tone === "error");
+    body.textContent = message;
+
+    panel.append(header, body);
+
+    if (detail) {
+      const detailElement = document.createElement("div");
+      detailElement.className = "xtension-reply-suggestions-error-detail";
+      detailElement.textContent = detail;
+      panel.append(detailElement);
+    }
+
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+
+    if (options.autoCloseMs) {
+      panel._xtensionReplyAutoCloseTimer = window.setTimeout(() => {
+        removeReplySuggestionsPanel(panel);
+      }, options.autoCloseMs);
+    }
+  }
+
+  function setReplySuggestionsPanelError(panel, code, errorMessage) {
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    panel.classList.remove("is-noninteractive-status");
+    const header = createReplySuggestionsHeader(panel);
+    const body = document.createElement("div");
+    const detail = document.createElement("div");
+    const configure = document.createElement("button");
+
+    body.className = "xtension-reply-suggestions-status";
+    body.textContent = code === "not_configured"
+      ? localizedText("replyAiNotConfigured", "Configure local or connected AI in Xtension options first.")
+      : localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions.");
+
+    detail.className = "xtension-reply-suggestions-error-detail";
+    detail.textContent = errorMessage || "";
+
+    configure.type = "button";
+    configure.className = "xtension-reply-suggestions-configure";
+    configure.textContent = localizedText("replyAiConfigureButton", "Open options");
+    configure.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openExtensionOptions();
+    });
+
+    panel.append(header, body);
+    if (detail.textContent) {
+      panel.append(detail);
+    }
+    panel.append(configure);
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+  }
+
+  function normalizeReplyPromptProfilesForUi(profiles) {
+    const input = Array.isArray(profiles) ? profiles : [];
+    const defaults = [
+      { index: 0, label: localizedReplyStyle("short") || "Short impact" },
+      { index: 1, label: localizedReplyStyle("medium") || "Medium argument" },
+      { index: 2, label: localizedReplyStyle("long") || "Longer argument" }
+    ];
+
+    return defaults.map((fallback, index) => {
+      const raw = input[index] && typeof input[index] === "object" ? input[index] : {};
+      return {
+        index,
+        label: cleanText(raw.label || raw.name || fallback.label) || fallback.label
+      };
+    });
+  }
+
+  function setReplySuggestionsPanelStreaming(panel, editor, profiles) {
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    panel.classList.remove("is-noninteractive-status");
+    panel.setAttribute("aria-busy", "true");
+    const header = createReplySuggestionsHeader(panel);
+    const list = document.createElement("div");
+
+    list.className = "xtension-reply-suggestions-list";
+    profiles.forEach((profile, index) => {
+      list.append(createStreamingReplyOption(panel, editor, profile, index));
+    });
+
+    panel.append(header, list);
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor || editor, panel);
+  }
+
+  function createStreamingReplyOption(panel, editor, profile, index) {
+    const option = document.createElement("button");
+    const style = document.createElement("span");
+    const text = document.createElement("span");
+    const progress = document.createElement("span");
+    const progressBar = document.createElement("span");
+
+    option.type = "button";
+    option.className = "xtension-reply-suggestion is-loading";
+    option.disabled = true;
+    option.setAttribute("data-xtension-reply-suggestion-slot", String(index));
+    style.className = "xtension-reply-suggestion-style";
+    style.textContent = profile.label;
+    text.className = "xtension-reply-suggestion-text";
+    text.textContent = localizedText("replySuggestionsLoading", "Generating replies...");
+    progress.className = "xtension-reply-suggestion-progress";
+    progressBar.className = "xtension-reply-suggestion-progress-bar";
+
+    progress.append(progressBar);
+    option.append(style, text, progress);
+    startReplySuggestionOptionProgress(option, profile, index);
+    option.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const suggestion = option._xtensionSuggestion;
+      if (!suggestion || panel._xtensionReplyPicking) {
+        return;
+      }
+
+      const options = Array.from(panel.querySelectorAll(".xtension-reply-suggestion"));
+      panel._xtensionReplyPicking = true;
+      options.forEach((button) => {
+        button.classList.remove("is-selected");
+        button.disabled = true;
+      });
+      injectReplyDraft(panel._xtensionReplyEditor || editor, suggestion.text).then(() => {
+        option.classList.add("is-selected");
+      }).finally(() => {
+        panel._xtensionReplyPicking = false;
+        options.forEach((button) => {
+          button.disabled = Boolean(!button._xtensionSuggestion);
+        });
+      });
+    });
+
+    return option;
+  }
+
+  function setReplySuggestionsPanelProfileReply(panel, editor, index, reply) {
+    const option = panel?.querySelector?.(`[data-xtension-reply-suggestion-slot="${index}"]`);
+    if (!option) {
+      return;
+    }
+
+    panel.classList.remove("is-noninteractive-status");
+    clearReplySuggestionOptionProgress(option);
+    removeReplySuggestionOptionProgressBar(option);
+    const suggestion = normalizeReplySuggestionForUi(reply, index);
+    option._xtensionSuggestion = suggestion;
+    option.classList.remove("is-loading", "is-error");
+    option.disabled = false;
+    const style = option.querySelector(".xtension-reply-suggestion-style");
+    const text = option.querySelector(".xtension-reply-suggestion-text");
+    if (style) {
+      style.textContent = suggestion.style;
+    }
+    if (text) {
+      text.textContent = suggestion.text;
+    }
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor || editor, panel);
+  }
+
+  function setReplySuggestionsPanelProfileError(panel, index, message) {
+    const option = panel?.querySelector?.(`[data-xtension-reply-suggestion-slot="${index}"]`);
+    if (!option) {
+      return;
+    }
+
+    panel.classList.remove("is-noninteractive-status");
+    clearReplySuggestionOptionProgress(option);
+    removeReplySuggestionOptionProgressBar(option);
+    option._xtensionSuggestion = null;
+    option.classList.remove("is-loading");
+    option.classList.add("is-error");
+    option.disabled = true;
+    const text = option.querySelector(".xtension-reply-suggestion-text");
+    if (text) {
+      text.textContent = message || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions.");
+    }
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+  }
+
+  function startReplySuggestionOptionProgress(option, profile, index) {
+    clearReplySuggestionOptionProgress(option);
+    const text = option.querySelector(".xtension-reply-suggestion-text");
+    if (!text) {
+      return;
+    }
+
+    const steps = getReplySuggestionOptionLoadingSteps(profile);
+    const ratios = [0, 0.18, 0.48, 0.78, 0.92];
+    const progressBar = option.querySelector(".xtension-reply-suggestion-progress-bar");
+    const startedAt = Date.now() - Math.max(0, index || 0) * 120;
+    const estimatedMs = DEFAULT_DRAFT_ACTION_DURATION_MS.generate;
+    let currentIndex = -1;
+    let lastProgress = 6;
+
+    const tick = () => {
+      const elapsedRatio = Math.max(0, (Date.now() - startedAt) / estimatedMs);
+      let nextIndex = 0;
+      for (let ratioIndex = 0; ratioIndex < ratios.length; ratioIndex += 1) {
+        if (elapsedRatio >= ratios[ratioIndex]) {
+          nextIndex = ratioIndex;
+        }
+      }
+      nextIndex = Math.min(nextIndex, steps.length - 1);
+      if (nextIndex !== currentIndex) {
+        currentIndex = nextIndex;
+        text.textContent = steps[currentIndex] || steps.at(-1) || localizedText("replySuggestionsLoading", "Generating replies...");
+      }
+      if (progressBar) {
+        const easedRatio = 1 - Math.pow(1 + elapsedRatio * 2.2, -2);
+        const targetProgress = clamp(6 + easedRatio * 92, 6, 98.6);
+        const creepStep = lastProgress < 76 ? 0.64 : lastProgress < 93 ? 0.28 : 0.08;
+        lastProgress = clamp(Math.max(targetProgress, lastProgress + creepStep), 6, 98.6);
+        progressBar.style.width = `${lastProgress.toFixed(lastProgress >= 98 ? 1 : 0)}%`;
+      }
+      option._xtensionReplySuggestionProgressTimer = window.setTimeout(tick, 350);
+    };
+
+    tick();
+  }
+
+  function clearReplySuggestionOptionProgress(option) {
+    if (option?._xtensionReplySuggestionProgressTimer) {
+      window.clearTimeout(option._xtensionReplySuggestionProgressTimer);
+      option._xtensionReplySuggestionProgressTimer = null;
+    }
+  }
+
+  function removeReplySuggestionOptionProgressBar(option) {
+    option?.querySelector?.(".xtension-reply-suggestion-progress")?.remove();
+  }
+
+  function getReplySuggestionOptionLoadingSteps(profile) {
+    return [
+      localizedText("replySuggestionLoadingPrepare", "Preparing the prompt..."),
+      localizedText("replySuggestionLoadingSend", "Sending request to the AI..."),
+      localizedText("replySuggestionLoadingWrite", "AI is writing this reply..."),
+      localizedText("replySuggestionLoadingReceive", "Receiving the reply..."),
+      localizedText("replySuggestionLoadingCheck", "Checking the reply...")
+    ];
+  }
+
+  function finishReplySuggestionsPanelStreaming(panel) {
+    clearReplySuggestionsPanelProgress(panel);
+    panel?.removeAttribute?.("aria-busy");
+  }
+
+  function setReplySuggestionsPanelReplies(panel, editor, replies) {
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    panel.classList.remove("is-noninteractive-status");
+    const header = createReplySuggestionsHeader(panel);
+    const list = document.createElement("div");
+
+    list.className = "xtension-reply-suggestions-list";
+
+    replies.slice(0, 5).forEach((reply, index) => {
+      const suggestion = normalizeReplySuggestionForUi(reply, index);
+      const option = document.createElement("button");
+      const style = document.createElement("span");
+      const text = document.createElement("span");
+
+      option.type = "button";
+      option.className = "xtension-reply-suggestion";
+      style.className = "xtension-reply-suggestion-style";
+      style.textContent = suggestion.style;
+      text.className = "xtension-reply-suggestion-text";
+      text.textContent = suggestion.text;
+
+      option.append(style, text);
+      option.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (panel._xtensionReplyPicking) {
+          return;
+        }
+
+        const options = Array.from(list.querySelectorAll(".xtension-reply-suggestion"));
+        panel._xtensionReplyPicking = true;
+        options.forEach((button) => {
+          button.classList.remove("is-selected");
+          button.disabled = true;
+        });
+        injectReplyDraft(panel._xtensionReplyEditor || editor, suggestion.text).then(() => {
+          option.classList.add("is-selected");
+        }).finally(() => {
+          panel._xtensionReplyPicking = false;
+          options.forEach((button) => {
+            button.disabled = false;
+          });
+        });
+      });
+      list.append(option);
+    });
+
+    if (!list.children.length) {
+      setReplySuggestionsPanelError(panel, "empty");
+      return;
+    }
+
+    panel.append(header, list);
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+  }
+
+  function normalizeReplySuggestionForUi(reply, index) {
+    if (reply && typeof reply === "object") {
+      return {
+        style: resolveReplyStyleLabel(reply, index),
+        text: sanitizeDisplayedReplyText(reply.text || reply.reply || reply.content || reply.message || "")
+      };
+    }
+
+    const text = sanitizeDisplayedReplyText(reply);
+    const match = text.match(/^([^:]{2,60}):\s+(.+)$/);
+    if (match) {
+      const styleId = inferReplyStyleId(match[1]);
+      return {
+        style: styleId ? localizedReplyStyle(styleId) : cleanText(match[1]),
+        text: sanitizeDisplayedReplyText(match[2])
+      };
+    }
+
+    return {
+      style: localizedTemplate("replyStyleOption", { number: index + 1 }, `Option ${index + 1}`),
+      text
+    };
+  }
+
+  function sanitizeDisplayedReplyText(value) {
+    return cleanText(value).replace(PROHIBITED_REPLY_SYMBOL_PATTERN, ",");
+  }
+
+  function resolveReplyStyleLabel(reply, index) {
+    const styleId = cleanText(reply.styleId || reply.style_id || reply.type || "");
+    if (styleId) {
+      const localized = localizedReplyStyle(styleId);
+      if (localized) {
+        return localized;
+      }
+    }
+
+    const rawStyle = cleanText(reply.style || reply.angle || reply.label || "");
+    const inferredStyle = inferReplyStyleId(rawStyle);
+    if (inferredStyle) {
+      return localizedReplyStyle(inferredStyle);
+    }
+
+    return rawStyle || localizedTemplate("replyStyleOption", { number: index + 1 }, `Option ${index + 1}`);
+  }
+
+  function localizedReplyStyle(styleId) {
+    const normalized = cleanText(styleId).toLowerCase();
+    const keys = {
+      argument: "replyStyleArgument",
+      reaction: "replyStyleReaction",
+      support: "replyStyleSupport",
+      short: "replyStyleShort",
+      medium: "replyStyleMedium",
+      long: "replyStyleLong",
+      humor: "replyStyleHumor",
+      sharp: "replyStyleSharp",
+      useful: "replyStyleUseful",
+      question: "replyStyleQuestion",
+      codex: "replyStyleCodex",
+      callout: "replyStyleCallout",
+      custom: "replyStyleCustom"
+    };
+    const key = keys[normalized];
+    return key ? localizedText(key, "") : "";
+  }
+
+  function inferReplyStyleId(value) {
+    const style = cleanText(value).toLowerCase();
+
+    if (/short|court|courte|punchy|brief/.test(style)) {
+      return "short";
+    }
+    if (/medium|moyen|moyenne|balanced/.test(style)) {
+      return "medium";
+    }
+    if (/long|longue|detailed|développ|developp/.test(style)) {
+      return "long";
+    }
+    if (/argument|reason|raison|preuve|pourquoi/.test(style)) {
+      return "argument";
+    }
+    if (/reaction|réaction|human|humain|instinct|gut|take/.test(style)) {
+      return "reaction";
+    }
+    if (/callout|call out|dénonc|denonc|scandale/.test(style)) {
+      return "callout";
+    }
+    if (/support|agree|accord|positif|positive|soutien/.test(style)) {
+      return "support";
+    }
+    if (/humou?r|joke|funny|meme|vanne|dr[oô]le/.test(style)) {
+      return "humor";
+    }
+    if (/sharp|contrarian|angle|direct|malin|tranch/.test(style)) {
+      return "sharp";
+    }
+    if (/useful|context|takeaway|utile|contexte/.test(style)) {
+      return "useful";
+    }
+    if (/question|relance|engag|conversation/.test(style)) {
+      return "question";
+    }
+    if (/codex|search|recherche/.test(style)) {
+      return "codex";
+    }
+
+    return "";
+  }
+
+  function openExtensionOptions() {
+    sendRuntimeMessage({ type: "xtension-open-options" }).then((response) => {
+      if (!response?.ok) {
+        throw new Error(response?.error || "");
+      }
+    }).catch(() => {
+      showToast(localizedText("replyAiOptionsUnavailable", "Open the extension options to configure the reply provider."));
+    });
+  }
+
+  async function transformReplyText(action, text, editor) {
+    const actionId = normalizeDraftAction(action);
+    const definition = getDraftActionDefinition(actionId);
+    const context = await getReplyDraftContext(editor);
+    const targetLanguage = await getDraftActionTargetLanguage(actionId, context, text);
+
+    const response = await sendRuntimeMessage({
+      type: definition.messageType,
+      locale: getUiLocale(),
+      targetLanguage,
+      context,
+      text
+    });
+
+    if (!response?.ok) {
+      throw new Error(response?.error || localizedText(definition.failedKey, definition.failedFallback));
+    }
+
+    return cleanText(response[definition.responseKey] || response.text || "");
+  }
+
+  async function getReplyDraftContext(editor) {
+    const target = findEditableReplyEditor(editor) || editor;
+    if (target?._xtensionReplyContext) {
+      return target._xtensionReplyContext;
+    }
+
+    const tweet = findReplySourceTweet(target);
+    if (tweet) {
+      const context = await collectReplySuggestionContext(tweet);
+      if (target) {
+        target._xtensionReplyContext = context;
+      }
+      return context;
+    }
+
+    return {
+      tweetLanguage: getUiLocale(),
+      tweetText: ""
+    };
+  }
+
+  function findReplySourceTweet(editor) {
+    const dialog = findVisibleReplyDialog(editor);
+    if (dialog) {
+      return Array.from(dialog.querySelectorAll('article[data-testid="tweet"]'))
+        .find((tweet) => !tweet.contains(editor) && findPrimaryTweetText(tweet))
+        || null;
+    }
+
+    const article = editor?.closest?.('article[data-testid="tweet"]');
+    if (article && findPrimaryTweetText(article)) {
+      return article;
+    }
+
+    return findNearestPreviousTweetForReplyEditor(editor);
+  }
+
+  function findNearestPreviousTweetForReplyEditor(editor) {
+    const composer = findReplyComposerContainer(editor);
+    const boundary = composer?.closest?.('[data-testid="primaryColumn"], main, [role="main"]') || document;
+    const composerRect = (composer || editor)?.getBoundingClientRect?.();
+    if (!composerRect) {
+      return null;
+    }
+
+    return Array.from(boundary.querySelectorAll('article[data-testid="tweet"]'))
+      .filter((tweet) => {
+        const rect = tweet.getBoundingClientRect();
+        return isVisibleElement(tweet)
+          && findPrimaryTweetText(tweet)
+          && rect.bottom <= composerRect.top + 8
+          && !tweet.contains(editor);
+      })
+      .sort((first, second) => second.getBoundingClientRect().bottom - first.getBoundingClientRect().bottom)[0]
+      || null;
+  }
+
+  async function getDraftActionTargetLanguage(action, context, draftText) {
+    const generationLanguage = await getDraftGenerationLanguage();
+    if (generationLanguage !== "auto") {
+      return generationLanguage;
+    }
+
+    return cleanText(context?.tweetLanguage || inferDraftLanguage(draftText) || getUiLocale() || "en");
+  }
+
+  function normalizeDraftAction(action) {
+    const value = cleanText(action).toLowerCase();
+    return ["correct", "translate", "generate", "suggestions"].includes(value) ? value : "correct";
+  }
+
+  function getDraftActionDefinition(action) {
+    const actionId = normalizeDraftAction(action);
+    return getDraftActionDefinitions().find((definition) => definition.id === actionId) || getDraftActionDefinitions()[0];
+  }
+
+  async function getDraftGenerationLanguage() {
+    const stored = await storageGet({
+      [DRAFT_GENERATION_LANGUAGE_STORAGE_KEY]: getDefaultDraftGenerationLanguage()
+    });
+    return normalizeDraftGenerationLanguage(stored[DRAFT_GENERATION_LANGUAGE_STORAGE_KEY]);
+  }
+
+  function getDefaultDraftGenerationLanguage() {
+    const uiLanguage = getUiLocale().toLowerCase().split("-")[0];
+    return DRAFT_GENERATION_LANGUAGES.some((language) => language.id === uiLanguage && language.id !== "auto")
+      ? uiLanguage
+      : "auto";
+  }
+
+  function normalizeDraftGenerationLanguage(value) {
+    const normalized = cleanText(value).toLowerCase();
+    return DRAFT_GENERATION_LANGUAGES.some((language) => language.id === normalized) ? normalized : getDefaultDraftGenerationLanguage();
+  }
+
+  function storageGet(defaults) {
+    return new Promise((resolve) => {
+      const storage = EXTENSION_API?.storage?.local;
+      if (!storage?.get) {
+        resolve(defaults || {});
+        return;
+      }
+
+      try {
+        const maybePromise = storage.get(defaults, (result) => {
+          resolve(result || defaults || {});
+        });
+        if (maybePromise && typeof maybePromise.then === "function") {
+          maybePromise.then((result) => resolve(result || defaults || {}), () => resolve(defaults || {}));
+        }
+      } catch (error) {
+        if (isExtensionContextInvalidatedError(error)) {
+          markExtensionContextInvalidated();
+        }
+
+        resolve(defaults || {});
+      }
+    });
+  }
+
+  function storageSet(values) {
+    return new Promise((resolve) => {
+      const storage = EXTENSION_API?.storage?.local;
+      if (!storage?.set) {
+        resolve(false);
+        return;
+      }
+
+      try {
+        const maybePromise = storage.set(values, () => resolve(true));
+        if (maybePromise && typeof maybePromise.then === "function") {
+          maybePromise.then(() => resolve(true), () => resolve(false));
+        }
+      } catch (error) {
+        if (isExtensionContextInvalidatedError(error)) {
+          markExtensionContextInvalidated();
+        }
+
+        resolve(false);
+      }
+    });
+  }
+
+  async function getDraftActionTiming(action) {
+    const actionId = normalizeDraftAction(action);
+    const defaults = { [DRAFT_ACTION_TIMINGS_STORAGE_KEY]: {} };
+    const stored = await storageGet(defaults);
+    const timings = stored[DRAFT_ACTION_TIMINGS_STORAGE_KEY] || {};
+    const entry = timings[actionId] || {};
+    const averageMs = Number(entry.averageMs || 0);
+
+    return {
+      averageMs: Number.isFinite(averageMs) && averageMs > 0
+        ? averageMs
+        : DEFAULT_DRAFT_ACTION_DURATION_MS[actionId] || DEFAULT_DRAFT_ACTION_DURATION_MS.correct,
+      count: Number(entry.count || 0)
+    };
+  }
+
+  async function recordDraftActionTiming(action, durationMs) {
+    const actionId = normalizeDraftAction(action);
+    const measuredMs = Number(durationMs || 0);
+    if (!Number.isFinite(measuredMs) || measuredMs < 500) {
+      return false;
+    }
+
+    const defaults = { [DRAFT_ACTION_TIMINGS_STORAGE_KEY]: {} };
+    const stored = await storageGet(defaults);
+    const timings = stored[DRAFT_ACTION_TIMINGS_STORAGE_KEY] || {};
+    const previous = timings[actionId] || {};
+    const previousAverage = Number(previous.averageMs || 0);
+    const previousCount = Math.max(0, Number(previous.count || 0));
+    const averageMs = previousAverage > 0
+      ? Math.round(previousAverage * 0.7 + measuredMs * 0.3)
+      : Math.round(measuredMs);
+
+    timings[actionId] = {
+      averageMs: Math.max(3000, Math.min(90000, averageMs)),
+      count: Math.min(50, previousCount + 1),
+      lastMs: Math.round(measuredMs),
+      updatedAt: Date.now()
+    };
+
+    setDraftActionEstimatedDuration(actionId, timings[actionId].averageMs);
+    return storageSet({ [DRAFT_ACTION_TIMINGS_STORAGE_KEY]: timings });
+  }
+
+  function setDraftActionEstimatedDuration(action, averageMs) {
+    const actionId = normalizeDraftAction(action);
+    const measuredMs = Number(averageMs || 0);
+    window.__xtensionDraftActionEstimatedMs = window.__xtensionDraftActionEstimatedMs || {};
+    window.__xtensionDraftActionEstimatedMs[actionId] = Number.isFinite(measuredMs) && measuredMs > 0
+      ? measuredMs
+      : DEFAULT_DRAFT_ACTION_DURATION_MS[actionId] || DEFAULT_DRAFT_ACTION_DURATION_MS.correct;
+  }
+
+  function inferDraftLanguage(value) {
+    const text = cleanText(value).toLowerCase();
+    if (!text) {
+      return "";
+    }
+
+    if (/[\u3040-\u30ff\u3400-\u9fff]/.test(text)) {
+      return "ja";
+    }
+    if (/[àâæçéèêëîïôœùûüÿ]|\b(?:je|j'|tu|il|elle|nous|vous|ils|elles|pas|plus|très|tres|content|contre|pourquoi|parce|avec|sans|mais|donc|c'est|ce|ça|ca)\b/i.test(text)) {
+      return "fr";
+    }
+    if (/[¿¡áéíóúñ]|\b(?:que|porque|para|con|sin|pero|estoy|quiero|deberia|debería)\b/i.test(text)) {
+      return "es";
+    }
+    if (/[äöüß]|\b(?:ich|nicht|warum|weil|aber|mit|ohne|sollte)\b/i.test(text)) {
+      return "de";
+    }
+    if (/\b(?:i|i'm|im|you|we|they|not|why|because|with|without|should|want|happy|angry)\b/i.test(text)) {
+      return "en";
+    }
+
+    return "";
+  }
+
+  async function handleDraftActionButtonClick(button, editor, action) {
+    const target = findEditableReplyEditor(editor);
+    const actionId = normalizeDraftAction(action);
+    const definition = getDraftActionDefinition(actionId);
+    if (!target || button._xtensionDraftActionBusy) {
+      return;
+    }
+
+    if (actionId === "suggestions") {
+      await toggleReplySuggestionsForDraftEditor(target);
+      return;
+    }
+
+    if (button._xtensionDraftActionOriginal) {
+      const originalText = button._xtensionDraftActionOriginal;
+      button._xtensionDraftActionOriginal = "";
+      await injectReplyDraft(target, originalText);
+      setDraftActionButtonState(button, actionId, "normal");
+      return;
+    }
+
+    const currentText = getReplyEditorText(target);
+    if (actionId === "generate") {
+      const shown = await showReplySuggestionsForDraftEditor(target, {
+        force: true,
+        instruction: currentText
+      });
+      if (!shown) {
+        const emptyMessage = localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions.");
+        showToast(emptyMessage);
+      }
+      return;
+    }
+
+    if (!currentText) {
+      const emptyPanel = showDraftActionPanelLoading(target, actionId);
+      setDraftActionPanelMessage(
+        emptyPanel,
+        localizedText(definition.emptyKey, definition.emptyFallback),
+        "",
+        { tone: "warning", autoCloseMs: 2600 }
+      );
+      showToast(localizedText(definition.emptyKey, definition.emptyFallback));
+      return;
+    }
+
+    button._xtensionDraftActionBusy = true;
+    const actionStartedAt = Date.now();
+    const timing = await getDraftActionTiming(actionId);
+    setDraftActionEstimatedDuration(actionId, timing.averageMs);
+    const actionPanel = showDraftActionPanelLoading(target, actionId);
+    const actionHost = button.closest(DRAFT_ACTIONS_HOST_SELECTOR);
+    if (actionHost) {
+      actionHost._xtensionDraftActionBusy = true;
+    }
+    const relatedButtons = getRelatedDraftActionButtons(button);
+    relatedButtons.forEach((item) => {
+      item.disabled = true;
+    });
+    button.classList.add("is-loading");
+    const loadingMessage = localizedText(definition.loadingKey, definition.loadingFallback);
+    setDraftActionButtonLabel(button, loadingMessage);
+    const progressToast = showToast(loadingMessage, { persistent: true, role: "status" });
+
+    try {
+      const transformedText = await transformReplyText(actionId, currentText, target);
+      await markDraftActionPanelProgress(actionPanel, "response");
+      if (!transformedText || transformedText === currentText) {
+        setDraftActionButtonState(button, actionId, "normal");
+        const unchangedMessage = localizedText(definition.unchangedKey, definition.unchangedFallback);
+        setDraftActionPanelMessage(actionPanel, unchangedMessage, "", { tone: "warning", autoCloseMs: 2600 });
+        showToast(unchangedMessage);
+        return;
+      }
+
+      clearOtherDraftActionUndoStates(button);
+      button._xtensionDraftActionOriginal = currentText;
+      await markDraftActionPanelProgress(actionPanel, "insert");
+      const inserted = await injectReplyDraft(target, transformedText);
+      if (!inserted) {
+        throw new Error(localizedText("draftActionInsertFailed", "The text was generated but X did not accept the insertion."));
+      }
+      await markDraftActionPanelProgress(actionPanel, "done");
+      recordDraftActionTiming(actionId, Date.now() - actionStartedAt).catch(() => {});
+      setDraftActionButtonState(button, actionId, "undo");
+      setDraftActionPanelMessage(
+        actionPanel,
+        localizedText(getDraftActionDoneKey(actionId), getDraftActionDoneFallback(actionId)),
+        "",
+        { tone: "success", autoCloseMs: 900, nonInteractive: true }
+      );
+      window.setTimeout(() => {
+        showReplySuggestionsForDraftEditor(target, {
+          force: true,
+          instruction: getReplyEditorText(target)
+        }).catch(() => {});
+      }, 450);
+    } catch (error) {
+      setDraftActionButtonState(button, actionId, "normal");
+      const errorMessage = error?.message || localizedText(definition.failedKey, definition.failedFallback);
+      setDraftActionPanelMessage(actionPanel, localizedText(definition.failedKey, definition.failedFallback), errorMessage, { tone: "error" });
+      showToast(errorMessage);
+    } finally {
+      relatedButtons.forEach((item) => {
+        item.disabled = false;
+      });
+      button._xtensionDraftActionBusy = false;
+      if (actionHost) {
+        actionHost._xtensionDraftActionBusy = false;
+      }
+      if (progressToast?.isConnected) {
+        progressToast.remove();
+      }
+    }
+  }
+
+  function getDraftActionDoneKey(action) {
+    const actionId = normalizeDraftAction(action);
+    if (actionId === "translate") {
+      return "draftActionTranslationDone";
+    }
+    if (actionId === "generate") {
+      return "draftActionGenerationDone";
+    }
+    return "draftActionCorrectionDone";
+  }
+
+  function getDraftActionDoneFallback(action) {
+    const actionId = normalizeDraftAction(action);
+    if (actionId === "translate") {
+      return "Translation inserted.";
+    }
+    if (actionId === "generate") {
+      return "Generated reply inserted.";
+    }
+    return "Correction applied.";
+  }
+
+  function clearOtherDraftActionUndoStates(button) {
+    getRelatedDraftActionButtons(button).forEach((item) => {
+      if (item === button) {
+        return;
+      }
+
+      const actionId = item.getAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE);
+      item._xtensionDraftActionOriginal = "";
+      setDraftActionButtonState(item, actionId, "normal");
+    });
+  }
+
+  function getRelatedDraftActionButtons(button) {
+    const host = button.closest(DRAFT_ACTIONS_SELECTOR);
+    return Array.from(host?.querySelectorAll(`[${DRAFT_ACTION_BUTTON_ATTRIBUTE}]`) || [button]);
+  }
+
+  function setDraftActionButtonState(button, action, state) {
+    const actionId = normalizeDraftAction(action);
+    if (state === "undo") {
+      const label = localizedText("correctionUndoButtonLabel", "Undo");
+      button.classList.add("is-undo");
+      button.classList.remove("is-loading");
+      setDraftActionButtonLabel(button, label);
+      renderDraftActionButtonIcon(button, actionId);
+      return;
+    }
+
+    const definition = getDraftActionDefinition(actionId);
+    const label = localizedText(definition.labelKey, definition.fallback);
+    button.classList.remove("is-undo");
+    button.classList.remove("is-loading");
+    setDraftActionButtonLabel(button, label);
+    renderDraftActionButtonIcon(button, actionId);
+  }
+
+  function setDraftActionButtonLabel(button, label) {
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  }
+
+  async function injectReplyDraft(editor, message) {
+    const trimmedMessage = cleanMultilineText(message);
+    const target = findEditableReplyEditor(editor);
+
+    if (!trimmedMessage || !target || target._xtensionReplyInjecting) {
+      return false;
+    }
+
+    target._xtensionReplyInjecting = true;
+
+    try {
+      if (getReplyEditorText(target) === trimmedMessage) {
+        dispatchReplyInput(target, trimmedMessage, "insertText");
+        if (await waitForReplyDraftCommitted(target, trimmedMessage, 900)) {
+          return true;
+        }
+      }
+
+      await activateReplyEditor(target);
+      if (!await clearReplyEditor(target)) {
+        return false;
+      }
+      if (!await insertReplyText(target, trimmedMessage)) {
+        return false;
+      }
+      if (!await verifyReplyTextInserted(target, trimmedMessage)) {
+        await rewriteReplyEditorText(target, trimmedMessage);
+      }
+      if (await waitForReplyDraftCommitted(target, trimmedMessage, 900)) {
+        return true;
+      }
+
+      if (!await rewriteReplyEditorText(target, trimmedMessage)) {
+        return false;
+      }
+      return await waitForReplyDraftCommitted(target, trimmedMessage, 1200);
+    } finally {
+      window.setTimeout(() => {
+        target._xtensionReplyInjecting = false;
+      }, 350);
+    }
+  }
+
+  function findEditableReplyEditor(editor) {
+    if (editor?.matches?.('[contenteditable="true"]')) {
+      return editor;
+    }
+
+    return editor?.querySelector?.('[contenteditable="true"]')
+      || document.activeElement?.closest?.('[contenteditable="true"]')
+      || null;
+  }
+
+  async function activateReplyEditor(editor) {
+    editor.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+    editor.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    editor.focus();
+    editor.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
+    editor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    placeCaretAtEnd(editor);
+    await nextFrame();
+  }
+
+  async function clearReplyEditor(editor) {
+    const currentText = getReplyEditorText(editor);
+    if (!currentText) {
+      return true;
+    }
+
+    selectEditorContents(editor);
+    const deleted = document.execCommand?.("delete", false);
+    dispatchReplyInput(editor, "", "deleteContentBackward");
+    await nextFrame();
+
+    if (!deleted && getReplyEditorText(editor)) {
+      selectEditorContents(editor);
+      document.execCommand?.("delete", false);
+      dispatchReplyInput(editor, "", "deleteContentBackward");
+      await nextFrame();
+    }
+
+    return !getReplyEditorText(editor);
+  }
+
+  async function insertReplyText(editor, message) {
+    placeCaretAtEnd(editor);
+
+    if (dispatchReplyPaste(editor, message)) {
+      await nextFrame();
+      if (getReplyEditorText(editor).includes(message)) {
+        dispatchReplyInput(editor, message, "insertFromPaste");
+        return true;
+      }
+    }
+
+    const inserted = document.execCommand?.("insertText", false, message);
+    await nextFrame();
+    if (inserted && getReplyEditorText(editor).includes(message)) {
+      dispatchReplyInput(editor, message, "insertText");
+      return true;
+    }
+
+    return false;
+  }
+
+  async function verifyReplyTextInserted(editor, message) {
+    await nextFrame();
+    let currentText = getReplyEditorText(editor);
+
+    if (currentText === message) {
+      dispatchReplyInput(editor, message, "insertText");
+      return true;
+    }
+
+    if (currentText.includes(message) && currentText.length <= message.length + 2) {
+      dispatchReplyInput(editor, message, "insertText");
+      return true;
+    }
+
+    selectEditorContents(editor);
+    document.execCommand?.("delete", false);
+    document.execCommand?.("insertText", false, message);
+    await nextFrame();
+    currentText = getReplyEditorText(editor);
+
+    if (currentText === message || (currentText.includes(message) && currentText.length <= message.length + 2)) {
+      dispatchReplyInput(editor, message, "insertText");
+      return true;
+    }
+
+    return false;
+  }
+
+  async function rewriteReplyEditorText(editor, message) {
+    await activateReplyEditor(editor);
+    selectEditorContents(editor);
+    document.execCommand?.("delete", false);
+    dispatchReplyInput(editor, "", "deleteContentBackward");
+    await nextFrame();
+    placeCaretAtEnd(editor);
+    const inserted = document.execCommand?.("insertText", false, message);
+    await nextFrame();
+    if (inserted && getReplyEditorText(editor) === message) {
+      dispatchReplyInput(editor, message, "insertText");
+      return true;
+    }
+
+    return false;
+  }
+
+  async function waitForReplyDraftCommitted(editor, message, timeoutMs) {
+    const deadline = Date.now() + Math.max(120, timeoutMs || 700);
+
+    while (Date.now() <= deadline) {
+      if (isReplyDraftCommitted(editor, message)) {
+        return true;
+      }
+      await delay(80);
+    }
+
+    return isReplyDraftCommitted(editor, message);
+  }
+
+  function isReplyDraftCommitted(editor, message) {
+    const currentText = getReplyEditorText(editor);
+    if (currentText !== message && !(currentText.includes(message) && currentText.length <= message.length + 2)) {
+      return false;
+    }
+
+    const composer = findReplyComposerContainer(editor);
+    const submitButton = findComposerSubmitButton(composer);
+    return !submitButton || !isDisabledButton(submitButton);
+  }
+
+  function dispatchReplyPaste(editor, message) {
+    try {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", message);
+      const event = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData
+      });
+      editor.dispatchEvent(event);
+      return event.defaultPrevented;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function dispatchReplyInput(editor, data, inputType) {
+    const targets = Array.from(new Set([
+      editor,
+      editor?.closest?.('[data-testid^="tweetTextarea_"]')
+    ].filter(Boolean)));
+
+    for (const target of targets) {
+      try {
+        target.dispatchEvent(new InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          data,
+          inputType
+        }));
+        target.dispatchEvent(new InputEvent("input", {
+          bubbles: true,
+          cancelable: true,
+          data,
+          inputType
+        }));
+      } catch (error) {
+        target.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+      }
+      target.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  function getReplyEditorText(editor) {
+    return cleanMultilineText(String(editor?.innerText || editor?.textContent || "").replace(/\u200b/g, ""));
+  }
+
+  function selectEditorContents(element) {
+    const selection = window.getSelection?.();
+    if (!selection) {
+      return;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  function placeCaretAtEnd(element) {
+    const selection = window.getSelection?.();
+    if (!selection) {
+      return;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function isVisibleElement(element) {
+    if (!element || !element.isConnected) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   }
 
   function shouldOfferPdfExport(dropdown, context) {
@@ -3803,6 +7550,10 @@
       const runtime = (globalThis.chrome || globalThis.browser)?.runtime || RUNTIME_API;
       return runtime?.getURL ? runtime.getURL(path) : "";
     } catch (error) {
+      if (isExtensionContextInvalidatedError(error)) {
+        markExtensionContextInvalidated();
+      }
+
       return "";
     }
   }
@@ -3811,18 +7562,61 @@
     return "Extension rechargée : rechargez aussi l'onglet X, puis générez un nouveau PDF.";
   }
 
+  function isExtensionContextInvalidatedError(error) {
+    return /extension context invalidated/i.test(error?.message || String(error || ""));
+  }
+
+  function createRuntimeUnavailableError(error) {
+    if (isExtensionContextInvalidatedError(error)) {
+      markExtensionContextInvalidated();
+      return new Error(getExtensionReloadMessage());
+    }
+
+    return new Error(error?.message || String(error || "") || getExtensionReloadMessage());
+  }
+
+  function markExtensionContextInvalidated() {
+    if (extensionContextInvalidated) {
+      return;
+    }
+
+    extensionContextInvalidated = true;
+    enhanceQueued = false;
+    pageObserver?.disconnect?.();
+    pageObserver = null;
+
+    document.removeEventListener("pointerdown", rememberMenuTriggerContext, true);
+    document.removeEventListener("click", rememberDraftComposerSubmit, true);
+    document.removeEventListener("keydown", rememberMenuTriggerContext, true);
+    document.removeEventListener("focusin", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.removeEventListener("focusout", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.removeEventListener("input", scheduleEnhancement, true);
+    document.removeEventListener("pointerup", handleDraftActionPointerUp, true);
+    document.removeEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
+
+    cleanupXtensionInjectedUi();
+  }
+
+  function cleanupXtensionInjectedUi() {
+    document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
+    document.querySelectorAll(".xtension-draft-language-menu").forEach((menu) => menu.remove());
+    document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast`).forEach((node) => node.remove());
+    document.querySelectorAll(`[${XTENSION_OVERLAY_ROOT_ATTRIBUTE}]`).forEach((root) => root.remove());
+  }
+
   function sendRuntimeMessage(message) {
     return new Promise((resolve, reject) => {
       const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
 
       if (!runtime?.sendMessage) {
+        markExtensionContextInvalidated();
         reject(new Error(getExtensionReloadMessage()));
         return;
       }
 
       try {
         if (!globalThis.chrome && globalThis.browser) {
-          runtime.sendMessage(message).then(resolve, reject);
+          runtime.sendMessage(message).then(resolve, (error) => reject(createRuntimeUnavailableError(error)));
           return;
         }
 
@@ -3830,7 +7624,7 @@
           const error = runtime.lastError;
 
           if (error) {
-            reject(new Error(error.message));
+            reject(createRuntimeUnavailableError(error));
             return;
           }
 
@@ -3838,10 +7632,10 @@
         });
 
         if (maybePromise && typeof maybePromise.then === "function") {
-          maybePromise.then(resolve, reject);
+          maybePromise.then(resolve, (error) => reject(createRuntimeUnavailableError(error)));
         }
       } catch (error) {
-        reject(new Error(error?.message === "Extension context invalidated." ? getExtensionReloadMessage() : error?.message || getExtensionReloadMessage()));
+        reject(createRuntimeUnavailableError(error));
       }
     });
   }
@@ -3936,8 +7730,14 @@
 
     const toast = document.createElement("div");
     toast.className = "xtension-toast";
+    if (options.role) {
+      toast.setAttribute("role", options.role);
+    }
     toast.textContent = message;
-    document.body.append(toast);
+    mountXtensionOverlayBelowXLayers(toast);
+    if (!toast.isConnected) {
+      document.body.append(toast);
+    }
 
     if (!options.persistent) {
       window.setTimeout(() => {

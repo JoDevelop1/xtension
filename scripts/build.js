@@ -16,6 +16,8 @@ const contentMatches = [
   "https://*.twitter.com/*"
 ];
 const hostPermissions = [
+  "http://localhost/*",
+  "http://127.0.0.1/*",
   "https://pbs.twimg.com/*"
 ];
 
@@ -28,6 +30,7 @@ const shared = {
   description: "__MSG_extensionDescription__",
   action: {
     default_title: "__MSG_actionTitle__",
+    default_popup: "popup.html",
     default_icon: iconMap()
   },
   icons: iconMap(),
@@ -41,23 +44,32 @@ const shared = {
   ],
   web_accessible_resources: [
     {
-      resources: ["pdf-menu-icon.png"],
+      resources: ["pdf-menu-icon.png", "flags/*.svg"],
       matches: contentMatches
     }
   ],
-  host_permissions: hostPermissions
+  permissions: ["storage"],
+  host_permissions: hostPermissions,
+  options_ui: {
+    page: "options.html",
+    open_in_tab: true
+  }
+};
+
+const chromiumShared = {
+  ...shared
 };
 
 const targets = {
   chrome: {
-    ...shared,
+    ...chromiumShared,
     background: {
       service_worker: "background.js"
     },
     minimum_chrome_version: "114"
   },
   edge: {
-    ...shared,
+    ...chromiumShared,
     background: {
       service_worker: "background.js"
     },
@@ -91,18 +103,44 @@ function cleanDirectory(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+function cleanDistDirectory() {
+  fs.mkdirSync(dist, { recursive: true });
+  for (const entry of fs.readdirSync(dist, { withFileTypes: true })) {
+    if (entry.name === "bridge" || entry.name === "bridge-service" || entry.name.startsWith("XtensionBridge-")) {
+      continue;
+    }
+    fs.rmSync(path.join(dist, entry.name), { force: true, recursive: true });
+  }
+}
+
 function copyFile(from, to) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.copyFileSync(from, to);
 }
 
+function copyDirectory(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const sourcePath = path.join(from, entry.name);
+    const targetPath = path.join(to, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectory(sourcePath, targetPath);
+    } else if (entry.isFile()) {
+      copyFile(sourcePath, targetPath);
+    }
+  }
+}
+
 function copyExtensionFiles(targetDir) {
-  for (const file of ["background.js", "content.js", "content.css"]) {
+  const files = ["background.js", "content.js", "content.css", "options.html", "options.js", "options.css", "popup.html", "popup.css", "popup.js"];
+
+  for (const file of files) {
     copyFile(path.join(src, file), path.join(targetDir, file));
   }
 
   writeLocales(targetDir);
   copyFile(path.join(assets, "pdf-menu-icon.png"), path.join(targetDir, "pdf-menu-icon.png"));
+  copyDirectory(path.join(assets, "flags"), path.join(targetDir, "flags"));
 
   for (const size of [16, 32, 48, 128]) {
     copyFile(path.join(assets, "icons", `icon-${size}.png`), path.join(targetDir, "icons", `icon-${size}.png`));
@@ -121,6 +159,11 @@ function buildTarget(name, manifest) {
   const zipPath = path.join(dist, `xtension-${name}-v${version}.zip`);
   writeZip(targetDir, zipPath);
   return zipPath;
+}
+
+function updateRootDevelopmentExtension() {
+  copyExtensionFiles(root);
+  writeManifest(root, targets.chrome);
 }
 
 function collectFiles(dir) {
@@ -231,7 +274,7 @@ function crc32(buffer) {
 }
 
 cleanDirectory(browsers);
-cleanDirectory(dist);
+cleanDistDirectory();
 
 const releaseFiles = [];
 
@@ -239,6 +282,7 @@ for (const [name, manifest] of Object.entries(targets)) {
   releaseFiles.push(buildTarget(name, manifest));
 }
 
+updateRootDevelopmentExtension();
 writeChecksums(releaseFiles);
 
 const safariDir = path.join(browsers, "safari");

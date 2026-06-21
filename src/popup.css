@@ -1,0 +1,59 @@
+body {
+  background: #f7f9f9;
+  box-sizing: border-box;
+  color: #0f1419;
+  font: 500 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  min-width: 300px;
+  overflow-x: hidden;
+  width: 320px;
+}
+
+.popup-shell {
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  width: 320px;
+}
+
+.popup-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.popup-logo {
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+.popup-header h1 {
+  font-size: 18px;
+  line-height: 22px;
+  margin: 0;
+}
+
+.popup-header p,
+.popup-note {
+  color: #536471;
+  margin: 2px 0 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.popup-actions {
+  display: grid;
+}
+
+.popup-actions button {
+  appearance: none;
+  background: #0f1419;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: 800 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 38px;
+  padding: 10px 14px;
+}

@@ -8,6 +8,28 @@
     "build": "node scripts/build.js",
     "build:assets": "python scripts/generate_assets.py",
     "build:full": "npm run build:assets && npm run build",
-    "check": "node --check src/content.js && node --check src/background.js && node --check scripts/build.js && node --check scripts/locales.js"
-  }
+    "check": "node --check src/content.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/codex-reply-bridge.js && node --check scripts/benchmark-reply-ai.js",
+    "reply-bridge": "node scripts/codex-reply-bridge.js",
+    "cli-bridge": "node scripts/codex-reply-bridge.js",
+    "codex:reply-bridge": "node scripts/codex-reply-bridge.js",
+    "bridge:build": "npx --yes @yao-pkg/pkg scripts/codex-reply-bridge.js --targets node22-win-x64 --output dist/bridge/XtensionBridge.exe",
+    "bridge:service:build": "dotnet publish bridge-service/Xtension.Bridge.Service.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o dist/bridge-service",
+    "bridge:package": "powershell -ExecutionPolicy Bypass -File scripts/package-bridge-release.ps1",
+    "bridge:install-service": "powershell -ExecutionPolicy Bypass -File scripts/install-bridge-service.ps1",
+    "bridge:uninstall-service": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-bridge-service.ps1",
+    "bridge:sign": "powershell -ExecutionPolicy Bypass -File scripts/sign-bridge.ps1",
+    "bridge:release": "npm run bridge:build && npm run bridge:service:build && npm run bridge:sign && npm run bridge:package",
+    "benchmark:reply-ai": "node scripts/benchmark-reply-ai.js"
+  },
+  "main": "background.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoDevelop1/xtension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/JoDevelop1/xtension/issues"
+  },
+  "homepage": "https://github.com/JoDevelop1/xtension#readme"
 }

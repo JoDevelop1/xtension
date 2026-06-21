@@ -18,6 +18,784 @@
   width: 22px;
 }
 
+[data-xtension-reply-button] {
+  align-items: center;
+  appearance: none;
+  background: #e0245e;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(15, 20, 25, 0.22);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto !important;
+  font: 700 12px/16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 20px;
+  justify-content: center;
+  margin-left: 5px;
+  max-width: 112px;
+  min-height: 20px;
+  min-width: 44px;
+  overflow: hidden;
+  padding: 2px 8px;
+  position: relative;
+  text-overflow: ellipsis;
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  vertical-align: middle;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+[data-xtension-reply-button]:hover {
+  background: #c81e52;
+  box-shadow: 0 2px 6px rgba(15, 20, 25, 0.26);
+  transform: translateY(-1px);
+}
+
+[data-xtension-reply-button]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(224, 36, 94, 0.28), 0 1px 3px rgba(15, 20, 25, 0.22);
+  outline: none;
+}
+
+[data-xtension-reply-user-name] {
+  flex-wrap: wrap !important;
+}
+
+[data-xtension-reply-host] {
+  align-items: center !important;
+  display: inline-flex !important;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+[data-xtension-reply-metadata] {
+  flex-basis: 100% !important;
+  margin-left: 0 !important;
+}
+
+[data-xtension-reply-button]::before {
+  content: attr(data-xtension-reply-label);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xtension-draft-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin: 0;
+  max-width: 100%;
+  overflow: visible;
+  pointer-events: auto;
+  width: auto;
+}
+
+.xtension-draft-actions-host {
+  align-items: center;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex !important;
+  flex: 0 1 auto !important;
+  isolation: isolate;
+  margin-left: auto;
+  max-width: min(100%, 360px);
+  min-height: 30px;
+  min-width: 0;
+  overflow: visible !important;
+  padding: 0 0 0 8px;
+  pointer-events: auto;
+  position: relative;
+  width: auto;
+  z-index: 1;
+}
+
+.xtension-draft-actions-host.is-permission-row {
+  margin-left: auto;
+}
+
+.xtension-draft-actions-host.is-permission-slot {
+  justify-content: flex-end;
+  margin: 0;
+  max-width: min(100%, 352px);
+  min-height: 36px;
+  padding: 4px 0 0 8px;
+  position: absolute !important;
+  right: 0;
+  top: var(--xtension-draft-slot-top, 4px);
+  visibility: visible !important;
+  width: auto;
+  z-index: 3;
+}
+
+.xtension-draft-actions-host.is-permission-slot *,
+.xtension-draft-actions-host.is-action-row * {
+  visibility: visible !important;
+}
+
+.xtension-draft-actions-host.is-action-row {
+  flex: 0 1 auto !important;
+  justify-content: flex-end;
+  margin: 0 8px 0 auto;
+  max-width: min(42%, 180px);
+  min-height: 32px;
+  padding: 0;
+  visibility: visible !important;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-actions {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-action-button {
+  height: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  min-width: 28px;
+  width: 28px;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-language-picker {
+  max-width: 44px;
+  min-height: 28px;
+  min-width: 44px;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-language-trigger {
+  min-height: 28px;
+  min-width: 44px;
+  padding: 4px 7px;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-language-chevron {
+  display: none;
+}
+
+.xtension-draft-actions-host.is-action-row .xtension-draft-language-code {
+  display: none;
+}
+
+.xtension-draft-actions-host.is-dedicated-row {
+  flex: 0 0 auto !important;
+  justify-content: flex-end;
+  margin: 4px 0 6px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 4px 0 0;
+  width: 100%;
+  z-index: 0;
+}
+
+.xtension-draft-actions-host.is-dedicated-row .xtension-draft-actions {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.xtension-draft-action-button {
+  appearance: none;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  max-width: 30px;
+  min-height: 30px;
+  min-width: 30px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  transition: background 120ms ease, opacity 120ms ease, transform 120ms ease, color 120ms ease;
+  width: 30px;
+  z-index: 1;
+}
+
+.xtension-draft-action-icon {
+  display: block;
+  height: 18px;
+  pointer-events: none;
+  width: 18px;
+}
+
+.xtension-draft-action-icon svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.xtension-draft-language-picker {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: rgb(15, 20, 25);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: 700 12px/16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  justify-content: center;
+  max-width: 76px;
+  min-height: 28px;
+  min-width: 70px;
+  overflow: visible;
+  padding: 0;
+  position: relative;
+}
+
+.xtension-draft-language-trigger {
+  align-items: center;
+  appearance: none;
+  background: #fff;
+  border: 1px solid rgba(15, 20, 25, 0.14);
+  border-radius: 999px;
+  color: rgb(15, 20, 25);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 5px;
+  justify-content: center;
+  min-height: 30px;
+  min-width: 70px;
+  padding: 5px 9px;
+  position: relative;
+}
+
+.xtension-draft-language-trigger:hover {
+  background: rgb(239, 243, 244);
+}
+
+.xtension-draft-language-trigger:focus-visible,
+.xtension-draft-language-picker:focus-within .xtension-draft-language-trigger {
+  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.22);
+  outline: none;
+}
+
+.xtension-draft-language-chevron {
+  color: rgb(83, 100, 113);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.xtension-draft-language-flag {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 22px;
+}
+
+.xtension-draft-language-code {
+  color: rgb(15, 20, 25);
+  flex: 0 0 auto;
+  line-height: 16px;
+}
+
+.xtension-draft-language-menu {
+  background: rgb(255, 255, 255) !important;
+  border: 1px solid rgba(15, 20, 25, 0.14);
+  border-radius: 8px;
+  box-shadow: none;
+  box-sizing: border-box;
+  display: grid;
+  gap: 2px;
+  isolation: isolate;
+  min-width: 140px;
+  opacity: 1 !important;
+  overflow: hidden;
+  padding: 5px;
+  pointer-events: auto;
+  position: fixed !important;
+  transform: translateZ(0);
+  z-index: 5 !important;
+}
+
+.xtension-draft-language-menu[hidden] {
+  display: none !important;
+}
+
+.xtension-draft-language-option {
+  align-items: center;
+  appearance: none;
+  background: rgb(255, 255, 255);
+  border: 0;
+  border-radius: 6px;
+  color: rgb(15, 20, 25);
+  cursor: pointer;
+  display: flex;
+  font: 600 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.xtension-draft-language-option:hover,
+.xtension-draft-language-option:focus-visible,
+.xtension-draft-language-option.is-selected {
+  background: rgb(232, 245, 253);
+  outline: none;
+}
+
+.xtension-draft-language-option-flag {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 22px;
+}
+
+.xtension-draft-language-option-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.xtension-draft-action-button:hover {
+  transform: none;
+}
+
+.xtension-draft-action-button:disabled {
+  cursor: default;
+  opacity: 0.72;
+  transform: none;
+}
+
+.xtension-draft-action-button.is-correct {
+  color: #0f8f3d;
+}
+
+.xtension-draft-action-button.is-correct:hover {
+  background: rgba(15, 143, 61, 0.12);
+}
+
+.xtension-draft-action-button.is-translate {
+  color: rgb(29, 155, 240);
+}
+
+.xtension-draft-action-button.is-translate:hover {
+  background: rgba(29, 155, 240, 0.14);
+}
+
+.xtension-draft-action-button.is-generate {
+  color: #7c3aed;
+}
+
+.xtension-draft-action-button.is-generate:hover {
+  background: rgba(124, 58, 237, 0.13);
+}
+
+.xtension-draft-action-button.is-suggestions {
+  color: #b45309;
+}
+
+.xtension-draft-action-button.is-suggestions:hover,
+.xtension-draft-action-button.is-suggestions.is-active {
+  background: rgba(180, 83, 9, 0.13);
+}
+
+.xtension-draft-action-button.is-undo {
+  color: rgb(83, 100, 113);
+}
+
+.xtension-draft-action-button.is-undo:hover {
+  background: rgba(83, 100, 113, 0.14);
+}
+
+[data-xtension-overlay-root] {
+  inset: 0 !important;
+  isolation: isolate !important;
+  pointer-events: none !important;
+  position: fixed !important;
+  z-index: 20 !important;
+}
+
+[data-xtension-overlay-root][data-xtension-layer-overlay="true"] {
+  z-index: 1 !important;
+}
+
+#layers {
+  position: relative !important;
+  z-index: 30 !important;
+}
+
+[data-xtension-overlay-root] > * {
+  pointer-events: auto;
+}
+
+.xtension-reply-suggestions {
+  background: #fff;
+  border: 2px solid rgb(29, 155, 240);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 20, 25, 0.18);
+  box-sizing: border-box;
+  color: rgb(15, 20, 25);
+  display: block;
+  font: 500 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  max-height: none;
+  max-width: none;
+  overflow: auto;
+  padding: 14px;
+  position: fixed;
+  width: auto;
+  z-index: 1;
+}
+
+.xtension-reply-suggestions.is-reply-layer-mounted {
+  z-index: 0;
+}
+
+.xtension-reply-suggestions.is-noninteractive-status {
+  pointer-events: none;
+}
+
+.xtension-reply-suggestions-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 2px 0 10px;
+}
+
+.xtension-reply-suggestions-title {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 18px;
+  margin: 0;
+  min-width: 0;
+}
+
+.xtension-reply-suggestions-close {
+  align-items: center;
+  appearance: none;
+  background: rgb(239, 243, 244);
+  border: 0;
+  border-radius: 999px;
+  color: rgb(83, 100, 113);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: 800 16px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+.xtension-reply-suggestions-close:hover,
+.xtension-reply-suggestions-close:focus-visible {
+  background: rgba(15, 20, 25, 0.12);
+  color: rgb(15, 20, 25);
+  outline: none;
+}
+
+.xtension-reply-suggestions-status {
+  color: rgb(83, 100, 113);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.xtension-reply-suggestions-status.is-success {
+  color: #0f8f3d;
+  font-weight: 700;
+}
+
+.xtension-reply-suggestions-status.is-warning {
+  color: rgb(83, 100, 113);
+  font-weight: 650;
+}
+
+.xtension-reply-suggestions-status.is-error {
+  color: rgb(244, 33, 46);
+  font-weight: 700;
+}
+
+.xtension-reply-suggestions-loading {
+  display: grid;
+  gap: 10px;
+}
+
+.xtension-reply-suggestions-loading-text {
+  color: rgb(83, 100, 113);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.xtension-reply-suggestions-progress {
+  background: rgb(239, 243, 244);
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.xtension-reply-suggestions-progress-bar {
+  animation: xtension-reply-progress 1.15s ease-in-out infinite;
+  background: linear-gradient(90deg, rgb(29, 155, 240), rgb(0, 186, 124));
+  border-radius: inherit;
+  height: 100%;
+  width: 42%;
+}
+
+.xtension-reply-suggestions-progress-bar.is-determinate {
+  animation: none;
+  transition: width 240ms ease;
+  width: 0;
+}
+
+.xtension-draft-action-progress-list {
+  counter-reset: xtension-draft-step;
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 0;
+}
+
+.xtension-draft-action-progress-step {
+  align-items: center;
+  color: rgb(83, 100, 113);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  line-height: 16px;
+}
+
+.xtension-draft-action-progress-step::before {
+  align-items: center;
+  background: rgb(239, 243, 244);
+  border-radius: 999px;
+  color: rgb(83, 100, 113);
+  content: counter(xtension-draft-step);
+  counter-increment: xtension-draft-step;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+.xtension-draft-action-progress-step.is-current {
+  color: rgb(15, 20, 25);
+  font-weight: 750;
+}
+
+.xtension-draft-action-progress-step.is-current::before {
+  background: rgb(29, 155, 240);
+  color: #fff;
+}
+
+.xtension-draft-action-progress-step.is-complete {
+  color: rgb(15, 20, 25);
+}
+
+.xtension-draft-action-progress-step.is-complete::before {
+  background: rgb(0, 186, 124);
+  color: #fff;
+  content: "";
+}
+
+.xtension-draft-action-progress-step.is-complete::after {
+  color: #fff;
+  content: "";
+}
+
+.xtension-reply-suggestions-skeleton-list {
+  display: grid;
+  gap: 8px;
+}
+
+.xtension-reply-suggestions-skeleton {
+  background: #fff;
+  border: 1px solid rgba(15, 20, 25, 0.1);
+  border-left: 4px solid rgba(29, 155, 240, 0.45);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.xtension-reply-suggestions-skeleton-title,
+.xtension-reply-suggestions-skeleton-line {
+  animation: xtension-reply-skeleton 1.25s ease-in-out infinite;
+  background: linear-gradient(90deg, rgb(239, 243, 244), rgb(229, 236, 240), rgb(239, 243, 244));
+  background-size: 220% 100%;
+  border-radius: 999px;
+  height: 10px;
+}
+
+.xtension-reply-suggestions-skeleton-title {
+  height: 9px;
+  width: 34%;
+}
+
+.xtension-reply-suggestions-skeleton-line {
+  width: 92%;
+}
+
+.xtension-reply-suggestions-skeleton-line.is-short {
+  width: 66%;
+}
+
+@keyframes xtension-reply-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(78%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes xtension-reply-skeleton {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xtension-reply-suggestions-progress-bar,
+  .xtension-reply-suggestions-skeleton-title,
+  .xtension-reply-suggestions-skeleton-line {
+    animation: none;
+  }
+
+  .xtension-reply-suggestions-progress-bar {
+    opacity: 0.72;
+    transform: none;
+    width: 100%;
+  }
+}
+
+.xtension-reply-suggestions-error-detail {
+  color: rgb(244, 33, 46);
+  font-size: 12px;
+  line-height: 17px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.xtension-reply-suggestions-list {
+  display: grid;
+  gap: 8px;
+}
+
+.xtension-reply-suggestion {
+  appearance: none;
+  background: #fff;
+  border: 1px solid rgba(15, 20, 25, 0.12);
+  border-left: 4px solid rgba(29, 155, 240, 0.7);
+  border-radius: 8px;
+  color: rgb(15, 20, 25);
+  cursor: pointer;
+  font: 500 14px/19px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-wrap: anywhere;
+  padding: 9px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.xtension-reply-suggestion:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.xtension-reply-suggestion-style {
+  color: rgb(29, 155, 240);
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 16px;
+  margin-bottom: 4px;
+}
+
+.xtension-reply-suggestion-text {
+  display: block;
+}
+
+.xtension-reply-suggestion:hover {
+  background: rgb(239, 243, 244);
+}
+
+.xtension-reply-suggestion.is-selected {
+  background: rgb(232, 245, 253);
+  border-color: rgba(29, 155, 240, 0.45);
+}
+
+.xtension-reply-suggestion.is-loading {
+  cursor: default;
+}
+
+.xtension-reply-suggestion.is-loading .xtension-reply-suggestion-text {
+  color: rgb(83, 100, 113);
+}
+
+.xtension-reply-suggestion-progress {
+  background: rgba(29, 155, 240, 0.13);
+  border-radius: 999px;
+  display: block;
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.xtension-reply-suggestion-progress-bar {
+  background: rgb(29, 155, 240);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 240ms ease;
+  width: 6%;
+}
+
+.xtension-reply-suggestion.is-error {
+  border-left-color: rgb(244, 33, 46);
+  cursor: default;
+}
+
+.xtension-reply-suggestion.is-error .xtension-reply-suggestion-style,
+.xtension-reply-suggestion.is-error .xtension-reply-suggestion-text {
+  color: rgb(244, 33, 46);
+}
+
+.xtension-reply-suggestions-configure {
+  appearance: none;
+  background: rgb(15, 20, 25);
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  font: 700 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin-top: 10px;
+  min-height: 32px;
+  padding: 7px 14px;
+}
+
+.xtension-reply-suggestions-configure:hover {
+  background: rgb(39, 44, 48);
+}
+
 .xtension-toast {
   background: rgba(15, 20, 25, 0.96);
   border-radius: 8px;
@@ -31,5 +809,5 @@
   position: fixed;
   text-align: center;
   transform: translateX(-50%);
-  z-index: 2147483647;
+  z-index: 1100;
 }

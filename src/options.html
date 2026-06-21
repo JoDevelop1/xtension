@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Xtension</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="options-header">
+        <div class="brand-mark">
+          <img src="icons/icon-48.png" alt="" width="44" height="44">
+        </div>
+        <div>
+          <h1 data-i18n="optionsTitle">Xtension</h1>
+          <p data-i18n="optionsDescription">Configure replies, draft tools, the local AI bridge, and the prompt used on X/Twitter.</p>
+        </div>
+      </header>
+
+      <form id="reply-ai-form" class="options-form">
+        <nav class="options-tabs" aria-label="Settings sections">
+          <button class="options-tab is-active" type="button" data-tab="replies" aria-selected="true" data-i18n="optionsTabReplies">Replies</button>
+          <button class="options-tab" type="button" data-tab="bridge" aria-selected="false" data-i18n="optionsTabBridge">AI Bridge</button>
+          <button class="options-tab" type="button" data-tab="prompt" aria-selected="false" data-i18n="optionsTabPrompt">Prompt</button>
+          <button class="options-tab" type="button" data-tab="logs" aria-selected="false" data-i18n="optionsTabLogs">Logs</button>
+        </nav>
+
+        <section class="settings-tab-panel is-active" data-tab-panel="replies">
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsSectionReplies">Reply behavior</legend>
+
+            <div class="setting-row is-toggle">
+              <label class="options-toggle" for="reply-ai-enabled">
+                <input id="reply-ai-enabled" type="checkbox">
+                <span data-i18n="optionsEnableAi">Enable reply suggestions and draft tools</span>
+              </label>
+              <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpEnable" data-help="When enabled, Xtension can suggest replies and correct, translate, or generate text in the X/Twitter composer through the local AI bridge.">?</button>
+            </div>
+
+            <div class="options-grid">
+              <div class="setting-row">
+                <div class="field-title">
+                  <label for="reply-ai-style" data-i18n="optionsReplyStyle">Reply style</label>
+                  <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpReplyStyle" data-help="Auto asks the selected provider for varied, useful replies. Other modes push it toward one specific tone.">?</button>
+                </div>
+                <select id="reply-ai-style">
+                  <option value="auto" data-i18n="optionsReplyStyleAuto">Auto, varied</option>
+                  <option value="humor" data-i18n="replyStyleHumor">Contextual joke</option>
+                  <option value="sharp" data-i18n="replyStyleSharp">Sharp angle</option>
+                  <option value="useful" data-i18n="replyStyleUseful">Useful context</option>
+                  <option value="question" data-i18n="replyStyleQuestion">Question</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-language-mode" data-i18n="optionsReplyLanguage">Reply language</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpReplyLanguage" data-help="Use the post language for natural replies, or force your browser language when you always want replies in your own language.">?</button>
+              </div>
+              <select id="reply-ai-language-mode">
+                <option value="tweet" data-i18n="optionsReplyLanguageTweet">Use the post language</option>
+                <option value="ui" data-i18n="optionsReplyLanguageUi">Use my browser language</option>
+              </select>
+            </div>
+          </fieldset>
+        </section>
+
+        <section class="settings-tab-panel" data-tab-panel="bridge" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsSectionBridge">AI Bridge</legend>
+
+            <div class="bridge-download">
+              <div>
+                <strong data-i18n="optionsBridgeDownloadTitle">Local bridge is required</strong>
+                <p class="field-note" data-i18n="optionsBridgeDownloadHint">The Chrome/Edge extension cannot run desktop AI CLIs directly. Install the signed Windows bridge service, then it will keep running in the background.</p>
+              </div>
+              <a id="reply-ai-bridge-download" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridge-Windows.zip" target="_blank" rel="noopener" data-i18n="optionsBridgeDownload">Download bridge</a>
+            </div>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-provider" data-i18n="optionsReplyProvider">Reply provider</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpReplyProvider" data-help="Choose the desktop AI CLI used by the local bridge. The bridge can detect Codex, Grok, Gemini, and Claude when they are installed on this computer.">?</button>
+              </div>
+              <select id="reply-ai-provider">
+                <option value="codex" data-i18n="optionsProviderCodex">Codex</option>
+                <option value="grok" data-i18n="optionsProviderGrok">Grok</option>
+                <option value="gemini" data-i18n="optionsProviderGemini">Gemini</option>
+                <option value="claude" data-i18n="optionsProviderClaude">Claude</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-codex-bridge-url" data-i18n="optionsBridgeUrl">Bridge URL</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpBridgeUrl" data-help="The bridge listens only on this computer. Keep the default unless you changed the bridge port.">?</button>
+              </div>
+              <input id="reply-ai-codex-bridge-url" type="url" placeholder="http://127.0.0.1:47623" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-bridge-token" data-i18n="optionsBridgeToken">Bridge token</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpBridgeToken" data-help="Optional shared token. If the bridge is started with XTENSION_BRIDGE_TOKEN, enter the same value here.">?</button>
+              </div>
+              <input id="reply-ai-bridge-token" type="password" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="options-grid">
+              <div class="setting-row">
+                <div class="field-title">
+                  <label for="reply-ai-codex-model-preset" data-i18n="optionsCodexModel">Model</label>
+                  <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModel" data-help="Choose which model name Xtension passes to the selected CLI. CLI default sends no model flag and lets the installed provider decide.">?</button>
+                </div>
+                <select id="reply-ai-codex-model-preset">
+                  <option value="gpt-5.3-codex-spark" data-i18n="optionsCodexModelSpark">Codex-Spark, fast</option>
+                  <option value="__cli_default__" data-i18n="optionsCodexModelDefault">CLI default</option>
+                  <option value="gpt-5.5" data-i18n="optionsCodexModelGpt55">GPT-5.5</option>
+                  <option value="custom" data-i18n="optionsCodexModelCustom">Custom model name</option>
+                </select>
+              </div>
+
+              <div class="setting-row">
+                <div class="field-title">
+                  <label for="reply-ai-codex-model-custom" data-i18n="optionsCodexModelCustomValue">Custom model</label>
+                  <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModelCustom" data-help="Use this only when the selected CLI supports a model that is not listed yet. The value is passed as a model flag.">?</button>
+                </div>
+                <input id="reply-ai-codex-model-custom" type="text" placeholder="model-name" autocomplete="off" spellcheck="false">
+              </div>
+            </div>
+          </fieldset>
+        </section>
+
+        <section class="settings-tab-panel" data-tab-panel="prompt" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsPromptTitle">Reply prompts</legend>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <span data-i18n="optionsPromptProfiles">Three reply profiles</span>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpPrompt" data-help="Each profile sends one separate prompt. Xtension runs the three prompts at the same time and shows each answer as soon as it arrives.">?</button>
+              </div>
+              <p class="field-note" data-i18n="optionsPromptHint">Variables: {{uiLocale}}, {{tweetLanguage}}, {{targetLanguage}}, {{replyStyle}}, {{profileName}}.</p>
+            </div>
+
+            <div class="reply-prompt-profiles">
+              <section class="reply-prompt-profile" data-reply-prompt-profile="0">
+                <div class="options-grid">
+                  <div class="setting-row">
+                    <div class="field-title">
+                      <label for="reply-ai-prompt-label-0" data-i18n="optionsPromptProfileName">Profile name</label>
+                    </div>
+                    <input id="reply-ai-prompt-label-0" type="text" data-reply-prompt-label autocomplete="off" spellcheck="false">
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="field-title">
+                    <label for="reply-ai-prompt-text-0" data-i18n="optionsPrompt">Prompt</label>
+                  </div>
+                  <textarea id="reply-ai-prompt-text-0" data-reply-prompt-text spellcheck="false"></textarea>
+                </div>
+              </section>
+
+              <section class="reply-prompt-profile" data-reply-prompt-profile="1">
+                <div class="options-grid">
+                  <div class="setting-row">
+                    <div class="field-title">
+                      <label for="reply-ai-prompt-label-1" data-i18n="optionsPromptProfileName">Profile name</label>
+                    </div>
+                    <input id="reply-ai-prompt-label-1" type="text" data-reply-prompt-label autocomplete="off" spellcheck="false">
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="field-title">
+                    <label for="reply-ai-prompt-text-1" data-i18n="optionsPrompt">Prompt</label>
+                  </div>
+                  <textarea id="reply-ai-prompt-text-1" data-reply-prompt-text spellcheck="false"></textarea>
+                </div>
+              </section>
+
+              <section class="reply-prompt-profile" data-reply-prompt-profile="2">
+                <div class="options-grid">
+                  <div class="setting-row">
+                    <div class="field-title">
+                      <label for="reply-ai-prompt-label-2" data-i18n="optionsPromptProfileName">Profile name</label>
+                    </div>
+                    <input id="reply-ai-prompt-label-2" type="text" data-reply-prompt-label autocomplete="off" spellcheck="false">
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="field-title">
+                    <label for="reply-ai-prompt-text-2" data-i18n="optionsPrompt">Prompt</label>
+                  </div>
+                  <textarea id="reply-ai-prompt-text-2" data-reply-prompt-text spellcheck="false"></textarea>
+                </div>
+              </section>
+            </div>
+
+            <div class="inline-actions">
+              <button id="reply-ai-prompt-reset" type="button" class="secondary" data-i18n="optionsPromptReset">Reset prompts</button>
+            </div>
+          </fieldset>
+        </section>
+
+        <section class="settings-tab-panel" data-tab-panel="logs" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsLogsTitle">Diagnostic logs</legend>
+
+            <div class="setting-row">
+              <div class="field-title">
+                <span data-i18n="optionsLogsHeading">Last AI operations</span>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpLogs" data-help="Logs show bridge routing, model choice, durations, and errors. They do not include tokens or full tweet/draft text.">?</button>
+              </div>
+              <p class="field-note" data-i18n="optionsLogsHint">Xtension keeps only the latest diagnostic entries in browser extension storage.</p>
+              <pre id="reply-ai-logs-output" class="diagnostic-log-output" aria-live="polite"></pre>
+            </div>
+
+            <div class="inline-actions">
+              <button id="reply-ai-logs-refresh" type="button" class="secondary" data-i18n="optionsLogsRefresh">Refresh logs</button>
+              <button id="reply-ai-logs-clear" type="button" class="secondary danger" data-i18n="optionsLogsClear">Clear logs</button>
+            </div>
+          </fieldset>
+        </section>
+
+        <div class="options-actions">
+          <button type="submit" data-i18n="optionsSave">Save settings</button>
+          <button id="reply-ai-test" type="button" class="secondary" data-i18n="optionsTest">Test bridge</button>
+        </div>
+
+        <div id="reply-ai-status" class="options-status" role="status" aria-live="polite"></div>
+      </form>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>
