@@ -60,7 +60,19 @@ Xtension does not load or execute remotely hosted code. All JavaScript, CSS, ico
 Host permission justification:
 
 ```text
-The x.com and twitter.com matches are required to inject Xtension actions into X/Twitter pages and read only the visible content selected by the user. The pbs.twimg.com permission is required to fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by selected content for local PDF generation. The localhost and 127.0.0.1 permissions allow users to connect optional AI tools to Xtension Bridge running on their own computer. This does not let the extension execute local commands directly; CLI execution requires the separate user-installed bridge process.
+The x.com and twitter.com matches are required to inject Xtension actions into X/Twitter pages and read only the visible content selected by the user. The pbs.twimg.com permission is required to fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by selected content for local PDF generation. The localhost:47623 and 127.0.0.1:47623 permissions allow users to connect optional AI tools to Xtension Bridge running on their own computer on the default bridge port. This does not let the extension execute local commands directly; CLI execution requires the separate user-installed bridge process.
+```
+
+Bridge download disclosure:
+
+```text
+Xtension's optional AI features require a separate signed Windows bridge service. Chrome Web Store cannot install native executables for an extension, so Xtension displays a download button in Options that opens the public bridge archive hosted in the same source repository. The extension remains usable for PDF export without installing the bridge.
+```
+
+Native messaging permission:
+
+```text
+Xtension does not request the nativeMessaging permission. Optional AI tools communicate with the user-installed bridge through the default loopback HTTP endpoint only.
 ```
 
 Data usage certification:
@@ -150,6 +162,8 @@ See:
 - Verify that the extension popup opens the dedicated Xtension settings page.
 - Verify that AI tools fail clearly when Xtension Bridge is not running.
 - Verify that Xtension Bridge detects installed Codex, Grok, Gemini, and Claude CLIs.
+- Verify that `XtensionBridge.exe` and `XtensionBridgeService.exe` are signed before publishing the Windows bridge archive.
+- Verify that the browser manifest requests only `storage`, the exact default bridge hosts, and public X/Twitter media host access.
 - Verify correction, translation, generation, and reply suggestions through Xtension Bridge.
 - Verify that the extension activates only in X/Twitter and related public media domains.
 - Verify that `_locales/` is present in every generated browser package.

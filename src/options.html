@@ -74,9 +74,9 @@
             <div class="bridge-download">
               <div>
                 <strong data-i18n="optionsBridgeDownloadTitle">Local bridge is required</strong>
-                <p class="field-note" data-i18n="optionsBridgeDownloadHint">The Chrome/Edge extension cannot run desktop AI CLIs directly. Install the signed Windows bridge service, then it will keep running in the background.</p>
+                <p class="field-note" data-i18n="optionsBridgeDownloadHint">Chrome and Edge cannot install desktop AI tools from an extension. Download and install the signed Windows bridge service, then it will keep running in the background.</p>
               </div>
-              <a id="reply-ai-bridge-download" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridge-Windows.zip" target="_blank" rel="noopener" data-i18n="optionsBridgeDownload">Download bridge</a>
+              <a id="reply-ai-bridge-download" class="download-button" href="https://github.com/JoDevelop1/xtension/raw/main/releases/windows/XtensionBridge-Windows.zip" target="_blank" rel="noopener" data-i18n="optionsBridgeDownload">Download bridge</a>
             </div>
 
             <div class="setting-row">
@@ -95,7 +95,7 @@
             <div class="setting-row">
               <div class="field-title">
                 <label for="reply-ai-codex-bridge-url" data-i18n="optionsBridgeUrl">Bridge URL</label>
-                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpBridgeUrl" data-help="The bridge listens only on this computer. Keep the default unless you changed the bridge port.">?</button>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpBridgeUrl" data-help="The extension package is authorized only for the default local bridge port. Keep http://127.0.0.1:47623 unless you rebuild the extension with another port.">?</button>
               </div>
               <input id="reply-ai-codex-bridge-url" type="url" placeholder="http://127.0.0.1:47623" autocomplete="off" spellcheck="false">
             </div>

@@ -16,8 +16,8 @@ const contentMatches = [
   "https://*.twitter.com/*"
 ];
 const hostPermissions = [
-  "http://localhost/*",
-  "http://127.0.0.1/*",
+  "http://localhost:47623/*",
+  "http://127.0.0.1:47623/*",
   "https://pbs.twimg.com/*"
 ];
 

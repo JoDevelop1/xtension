@@ -1,0 +1,3 @@
+ef7f12ee83f6696f00b60865f84818ea4b2d7c0c72b7d7fa1feda608c3249a7a  xtension-chrome-v0.4.15.zip
+ef7f12ee83f6696f00b60865f84818ea4b2d7c0c72b7d7fa1feda608c3249a7a  xtension-edge-v0.4.15.zip
+ed6247c869fee1218fb0b0c53924dc7879f63d66347e5222fee5a1aa40baa9e6  xtension-firefox-v0.4.15.zip

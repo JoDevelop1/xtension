@@ -73,7 +73,18 @@ The GitHub Actions workflow builds:
 - `xtension-firefox-v0.4.15.zip`
 - `SHA256SUMS.txt`
 
-If the files are not attached automatically, create or edit the release manually and upload the files from `dist/`.
+The signed Windows bridge is built locally because it uses the Trusted Signing setup shared with ClonyVoice:
+
+```powershell
+npm run bridge:build
+npm run bridge:service:build
+npm run bridge:sign
+npm run bridge:package
+```
+
+Upload `dist/XtensionBridge-Windows.zip` and `dist/XtensionBridge-Windows.SHA256.txt`, or use the mirrored copies committed under `releases/windows/`.
+
+If the browser files are not attached automatically, create or edit the release manually and upload the files from `dist/`.
 
 ## Release Notes
 
@@ -90,7 +101,11 @@ Run this immediately before pushing:
 ```powershell
 npm run build
 npm run check
+npm run bridge:sign
+npm run bridge:package
 Get-Content dist\SHA256SUMS.txt
+Get-Content dist\XtensionBridge-Windows.SHA256.txt
+Get-AuthenticodeSignature dist\bridge\XtensionBridge.exe,dist\bridge-service\XtensionBridgeService.exe
 ```
 
 Also verify:
@@ -98,6 +113,7 @@ Also verify:
 - The README contains no personal path.
 - No secret or token is present.
 - The zip files exist in `dist/`.
+- The signed Windows bridge archive exists in `dist/`.
 - The extension packages include `_locales/`.
 - The logo is transparent and readable in `assets/icons/`.
 

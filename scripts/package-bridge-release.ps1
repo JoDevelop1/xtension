@@ -34,6 +34,8 @@ Copy-Item -LiteralPath $uninstallScript -Destination (Join-Path $packageRoot "un
 $readme = @"
 Xtension Bridge for Windows
 
+This package contains the signed Xtension bridge executables for Windows.
+
 Run PowerShell as Administrator in this folder, then install the automatic Windows service:
 
   powershell -ExecutionPolicy Bypass -File .\install-bridge-service.ps1
