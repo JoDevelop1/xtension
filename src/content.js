@@ -22,6 +22,7 @@
   const DRAFT_ACTION_BUTTON_ATTRIBUTE = "data-xtension-draft-action-button";
   const DRAFT_GENERATION_LANGUAGE_STORAGE_KEY = "draftGenerationLanguage";
   const DRAFT_ACTION_TIMINGS_STORAGE_KEY = "draftActionTimings";
+  const REPLY_SUGGESTIONS_HIDDEN_STORAGE_KEY = "replySuggestionsHidden";
   const REPLY_SUGGESTIONS_PANEL_SELECTOR = "[data-xtension-reply-suggestions]";
   const REPLY_SUGGESTIONS_PANEL_ATTRIBUTE = "data-xtension-reply-suggestions";
   const X_LAYERS_ID = "layers";
@@ -879,6 +880,9 @@
       button.setAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE, action.id);
       button.title = label;
       button.setAttribute("aria-label", label);
+      if (action.id === "suggestions") {
+        button.setAttribute("aria-pressed", "false");
+      }
       button.append(createDraftActionIcon(action.id));
       button.addEventListener("pointerdown", stopDraftActionButtonEvent, true);
       button.addEventListener("mousedown", stopDraftActionButtonEvent, true);
@@ -890,6 +894,9 @@
     });
 
     wrapper.append(createDraftGenerationLanguagePicker());
+    getReplySuggestionsHidden().then(() => {
+      updateReplySuggestionsToggleButtons(editor);
+    }).catch(() => {});
 
     return wrapper;
   }
@@ -1583,8 +1590,19 @@
       return;
     }
 
+    if (isReplySuggestionsHiddenCached()) {
+      updateReplySuggestionsToggleButtons(target);
+      return;
+    }
+
     target._xtensionAutoReplySuggestionsRequested = true;
     window.setTimeout(async () => {
+      if (await getReplySuggestionsHidden()) {
+        target._xtensionAutoReplySuggestionsRequested = false;
+        updateReplySuggestionsToggleButtons(target);
+        return;
+      }
+
       if (!target.isConnected || !isVisibleElement(target) || getReplyEditorText(target)) {
         target._xtensionAutoReplySuggestionsRequested = false;
         return;
@@ -1617,6 +1635,11 @@
 
   async function showReplySuggestions(editor, tweet) {
     const activeEditor = resolveLiveReplyEditor(editor) || editor;
+    if (await getReplySuggestionsHidden()) {
+      updateReplySuggestionsToggleButtons(activeEditor);
+      return;
+    }
+
     if (activeEditor?._xtensionReplySuggestionsPromise) {
       await activeEditor._xtensionReplySuggestionsPromise.catch(() => false);
       return;
@@ -1647,8 +1670,16 @@
 
   async function showReplySuggestionsForDraftEditor(editor, options = {}) {
     const target = findEditableReplyEditor(editor) || editor;
+    if (options.force) {
+      await setReplySuggestionsHidden(false);
+    } else if (await getReplySuggestionsHidden()) {
+      updateReplySuggestionsToggleButtons(target);
+      return false;
+    }
+
     const existingPanel = getReplySuggestionsPanelForEditor(target);
     if (existingPanel && !options.force) {
+      showReplySuggestionsPanel(existingPanel, target);
       attachReplySuggestionsPanel(target, existingPanel);
       positionReplySuggestionsPanel(target, existingPanel);
       return true;
@@ -1680,10 +1711,17 @@
     const target = findEditableReplyEditor(editor) || editor;
     const panel = getReplySuggestionsPanelForEditor(target);
     if (panel) {
-      removeReplySuggestionsPanel(panel);
+      if (panel.hidden || await getReplySuggestionsHidden()) {
+        await setReplySuggestionsHidden(false);
+        showReplySuggestionsPanel(panel, target);
+        return true;
+      }
+
+      await hideReplySuggestionsPanel(panel, true);
       return false;
     }
 
+    await setReplySuggestionsHidden(false);
     return await showReplySuggestionsForDraftEditor(target, {
       instruction: getReplyEditorText(target)
     });
@@ -2076,13 +2114,14 @@
     panel.setAttribute("role", "region");
     panel.setAttribute("aria-live", "polite");
     panel._xtensionReplyEditor = editor;
+    panel._xtensionPanelMode = "suggestions";
 
     return panel;
   }
 
   function placeReplySuggestionsPanel(editor, panel) {
     const previousPanel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
-    if (previousPanel) {
+    if (previousPanel && previousPanel !== panel) {
       removeReplySuggestionsPanel(previousPanel);
     }
 
@@ -2136,12 +2175,82 @@
 
   function removeReplySuggestionsPanel(panel) {
     clearReplySuggestionsPanelProgress(panel);
+    panel._xtensionReplySuggestionsSnapshot = null;
     const editor = panel?._xtensionReplyEditor;
     if (editor?._xtensionReplySuggestionsPromise) {
       editor._xtensionReplySuggestionsPromise = null;
     }
     panel?._xtensionReplyCleanup?.();
     panel?.remove();
+  }
+
+  function isReplySuggestionsHiddenCached() {
+    return window.__xtensionReplySuggestionsHidden === true;
+  }
+
+  async function getReplySuggestionsHidden() {
+    if (typeof window.__xtensionReplySuggestionsHidden === "boolean") {
+      return window.__xtensionReplySuggestionsHidden;
+    }
+
+    const stored = await storageGet({
+      [REPLY_SUGGESTIONS_HIDDEN_STORAGE_KEY]: false
+    });
+    const hidden = stored[REPLY_SUGGESTIONS_HIDDEN_STORAGE_KEY] === true;
+    window.__xtensionReplySuggestionsHidden = hidden;
+    return hidden;
+  }
+
+  async function setReplySuggestionsHidden(hidden) {
+    const normalized = Boolean(hidden);
+    window.__xtensionReplySuggestionsHidden = normalized;
+    updateReplySuggestionsToggleButtons();
+    await storageSet({
+      [REPLY_SUGGESTIONS_HIDDEN_STORAGE_KEY]: normalized
+    });
+    updateReplySuggestionsToggleButtons();
+  }
+
+  async function hideReplySuggestionsPanel(panel, persist) {
+    if (!panel) {
+      return false;
+    }
+
+    panel.hidden = true;
+    panel.setAttribute("aria-hidden", "true");
+    updateReplySuggestionsToggleButtons(panel._xtensionReplyEditor);
+    if (persist) {
+      await setReplySuggestionsHidden(true);
+    }
+    return true;
+  }
+
+  function showReplySuggestionsPanel(panel, editor) {
+    if (!panel) {
+      return false;
+    }
+
+    panel.hidden = false;
+    panel.removeAttribute("aria-hidden");
+    panel._xtensionPanelMode = "suggestions";
+    if (editor) {
+      panel._xtensionReplyEditor = findEditableReplyEditor(editor) || editor;
+    }
+    if (panel._xtensionReplyEditor) {
+      attachReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+      positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+    }
+    updateReplySuggestionsToggleButtons(panel._xtensionReplyEditor);
+    return true;
+  }
+
+  function updateReplySuggestionsToggleButtons(editor) {
+    const panel = editor ? getReplySuggestionsPanelForEditor(editor) : document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
+    const active = Boolean(panel && !panel.hidden && panel._xtensionPanelMode === "suggestions");
+    document.querySelectorAll(`[${DRAFT_ACTION_BUTTON_ATTRIBUTE}="suggestions"]`).forEach((button) => {
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
 
   function createReplySuggestionsHeader(panel) {
@@ -2159,6 +2268,15 @@
     close.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (restoreReplySuggestionsPanelSnapshot(panel)) {
+        return;
+      }
+
+      if (panel._xtensionPanelMode === "suggestions") {
+        hideReplySuggestionsPanel(panel, true).catch(() => {});
+        return;
+      }
+
       removeReplySuggestionsPanel(panel);
     });
 
@@ -2447,6 +2565,7 @@
     const isDraftAction = Boolean(draftAction);
     let stepIndex = 0;
 
+    panel._xtensionPanelMode = isDraftAction ? "draft-action" : "suggestions";
     body.className = "xtension-reply-suggestions-status";
     body.classList.add("xtension-reply-suggestions-loading");
     status.className = "xtension-reply-suggestions-loading-text";
@@ -2747,13 +2866,79 @@
     panel?.removeAttribute?.("aria-busy");
   }
 
+  function snapshotReplySuggestionsPanel(panel) {
+    if (!panel || panel._xtensionReplySuggestionsSnapshot || panel._xtensionPanelMode !== "suggestions") {
+      return false;
+    }
+
+    const fragment = document.createDocumentFragment();
+    while (panel.firstChild) {
+      fragment.append(panel.firstChild);
+    }
+
+    panel._xtensionReplySuggestionsSnapshot = {
+      fragment,
+      className: panel.className,
+      hidden: panel.hidden,
+      ariaHidden: panel.getAttribute("aria-hidden"),
+      ariaBusy: panel.getAttribute("aria-busy")
+    };
+    return true;
+  }
+
+  function restoreReplySuggestionsPanelSnapshot(panel) {
+    const snapshot = panel?._xtensionReplySuggestionsSnapshot;
+    if (!snapshot) {
+      return false;
+    }
+
+    clearReplySuggestionsPanelProgress(panel);
+    panel.innerHTML = "";
+    while (snapshot.fragment.firstChild) {
+      panel.append(snapshot.fragment.firstChild);
+    }
+
+    panel.className = snapshot.className || "xtension-reply-suggestions";
+    panel._xtensionPanelMode = "suggestions";
+    panel._xtensionReplySuggestionsSnapshot = null;
+
+    if (snapshot.ariaBusy) {
+      panel.setAttribute("aria-busy", snapshot.ariaBusy);
+    } else {
+      panel.removeAttribute("aria-busy");
+    }
+
+    const shouldHide = snapshot.hidden || isReplySuggestionsHiddenCached();
+    panel.hidden = shouldHide;
+    if (shouldHide) {
+      panel.setAttribute("aria-hidden", snapshot.ariaHidden || "true");
+    } else {
+      panel.removeAttribute("aria-hidden");
+    }
+
+    if (panel.isConnected && !panel.hidden) {
+      attachReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+      positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+    }
+    updateReplySuggestionsToggleButtons(panel._xtensionReplyEditor);
+    return true;
+  }
+
   function showDraftActionPanelLoading(editor, action) {
     const target = findEditableReplyEditor(editor) || editor;
     const existingPanel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
     const panel = existingPanel || createReplySuggestionsPanel(target);
 
+    if (existingPanel) {
+      snapshotReplySuggestionsPanel(existingPanel);
+    }
+
     panel._xtensionReplyEditor = target;
+    panel._xtensionPanelMode = "draft-action";
+    panel.hidden = false;
+    panel.removeAttribute("aria-hidden");
     setReplySuggestionsPanelLoading(panel, `draft-${normalizeDraftAction(action)}`);
+    panel._xtensionPanelMode = "draft-action";
     if (!panel.isConnected) {
       placeReplySuggestionsPanel(target, panel);
     } else {
@@ -2793,7 +2978,9 @@
 
     if (options.autoCloseMs) {
       panel._xtensionReplyAutoCloseTimer = window.setTimeout(() => {
-        removeReplySuggestionsPanel(panel);
+        if (!restoreReplySuggestionsPanelSnapshot(panel)) {
+          removeReplySuggestionsPanel(panel);
+        }
       }, options.autoCloseMs);
     }
   }
@@ -2801,6 +2988,7 @@
   function setReplySuggestionsPanelError(panel, code, errorMessage) {
     clearReplySuggestionsPanelProgress(panel);
     panel.innerHTML = "";
+    panel._xtensionPanelMode = "suggestions";
     panel.classList.remove("is-noninteractive-status");
     const header = createReplySuggestionsHeader(panel);
     const body = document.createElement("div");
@@ -2852,6 +3040,7 @@
   function setReplySuggestionsPanelStreaming(panel, editor, profiles) {
     clearReplySuggestionsPanelProgress(panel);
     panel.innerHTML = "";
+    panel._xtensionPanelMode = "suggestions";
     panel.classList.remove("is-noninteractive-status");
     panel.setAttribute("aria-busy", "true");
     const header = createReplySuggestionsHeader(panel);
@@ -3028,6 +3217,7 @@
   function setReplySuggestionsPanelReplies(panel, editor, replies) {
     clearReplySuggestionsPanelProgress(panel);
     panel.innerHTML = "";
+    panel._xtensionPanelMode = "suggestions";
     panel.classList.remove("is-noninteractive-status");
     const header = createReplySuggestionsHeader(panel);
     const list = document.createElement("div");
@@ -3535,12 +3725,6 @@
         "",
         { tone: "success", autoCloseMs: 900, nonInteractive: true }
       );
-      window.setTimeout(() => {
-        showReplySuggestionsForDraftEditor(target, {
-          force: true,
-          instruction: getReplyEditorText(target)
-        }).catch(() => {});
-      }, 450);
     } catch (error) {
       setDraftActionButtonState(button, actionId, "normal");
       const errorMessage = error?.message || localizedText(definition.failedKey, definition.failedFallback);
