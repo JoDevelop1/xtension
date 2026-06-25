@@ -62,15 +62,15 @@ The workflow also declares `contents: write` so it can attach generated zip file
 Create the tag:
 
 ```powershell
-git tag v0.4.15
-git push origin v0.4.15
+git tag v0.4.16
+git push origin v0.4.16
 ```
 
 The GitHub Actions workflow builds:
 
-- `xtension-edge-v0.4.15.zip`
-- `xtension-chrome-v0.4.15.zip`
-- `xtension-firefox-v0.4.15.zip`
+- `xtension-edge-v0.4.16.zip`
+- `xtension-chrome-v0.4.16.zip`
+- `xtension-firefox-v0.4.16.zip`
 - `SHA256SUMS.txt`
 
 The signed Windows bridge is built locally because it uses the Trusted Signing setup shared with ClonyVoice:
@@ -92,7 +92,7 @@ If the browser files are not attached automatically, create or edit the release 
 Use the matching file:
 
 ```text
-release-notes/v0.4.15.md
+release-notes/v0.4.16.md
 ```
 
 ## Pre-Publication Check

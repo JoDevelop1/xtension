@@ -390,7 +390,7 @@ internal static class Program
             ?? throw new InvalidOperationException("Unable to create uninstall registry entry.");
 
         key.SetValue("DisplayName", "Xtension Bridge");
-        key.SetValue("DisplayVersion", "0.4.15");
+        key.SetValue("DisplayVersion", "0.4.16");
         key.SetValue("Publisher", "NOVA2G");
         key.SetValue("InstallLocation", installDir);
         key.SetValue("DisplayIcon", installedSetup);
