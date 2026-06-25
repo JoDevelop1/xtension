@@ -706,6 +706,7 @@ function buildCodexInvocation({ prompt, schemaPath, model, imageFiles, allowSear
     ...(codexReasoningEffort ? ["-c", `model_reasoning_effort="${codexReasoningEffort}"`] : []),
     "exec",
     "--ephemeral",
+    "--skip-git-repo-check",
     "--sandbox",
     "read-only"
   ];

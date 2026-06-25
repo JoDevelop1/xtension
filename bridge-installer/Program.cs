@@ -20,6 +20,7 @@ internal static class Program
     {
         var uninstallMode = HasArg(args, "--uninstall");
         var fromTemp = HasArg(args, "--from-temp");
+        var quietMode = HasArg(args, "--quiet") || HasArg(args, "/quiet") || HasArg(args, "/qn");
         if (uninstallMode && !fromTemp && TryRelaunchUninstallerFromTemp())
         {
             return 0;
@@ -39,7 +40,7 @@ internal static class Program
                 Log("Installation completed successfully.");
             }
 
-            PauseIfInteractive();
+            PauseIfInteractive(quietMode);
             return 0;
         }
         catch (Exception error)
@@ -47,7 +48,7 @@ internal static class Program
             Log("");
             Log(uninstallMode ? "Uninstall failed:" : "Installation failed:");
             Log(error.Message);
-            PauseIfInteractive();
+            PauseIfInteractive(quietMode);
             return 1;
         }
     }
@@ -66,7 +67,9 @@ internal static class Program
 
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Xtension", "Bridge");
-        var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Xtension", "Bridge", "logs");
+        var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Xtension", "Bridge");
+        var logDir = Path.Combine(dataDir, "logs");
+        var serviceTempDir = Path.Combine(dataDir, "temp");
         var tempDir = Path.Combine(Path.GetTempPath(), "XtensionBridgeSetup-" + Guid.NewGuid().ToString("N"));
 
         try
@@ -78,16 +81,18 @@ internal static class Program
             Step("Stopping previous Xtension Bridge service if needed.");
             StopAndDeleteServiceIfExists();
             StopExistingBridgeProcesses();
+            DeleteLegacyStartupTaskIfExists();
 
             Step("Copying signed bridge files.");
             Directory.CreateDirectory(installDir);
             Directory.CreateDirectory(logDir);
+            Directory.CreateDirectory(serviceTempDir);
             File.Copy(Path.Combine(tempDir, "XtensionBridge.exe"), Path.Combine(installDir, "XtensionBridge.exe"), true);
             File.Copy(Path.Combine(tempDir, "XtensionBridgeService.exe"), Path.Combine(installDir, "XtensionBridgeService.exe"), true);
             var installedSetup = CopyInstallerToInstallDir(installDir);
 
             Step("Writing service configuration.");
-            WriteServiceConfig(installDir, logDir, userProfile);
+            WriteServiceConfig(installDir, logDir, serviceTempDir, userProfile);
 
             Step("Creating Windows service.");
             CreateService(installDir);
@@ -120,6 +125,7 @@ internal static class Program
         Step("Stopping Xtension Bridge service.");
         StopAndDeleteServiceIfExists();
         StopExistingBridgeProcesses();
+        DeleteLegacyStartupTaskIfExists();
 
         Step("Removing installed files.");
         RemoveInstalledFiles(installDir);
@@ -211,6 +217,18 @@ internal static class Program
         }
     }
 
+    private static void DeleteLegacyStartupTaskIfExists()
+    {
+        try
+        {
+            RunProcess("schtasks.exe", $"/Delete /TN {Quote(ServiceName)} /F", TimeSpan.FromSeconds(20), allowExitCodes: new[] { 0, 1 });
+        }
+        catch (Exception error)
+        {
+            Log($"Could not remove legacy startup task: {error.Message}");
+        }
+    }
+
     private static void RemoveInstalledFiles(string installDir)
     {
         if (!Directory.Exists(installDir))
@@ -244,14 +262,21 @@ internal static class Program
         }
     }
 
-    private static void WriteServiceConfig(string installDir, string logDir, string userProfile)
+    private static void WriteServiceConfig(string installDir, string logDir, string serviceTempDir, string userProfile)
     {
         var environment = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["XTENSION_BRIDGE_PORT"] = DefaultPort.ToString(),
-            ["XTENSION_BRIDGE_LOG_FILE"] = Path.Combine(logDir, "bridge.log")
+            ["XTENSION_BRIDGE_LOG_FILE"] = Path.Combine(logDir, "bridge.log"),
+            ["TEMP"] = serviceTempDir,
+            ["TMP"] = serviceTempDir
         };
 
+        AddIfFound(environment, "CODEX_HOME", Path.Combine(userProfile, ".codex"));
+        AddIfFound(environment, "HOMEDRIVE", GetHomeDrive(userProfile));
+        AddIfFound(environment, "HOMEPATH", GetHomePath(userProfile));
+        AddIfFound(environment, "USERNAME", GetUserNameFromProfile(userProfile));
+        AddIfFound(environment, "USERDOMAIN", Environment.UserDomainName);
         AddIfFound(environment, "CODEX_CLI", ResolveCommandPath("codex", userProfile, Path.Combine(userProfile, "AppData", "Roaming", "npm", "codex.cmd")));
         AddIfFound(environment, "GROK_CLI", ResolveCommandPath("grok", userProfile, Path.Combine(userProfile, ".grok", "bin", "grok.exe")));
         AddIfFound(environment, "GEMINI_CLI", ResolveCommandPath("gemini", userProfile, Path.Combine(userProfile, "AppData", "Roaming", "npm", "gemini.cmd")));
@@ -317,6 +342,31 @@ internal static class Program
         }
 
         return "";
+    }
+
+    private static string GetHomeDrive(string userProfile)
+    {
+        var root = Path.GetPathRoot(userProfile);
+        return string.IsNullOrWhiteSpace(root)
+            ? ""
+            : root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static string GetHomePath(string userProfile)
+    {
+        var root = Path.GetPathRoot(userProfile);
+        if (string.IsNullOrWhiteSpace(root) || !userProfile.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            return userProfile;
+        }
+
+        var rootWithoutSlash = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return userProfile[rootWithoutSlash.Length..];
+    }
+
+    private static string GetUserNameFromProfile(string userProfile)
+    {
+        return Path.GetFileName(userProfile.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     }
 
     private static void CreateService(string installDir)
@@ -505,9 +555,9 @@ internal static class Program
         Console.WriteLine(message);
     }
 
-    private static void PauseIfInteractive()
+    private static void PauseIfInteractive(bool quietMode)
     {
-        if (!Environment.UserInteractive || Console.IsInputRedirected)
+        if (quietMode || !Environment.UserInteractive || Console.IsInputRedirected)
         {
             return;
         }

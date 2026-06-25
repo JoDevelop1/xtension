@@ -280,6 +280,10 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
             startInfo.Environment["APPDATA"] = Path.Combine(config.UserProfile, "AppData", "Roaming");
             startInfo.Environment["LOCALAPPDATA"] = Path.Combine(config.UserProfile, "AppData", "Local");
             startInfo.Environment["XTENSION_BRIDGE_USER_HOME"] = config.UserProfile;
+            startInfo.Environment["CODEX_HOME"] = Path.Combine(config.UserProfile, ".codex");
+            AddIfNotBlank(startInfo, "HOMEDRIVE", GetHomeDrive(config.UserProfile));
+            AddIfNotBlank(startInfo, "HOMEPATH", GetHomePath(config.UserProfile));
+            AddIfNotBlank(startInfo, "USERNAME", GetUserNameFromProfile(config.UserProfile));
         }
 
         AddPathEntries(startInfo, GetPathAdditions());
@@ -303,6 +307,39 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
             yield return Path.Combine(config.UserProfile, ".local", "bin");
             yield return Path.Combine(config.UserProfile, ".grok", "bin");
         }
+    }
+
+    private static void AddIfNotBlank(ProcessStartInfo startInfo, string key, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            startInfo.Environment[key] = value;
+        }
+    }
+
+    private static string GetHomeDrive(string userProfile)
+    {
+        var root = Path.GetPathRoot(userProfile);
+        return string.IsNullOrWhiteSpace(root)
+            ? ""
+            : root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static string GetHomePath(string userProfile)
+    {
+        var root = Path.GetPathRoot(userProfile);
+        if (string.IsNullOrWhiteSpace(root) || !userProfile.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            return userProfile;
+        }
+
+        var rootWithoutSlash = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return userProfile[rootWithoutSlash.Length..];
+    }
+
+    private static string GetUserNameFromProfile(string userProfile)
+    {
+        return Path.GetFileName(userProfile.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     }
 
     private static void AddPathEntries(ProcessStartInfo startInfo, IEnumerable<string> additions)

@@ -146,6 +146,8 @@
   let lastMenuContext = null;
   let pageObserver = null;
   let extensionContextInvalidated = false;
+  let lastEnhancedPathname = "";
+  let statusPageScrollToken = 0;
 
   function start() {
     if (extensionContextInvalidated) {
@@ -206,8 +208,14 @@
       return;
     }
 
+    handleRouteEnhancement();
     enhanceDropdowns();
     if (extensionContextInvalidated) {
+      return;
+    }
+
+    if (!shouldEnhanceReplyToolsOnCurrentPage()) {
+      cleanupReplyToolsForUnsupportedPage();
       return;
     }
 
@@ -242,28 +250,38 @@
   }
 
   function enhanceReplyButtons() {
+    if (!shouldEnhanceReplyToolsOnCurrentPage()) {
+      cleanupReplyToolsForUnsupportedPage();
+      return;
+    }
+
+    cleanupReplyButtonsOutsidePrimaryTimeline();
     document.querySelectorAll('article[data-testid="tweet"] [data-testid="User-Name"]').forEach((userName) => {
+      cleanupLegacyReplyButtonInjection(userName);
       if (userName.querySelector(REPLY_BUTTON_SELECTOR)) {
         return;
       }
 
       const tweet = userName.closest('article[data-testid="tweet"]');
-      if (!tweet) {
+      if (!isPrimaryTweetForReplyTools(tweet)) {
         return;
       }
 
-      const host = findReplyButtonHost(userName);
+      const host = createReplyButtonHost(userName);
       if (!host || host.querySelector(REPLY_BUTTON_SELECTOR)) {
         return;
       }
 
-      host.setAttribute("data-xtension-reply-host", "true");
-      markReplyMetadataLine(userName, host);
       host.append(createReplyButton(tweet));
     });
   }
 
   function enhanceCorrectionButtons() {
+    if (!shouldEnhanceReplyToolsOnCurrentPage()) {
+      cleanupReplyToolsForUnsupportedPage();
+      return;
+    }
+
     cleanupMisplacedDraftActionBars();
 
     document.querySelectorAll(REPLY_EDITOR_SELECTOR).forEach((editor) => {
@@ -280,7 +298,7 @@
         return;
       }
 
-      if (shouldUseDedicatedDraftActionRow(editor, composer) && !isDraftActionComposerActive(editor, composer)) {
+      if (!isDraftActionComposerActive(editor, composer)) {
         return;
       }
 
@@ -297,6 +315,44 @@
 
       host.append(actions);
       maybeShowAutomaticReplySuggestions(editor, composer);
+    });
+  }
+
+  function shouldEnhanceReplyToolsOnCurrentPage() {
+    const pathname = getCurrentPathname().toLowerCase();
+    return ![
+      /^\/settings(?:\/|$)/,
+      /^\/messages(?:\/|$)/,
+      /^\/i\/flow(?:\/|$)/,
+      /^\/i\/account(?:\/|$)/
+    ].some((pattern) => pattern.test(pathname));
+  }
+
+  function getCurrentPathname() {
+    try {
+      return new URL(window.location.href).pathname || "/";
+    } catch (error) {
+      return window.location?.pathname || "/";
+    }
+  }
+
+  function cleanupReplyToolsForUnsupportedPage() {
+    document.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => button.remove());
+    document.querySelectorAll('[data-xtension-reply-host="inline"], [data-xtension-reply-host="name-row"]').forEach((node) => node.remove());
+    document.querySelectorAll(`${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host`).forEach(removeDraftActionHost);
+    document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
+    cleanupOrphanDraftLanguageMenus();
+    document.querySelectorAll('[data-xtension-reply-host="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-host");
+    });
+    document.querySelectorAll('[data-xtension-reply-user-name="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-user-name");
+    });
+    document.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-metadata");
+    });
+    document.querySelectorAll('[data-xtension-reply-name-row="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-name-row");
     });
   }
 
@@ -495,6 +551,56 @@
       parent: actionRow,
       before: submitContainer || submitButton
     };
+  }
+
+  function handleRouteEnhancement() {
+    const pathname = getCurrentPathname();
+    if (pathname === lastEnhancedPathname) {
+      return;
+    }
+
+    lastEnhancedPathname = pathname;
+    if (isStatusPagePath(pathname)) {
+      scheduleStatusPageTopScroll(pathname);
+    }
+  }
+
+  function isStatusPagePath(pathname) {
+    return /^\/[^/]+\/status\/\d+(?:\/|$)/.test(String(pathname || "").toLowerCase());
+  }
+
+  function scheduleStatusPageTopScroll(pathname) {
+    const token = statusPageScrollToken + 1;
+    statusPageScrollToken = token;
+
+    [0, 80, 220, 520].forEach((delay) => {
+      window.setTimeout(() => {
+        if (statusPageScrollToken !== token || getCurrentPathname() !== pathname) {
+          return;
+        }
+
+        scrollStatusPageToTop();
+      }, delay);
+    });
+  }
+
+  function scrollStatusPageToTop() {
+    const scrollTarget = document.scrollingElement || document.documentElement || document.body;
+    const currentTop = Math.max(window.scrollY || 0, scrollTarget?.scrollTop || 0, document.body?.scrollTop || 0);
+    if (currentTop <= 4) {
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    if (scrollTarget) {
+      scrollTarget.scrollTop = 0;
+    }
+    if (document.documentElement) {
+      document.documentElement.scrollTop = 0;
+    }
+    if (document.body) {
+      document.body.scrollTop = 0;
+    }
   }
 
   function findDirectChildContaining(parent, descendant) {
@@ -1363,82 +1469,158 @@
     ];
   }
 
-  function findReplyButtonHost(userName) {
-    const verifiedIcon = userName.querySelector('[data-testid="icon-verified"], svg[aria-label*="Verified"]');
-    const verifiedRow = verifiedIcon ? findTightAuthorNameRow(verifiedIcon, userName) : null;
+  function cleanupReplyButtonsOutsidePrimaryTimeline() {
+    document.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => {
+      const userName = button.closest('[data-testid="User-Name"]');
+      const tweet = button.closest('article[data-testid="tweet"]');
+      if (userName && isPrimaryTweetForReplyTools(tweet)) {
+        return;
+      }
 
-    if (verifiedRow) {
-      return verifiedRow;
-    }
-
-    const displayNameElement = findDisplayNameElement(userName);
-    return displayNameElement
-      ? findTightAuthorNameRow(displayNameElement, userName) || displayNameElement.closest('div[dir="ltr"]') || displayNameElement.parentElement || userName
-      : userName.firstElementChild || userName;
+      removeReplyButtonAndHost(button);
+    });
   }
 
-  function findTightAuthorNameRow(reference, boundary) {
-    let current = reference;
+  function cleanupLegacyReplyButtonInjection(userName) {
+    userName.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => {
+      const host = button.closest('[data-xtension-reply-host]');
+      if (host?.getAttribute("data-xtension-reply-host") === "name-row") {
+        return;
+      }
+
+      removeReplyButtonAndHost(button);
+    });
+
+    userName.removeAttribute("data-xtension-reply-user-name");
+    userName.querySelectorAll('[data-xtension-reply-host="inline"], [data-xtension-reply-host="true"], [data-xtension-reply-metadata="true"]').forEach((node) => {
+      if (node.getAttribute("data-xtension-reply-host") === "inline") {
+        node.remove();
+        return;
+      }
+
+      node.removeAttribute("data-xtension-reply-host");
+      node.removeAttribute("data-xtension-reply-metadata");
+    });
+    userName.querySelectorAll('[data-xtension-reply-name-row="true"]').forEach((node) => {
+      if (!node.querySelector(REPLY_BUTTON_SELECTOR)) {
+        node.removeAttribute("data-xtension-reply-name-row");
+      }
+    });
+    userName.querySelectorAll('[data-xtension-reply-host="name-row"]').forEach((node) => {
+      if (!node.querySelector(REPLY_BUTTON_SELECTOR)) {
+        node.remove();
+      }
+    });
+  }
+
+  function removeReplyButtonAndHost(button) {
+    const host = button?.closest?.('[data-xtension-reply-host]');
+    const row = host?.closest?.('[data-xtension-reply-name-row="true"]');
+    button?.remove?.();
+    if (host?.getAttribute("data-xtension-reply-host") === "inline" || host?.getAttribute("data-xtension-reply-host") === "name-row") {
+      host.remove();
+    } else if (host) {
+      host.removeAttribute("data-xtension-reply-host");
+    }
+    if (row && !row.querySelector(REPLY_BUTTON_SELECTOR)) {
+      row.removeAttribute("data-xtension-reply-name-row");
+      row.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
+        node.removeAttribute("data-xtension-reply-metadata");
+      });
+    }
+  }
+
+  function isPrimaryTweetForReplyTools(tweet) {
+    if (!tweet || !isVisibleElement(tweet) || tweet.closest?.('[data-testid="sidebarColumn"]')) {
+      return false;
+    }
+
+    const primaryColumn = document.querySelector('[data-testid="primaryColumn"]');
+    if (primaryColumn) {
+      return primaryColumn.contains(tweet);
+    }
+
+    if (tweet.closest?.('[data-testid="cellInnerDiv"]')) {
+      return true;
+    }
+
+    const rect = tweet.getBoundingClientRect();
+    const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    return rect.width >= 300 && rect.left < viewportWidth * 0.62;
+  }
+
+  function createReplyButtonHost(userName) {
+    const placement = findReplyButtonPlacement(userName);
+    if (!placement?.row) {
+      return null;
+    }
+
+    const host = document.createElement("span");
+    host.setAttribute("data-xtension-reply-host", "name-row");
+    placement.row.setAttribute("data-xtension-reply-name-row", "true");
+    if (placement.metadata) {
+      placement.metadata.setAttribute("data-xtension-reply-metadata", "true");
+    }
+    placement.row.insertBefore(host, placement.before || null);
+    return host;
+  }
+
+  function findReplyButtonPlacement(userName) {
+    const displayNameElement = findDisplayNameElement(userName);
+    if (!displayNameElement) {
+      return null;
+    }
+
+    const nameContainer = displayNameElement.closest('div[dir="ltr"]') || displayNameElement;
+    const row = findDisplayNameRow(nameContainer, userName);
+    if (!row) {
+      return null;
+    }
+
+    const metadata = findReplyMetadataFlexItem(userName, row, nameContainer);
+    return {
+      row,
+      metadata,
+      before: metadata || null
+    };
+  }
+
+  function findDisplayNameRow(nameContainer, userName) {
+    let current = nameContainer;
     let best = null;
 
-    while (current?.parentElement && current.parentElement !== boundary) {
+    for (let depth = 0; current?.parentElement && userName.contains(current.parentElement) && depth < 8; depth += 1) {
       const parent = current.parentElement;
-
-      if (parent.querySelector("time") || /@[A-Za-z0-9_]{1,20}/.test(cleanText(parent.textContent))) {
+      if (parent === userName) {
         break;
       }
 
-      if (isTightAuthorNameRow(parent)) {
+      if (isAuthorNameFlexRow(parent)) {
         best = parent;
+        if (findReplyMetadataFlexItem(userName, parent, nameContainer)) {
+          return parent;
+        }
       }
 
       current = parent;
     }
 
-    return best;
+    return best || nameContainer.parentElement || nameContainer;
   }
 
-  function isTightAuthorNameRow(element) {
-    if (!element || element.querySelector("time")) {
+  function isAuthorNameFlexRow(element) {
+    if (!isVisibleElement(element) || element.querySelector(REPLY_BUTTON_SELECTOR)) {
       return false;
     }
 
-    const text = cleanText(element.textContent);
-    if (!text || /@[A-Za-z0-9_]{1,20}/.test(text)) {
-      return false;
-    }
-
-    const children = Array.from(element.children);
-    const hasVerifiedIcon = Boolean(element.querySelector('[data-testid="icon-verified"], svg[aria-label*="Verified"]'));
-    const namedChildren = children.filter((child) => {
-      const childText = cleanText(child.textContent);
-      return childText && !/@[A-Za-z0-9_]{1,20}/.test(childText);
-    });
-
-    return namedChildren.length > 0 && (hasVerifiedIcon || children.length <= 3);
+    const style = getComputedStyle(element);
+    return style.display === "flex" && style.flexDirection !== "column";
   }
 
-  function findDisplayNameElement(userName) {
-    return Array.from(userName.querySelectorAll("span, div")).find((element) => {
-      const text = cleanText(element.textContent);
-      return text && !element.querySelector("time") && !/@[A-Za-z0-9_]{1,20}/.test(text);
-    }) || null;
-  }
-
-  function markReplyMetadataLine(userName, host) {
-    const metadata = findReplyMetadataElement(userName, host);
-
-    if (!metadata) {
-      return;
-    }
-
-    userName.setAttribute("data-xtension-reply-user-name", "true");
-    metadata.setAttribute("data-xtension-reply-metadata", "true");
-  }
-
-  function findReplyMetadataElement(userName, host) {
+  function findReplyMetadataFlexItem(userName, row, nameContainer) {
+    const nameItem = getDirectChildContaining(row, nameContainer) || nameContainer;
     const candidates = Array.from(userName.querySelectorAll("span, div")).filter((element) => {
-      if (element === host || host.contains(element) || element.querySelector(REPLY_BUTTON_SELECTOR)) {
+      if (element === row || !row.contains(element) || element === nameItem || nameItem.contains(element) || element.querySelector(REPLY_BUTTON_SELECTOR)) {
         return false;
       }
 
@@ -1446,9 +1628,31 @@
       return /@[A-Za-z0-9_]{1,20}/.test(text) || Boolean(element.querySelector("time"));
     });
 
-    return candidates.find((element) => element.parentElement === host.parentElement)
-      || candidates.find((element) => element.closest('[data-testid="User-Name"]') === userName)
-      || null;
+    const metadata = candidates[0] || null;
+    if (!metadata) {
+      return null;
+    }
+
+    const flexItem = getDirectChildContaining(row, metadata) || metadata;
+    return flexItem === nameItem ? null : flexItem;
+  }
+
+  function findDisplayNameElement(userName) {
+    const candidates = Array.from(userName.querySelectorAll('div[dir="ltr"] span, span, div[dir="ltr"]')).filter((element) => {
+      if (!isVisibleElement(element) || element.querySelector("time") || element.closest('[data-testid="icon-verified"]')) {
+        return false;
+      }
+
+      const text = cleanText(element.textContent);
+      return Boolean(text) && !/@[A-Za-z0-9_]{1,20}/.test(text);
+    });
+
+    return candidates.find((element) => {
+      return !Array.from(element.children).some((child) => {
+        const childText = cleanText(child.textContent);
+        return childText && !/@[A-Za-z0-9_]{1,20}/.test(childText);
+      });
+    }) || candidates[0] || null;
   }
 
   function createReplyButton(tweet) {
@@ -1485,6 +1689,16 @@
   }
 
   async function openReplyComposerWithSuggestions(tweet) {
+    if (!shouldEnhanceReplyToolsOnCurrentPage()) {
+      cleanupReplyToolsForUnsupportedPage();
+      return;
+    }
+
+    if (!isPrimaryTweetForReplyTools(tweet)) {
+      cleanupReplyButtonsOutsidePrimaryTimeline();
+      return;
+    }
+
     const nativeReplyButton = findNativeReplyButton(tweet);
     if (!nativeReplyButton) {
       showToast(localizedText("toastReplyComposerNotFound", "Unable to open the reply composer."));
@@ -2120,6 +2334,12 @@
   }
 
   function placeReplySuggestionsPanel(editor, panel) {
+    if (!shouldEnhanceReplyToolsOnCurrentPage()) {
+      removeReplySuggestionsPanel(panel);
+      cleanupReplyToolsForUnsupportedPage();
+      return;
+    }
+
     const previousPanel = document.querySelector(REPLY_SUGGESTIONS_PANEL_SELECTOR);
     if (previousPanel && previousPanel !== panel) {
       removeReplySuggestionsPanel(previousPanel);
@@ -3052,6 +3272,10 @@
       panel.append(detailElement);
     }
 
+    if (options.configureButton) {
+      panel.append(createReplyAiConfigureButton());
+    }
+
     positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
 
     if (options.autoCloseMs) {
@@ -3071,16 +3295,25 @@
     const header = createReplySuggestionsHeader(panel);
     const body = document.createElement("div");
     const detail = document.createElement("div");
-    const configure = document.createElement("button");
 
     body.className = "xtension-reply-suggestions-status";
-    body.textContent = code === "not_configured"
-      ? localizedText("replyAiNotConfigured", "Configure local or connected AI in Xtension options first.")
+    body.textContent = isReplyAiSetupErrorCode(code)
+      ? getReplyAiSetupErrorMessage(code)
       : localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions.");
 
     detail.className = "xtension-reply-suggestions-error-detail";
     detail.textContent = errorMessage || "";
 
+    panel.append(header, body);
+    if (detail.textContent && !isReplyAiSetupErrorCode(code)) {
+      panel.append(detail);
+    }
+    panel.append(createReplyAiConfigureButton());
+    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+  }
+
+  function createReplyAiConfigureButton() {
+    const configure = document.createElement("button");
     configure.type = "button";
     configure.className = "xtension-reply-suggestions-configure";
     configure.textContent = localizedText("replyAiConfigureButton", "Open options");
@@ -3089,13 +3322,19 @@
       event.stopPropagation();
       openExtensionOptions();
     });
+    return configure;
+  }
 
-    panel.append(header, body);
-    if (detail.textContent) {
-      panel.append(detail);
+  function isReplyAiSetupErrorCode(code) {
+    return code === "not_configured" || code === "bridge_unreachable";
+  }
+
+  function getReplyAiSetupErrorMessage(code) {
+    if (code === "bridge_unreachable") {
+      return localizedText("replyAiBridgeUnavailable", "Xtension Bridge is not running. Open Xtension options to install or start it, then try again.");
     }
-    panel.append(configure);
-    positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
+
+    return localizedText("replyAiNotConfigured", "Configure the local AI bridge in Xtension options first.");
   }
 
   function normalizeReplyPromptProfilesForUi(profiles) {
@@ -3485,7 +3724,17 @@
     });
 
     if (!response?.ok) {
-      throw new Error(response?.error || localizedText(definition.failedKey, definition.failedFallback));
+      const code = response?.code || "";
+      const setupError = isReplyAiSetupErrorCode(code);
+      const error = new Error(
+        setupError
+          ? getReplyAiSetupErrorMessage(code)
+          : response?.error || localizedText(definition.failedKey, definition.failedFallback)
+      );
+      error.code = code;
+      error.detail = setupError ? "" : response?.error || "";
+      error.configureButton = setupError;
+      throw error;
     }
 
     return cleanText(response[definition.responseKey] || response.text || "");
@@ -3805,8 +4054,18 @@
       );
     } catch (error) {
       setDraftActionButtonState(button, actionId, "normal");
-      const errorMessage = error?.message || localizedText(definition.failedKey, definition.failedFallback);
-      setDraftActionPanelMessage(actionPanel, localizedText(definition.failedKey, definition.failedFallback), errorMessage, { tone: "error" });
+      const setupError = isReplyAiSetupErrorCode(error?.code);
+      const fallbackMessage = localizedText(definition.failedKey, definition.failedFallback);
+      const errorMessage = error?.message || fallbackMessage;
+      setDraftActionPanelMessage(
+        actionPanel,
+        setupError ? errorMessage : fallbackMessage,
+        setupError ? "" : error?.detail || errorMessage,
+        {
+          tone: "error",
+          configureButton: setupError
+        }
+      );
       showToast(errorMessage);
     } finally {
       relatedButtons.forEach((item) => {

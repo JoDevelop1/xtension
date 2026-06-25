@@ -57,21 +57,29 @@
   outline: none;
 }
 
-[data-xtension-reply-user-name] {
-  flex-wrap: wrap !important;
-}
-
 [data-xtension-reply-host] {
   align-items: center !important;
   display: inline-flex !important;
+  flex: 0 0 auto !important;
   max-width: 100%;
   min-width: 0;
   vertical-align: middle;
 }
 
+[data-xtension-reply-name-row] {
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  min-width: 0;
+}
+
+[data-xtension-reply-name-row] > :not([data-xtension-reply-host]):not([data-xtension-reply-metadata]) {
+  min-width: 0;
+}
+
 [data-xtension-reply-metadata] {
   flex-basis: 100% !important;
   margin-left: 0 !important;
+  min-width: 0;
 }
 
 [data-xtension-reply-button]::before {
@@ -425,7 +433,6 @@
 }
 
 #layers {
-  position: relative !important;
   z-index: 30 !important;
 }
 

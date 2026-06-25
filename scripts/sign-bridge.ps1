@@ -1,11 +1,15 @@
 param(
   [string[]]$Target = @(),
-  [string]$ClonyVoiceRoot = "C:\Users\Jonathan\Documents\Workspace\clonyvoice"
+  [string]$ClonyVoiceRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+if (-not $ClonyVoiceRoot) {
+  $ClonyVoiceRoot = Join-Path (Split-Path -Parent $repoRoot) "clonyvoice"
+}
+
 if (-not $Target -or $Target.Count -eq 0) {
   $Target = @(
     (Join-Path $repoRoot "dist\bridge\XtensionBridge.exe"),

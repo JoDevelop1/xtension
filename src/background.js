@@ -101,6 +101,7 @@ const DEFAULT_REPLY_AI_CONFIG = {
 const DIAGNOSTIC_LOG_STORAGE_KEY = "xtensionDiagnosticLogs";
 const DIAGNOSTIC_LOG_LIMIT = 160;
 const DIAGNOSTIC_LOG_STRING_LIMIT = 900;
+const BRIDGE_UNREACHABLE_CODE = "bridge_unreachable";
 let diagnosticLogWriteQueue = Promise.resolve();
 
 runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
@@ -688,7 +689,7 @@ async function generateBridgeReplySuggestions(config, context, locale) {
   }
 
   const startedAt = Date.now();
-  const response = await fetch(`${bridgeUrl}/reply`, {
+  const response = await fetchBridgeRequest(`${bridgeUrl}/reply`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -706,6 +707,9 @@ async function generateBridgeReplySuggestions(config, context, locale) {
       replyLanguageMode: normalizeReplyLanguageMode(config.replyLanguageMode),
       targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale)
     })
+  }, {
+    operation: "reply_suggestions",
+    provider: normalizeReplyProvider(config.provider)
   });
 
   if (!response.ok) {
@@ -745,7 +749,7 @@ async function generateBridgeReplySuggestionProfile(config, profileIndex, profil
   }
 
   const startedAt = Date.now();
-  const response = await fetch(`${bridgeUrl}/reply`, {
+  const response = await fetchBridgeRequest(`${bridgeUrl}/reply`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -767,6 +771,11 @@ async function generateBridgeReplySuggestionProfile(config, profileIndex, profil
       replyLanguageMode: normalizeReplyLanguageMode(config.replyLanguageMode),
       targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale)
     })
+  }, {
+    operation: "reply_profile",
+    provider: normalizeReplyProvider(config.provider),
+    profileIndex,
+    profileLabel: profile.label
   });
 
   if (!response.ok) {
@@ -815,7 +824,7 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
     throw error;
   }
 
-  const response = await fetch(`${bridgeUrl}/transform`, {
+  const response = await fetchBridgeRequest(`${bridgeUrl}/transform`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -830,6 +839,9 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
       context,
       text
     })
+  }, {
+    operation: `draft_${normalizeDraftTransformOperation(operation)}`,
+    provider: normalizeReplyProvider(config.provider)
   });
 
   if (!response.ok) {
@@ -838,6 +850,29 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
 
   const data = await response.json();
   return sanitizeGeneratedReplyText(data?.text || data?.correctedText || data?.translatedText || data?.generatedText || "");
+}
+
+async function fetchBridgeRequest(url, options, details = {}) {
+  const startedAt = Date.now();
+
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    appendDiagnosticLog({
+      level: "warn",
+      area: "ai",
+      event: "bridge_unreachable",
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      errorMessage: error?.message || String(error || ""),
+      ...details
+    }).catch(() => {});
+
+    const bridgeError = new Error("Xtension Bridge is not running or is unreachable.");
+    bridgeError.code = BRIDGE_UNREACHABLE_CODE;
+    bridgeError.cause = error;
+    throw bridgeError;
+  }
 }
 
 function normalizeCodexBridgeUrl(value) {

@@ -28,12 +28,24 @@ function Resolve-ExistingPath([string[]]$Candidates) {
 }
 
 function Resolve-CommandPath([string]$CommandName, [string[]]$Fallbacks) {
-  $command = Get-Command $CommandName -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($command -and $command.Source -and (Test-Path -LiteralPath $command.Source -PathType Leaf)) {
-    return (Resolve-Path -LiteralPath $command.Source).Path
+  $fallback = Resolve-ExistingPath $Fallbacks
+  if ($fallback) {
+    return $fallback
   }
 
-  return Resolve-ExistingPath $Fallbacks
+  $commands = @(Get-Command $CommandName -All -ErrorAction SilentlyContinue)
+  foreach ($command in $commands) {
+    if (-not $command.Source -or -not (Test-Path -LiteralPath $command.Source -PathType Leaf)) {
+      continue
+    }
+
+    $extension = [IO.Path]::GetExtension($command.Source)
+    if ($extension -in @(".exe", ".cmd", ".bat")) {
+      return (Resolve-Path -LiteralPath $command.Source).Path
+    }
+  }
+
+  return ""
 }
 
 if (-not (Test-IsAdmin)) {
@@ -70,12 +82,14 @@ if (-not $ServiceExe -or -not (Test-Path -LiteralPath $ServiceExe -PathType Leaf
 }
 
 $logDir = Join-Path $env:ProgramData "Xtension\Bridge\logs"
+$tempDir = Join-Path $env:ProgramData "Xtension\Bridge\temp"
 $targetBridge = Join-Path $InstallDir "XtensionBridge.exe"
 $targetService = Join-Path $InstallDir "XtensionBridgeService.exe"
 $targetConfig = Join-Path $InstallDir "bridge-service.json"
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existing) {
@@ -86,6 +100,8 @@ if ($existing) {
   & sc.exe delete $ServiceName | Out-Null
   Start-Sleep -Milliseconds 800
 }
+
+Unregister-ScheduledTask -TaskName $ServiceName -Confirm:$false -ErrorAction SilentlyContinue
 
 Copy-Item -LiteralPath $BridgeExe -Destination $targetBridge -Force
 Copy-Item -LiteralPath $ServiceExe -Destination $targetService -Force
@@ -106,6 +122,13 @@ $claudeCli = Resolve-CommandPath "claude" @(
 $environment = [ordered]@{
   XTENSION_BRIDGE_PORT = [string]$Port
   XTENSION_BRIDGE_LOG_FILE = (Join-Path $logDir "bridge.log")
+  CODEX_HOME = (Join-Path $UserProfile ".codex")
+  HOMEDRIVE = [IO.Path]::GetPathRoot($UserProfile).TrimEnd("\")
+  HOMEPATH = $UserProfile.Substring(([IO.Path]::GetPathRoot($UserProfile).TrimEnd("\")).Length)
+  USERNAME = Split-Path -Leaf $UserProfile
+  USERDOMAIN = $env:USERDOMAIN
+  TEMP = $tempDir
+  TMP = $tempDir
 }
 if ($BridgeToken) {
   $environment.XTENSION_BRIDGE_TOKEN = $BridgeToken
