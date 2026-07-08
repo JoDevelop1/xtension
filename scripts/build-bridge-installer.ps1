@@ -1,5 +1,9 @@
 param(
-  [string]$OutputDir = ""
+  [string]$OutputDir = "",
+  # Dossier source des modèles à distribuer À CÔTÉ du setup pour une install
+  # HORS-LIGNE (arborescence reflétant %ProgramData%\Xtension\Bridge :
+  # llm\models\*.gguf, llm\llama\*, llm\llama-cuda\*, speech\*). Optionnel.
+  [string]$ModelsSource = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,3 +56,17 @@ if (-not (Test-Path -LiteralPath $installerExe -PathType Leaf)) {
 }
 
 Write-Host "[OK] Built unsigned installer: $installerExe"
+
+# Payload de modèles pour install HORS-LIGNE (optionnel). Copié à côté du setup :
+# l'installeur le posera dans le dossier de données du service, sans téléchargement.
+if ($ModelsSource) {
+  if (-not (Test-Path -LiteralPath $ModelsSource -PathType Container)) {
+    throw "ModelsSource introuvable: $ModelsSource"
+  }
+  $modelsOut = Join-Path $OutputDir "XtensionBridgeModels"
+  Write-Host "[..] Assemblage du payload de modèles (offline) depuis $ModelsSource"
+  Remove-Item -LiteralPath $modelsOut -Recurse -Force -ErrorAction SilentlyContinue
+  Copy-Item -LiteralPath $ModelsSource -Destination $modelsOut -Recurse -Force
+  Write-Host "[OK] Payload modèles: $modelsOut"
+  Write-Host "     -> Distribue le DOSSIER $OutputDir en entier (setup + XtensionBridgeModels) pour une install sans téléchargement."
+}

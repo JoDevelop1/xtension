@@ -92,6 +92,13 @@ internal static class Program
             File.Copy(Path.Combine(tempDir, "XtensionBridgeService.exe"), Path.Combine(installDir, "XtensionBridgeService.exe"), true);
             var installedSetup = CopyInstallerToInstallDir(installDir);
 
+            // Installation HORS-LIGNE des modèles : si un payload de modèles est
+            // distribué à côté du setup (dossier "XtensionBridgeModels" ou archive
+            // "XtensionBridgeModels.zip"), on le pose dans le dossier de données du
+            // service -> aucun téléchargement au premier usage. Sinon, le service
+            // provisionne les modèles tout seul (repli).
+            ProvisionBundledModels(dataDir);
+
             Step("Writing service configuration.");
             WriteServiceConfig(installDir, logDir, serviceTempDir, userProfile);
 
@@ -155,6 +162,58 @@ internal static class Program
         }
 
         ZipFile.ExtractToDirectory(zipPath, destination, true);
+    }
+
+    // Installe les modèles depuis un payload distribué à côté du setup, s'il existe.
+    // Le contenu du payload doit refléter l'arborescence du dossier de données du
+    // service (ex. llm\models\*.gguf, llm\llama\*, llm\llama-cuda\*, speech\*).
+    private static void ProvisionBundledModels(string dataDir)
+    {
+        var installerDir = Path.GetDirectoryName(Environment.ProcessPath ?? string.Empty) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(installerDir))
+        {
+            return;
+        }
+
+        var modelsFolder = Path.Combine(installerDir, "XtensionBridgeModels");
+        var modelsArchive = Path.Combine(installerDir, "XtensionBridgeModels.zip");
+
+        try
+        {
+            if (Directory.Exists(modelsFolder))
+            {
+                Step("Installing bundled models (offline, folder).");
+                CopyDirectory(modelsFolder, dataDir);
+            }
+            else if (File.Exists(modelsArchive))
+            {
+                Step("Installing bundled models (offline, archive).");
+                ZipFile.ExtractToDirectory(modelsArchive, dataDir, true);
+            }
+            else
+            {
+                Log("No bundled models payload found; the service will provision models on first use.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Best-effort : un échec d'installation des modèles ne doit pas casser
+            // l'installation du service (le service retombera sur le téléchargement).
+            Log("Bundled models provisioning skipped: " + ex.Message);
+        }
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(dir.Replace(source, destination));
+        }
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            File.Copy(file, file.Replace(source, destination), true);
+        }
     }
 
     private static string CopyInstallerToInstallDir(string installDir)
