@@ -689,6 +689,16 @@
       return true;
     }
 
+    // Une modale de réponse/composition ouverte est un contexte délibéré :
+    // on garde la barre tant que la modale est ouverte, même éditeur vide et
+    // sans focus. Sinon un simple clic sur un de NOS contrôles (ex. sélecteur
+    // de langue) fait perdre le focus à l'éditeur vide et retire toute la barre
+    // (il fallait alors recliquer dans l'éditeur pour la faire réapparaître).
+    const replyDialog = editor.closest?.('[role="dialog"]');
+    if (replyDialog && isVisibleElement(replyDialog)) {
+      return true;
+    }
+
     if (existingHost?.contains?.(activeElement)) {
       return true;
     }
@@ -698,6 +708,13 @@
     }
 
     if (isDraftLanguageMenuActive(existingHost, activeElement)) {
+      return true;
+    }
+
+    // Hors modale (réponse en ligne) : garder la barre tant que le menu de
+    // langue est ouvert, indépendamment de l'élément actif — l'ouverture à la
+    // souris peut transférer le focus hors de l'éditeur et de l'hôte.
+    if (isDraftLanguageMenuOpenForHost(existingHost)) {
       return true;
     }
 
@@ -716,6 +733,14 @@
     return Array.from(host.querySelectorAll(".xtension-draft-language-picker")).some((picker) => {
       return picker._xtensionDraftLanguageMenu?.contains?.(activeElement);
     });
+  }
+
+  function isDraftLanguageMenuOpenForHost(host) {
+    if (!host) {
+      return false;
+    }
+
+    return Array.from(host.querySelectorAll(".xtension-draft-language-picker")).some(isDraftLanguageMenuOpen);
   }
 
   function findComposerReplyPermissionButton(editor, composer) {
@@ -1264,7 +1289,35 @@
     updateDraftGenerationLanguagePicker(picker, normalized);
     storageSet({ [DRAFT_GENERATION_LANGUAGE_STORAGE_KEY]: normalized });
     setDraftLanguageMenuOpen(picker, false, false);
+    // Rendre le focus à l'ÉDITEUR de réponse (et non au bouton de langue) :
+    // sinon l'éditeur perd le focus (activeElement -> BODY) et la barre
+    // d'outils/le composeur — affichés selon le focus — disparaissent
+    // jusqu'à ce que l'utilisateur reclique dans la zone de réponse.
+    restoreDraftEditorFocusAfterLanguageSelect(picker);
+  }
+
+  function restoreDraftEditorFocusAfterLanguageSelect(picker) {
+    const editorHost = resolveDraftActionEditor(picker, null);
+    const editable = findEditableReplyEditor(editorHost) || editorHost;
+    const focusEditable = () => {
+      if (editable?.isConnected && typeof editable.focus === "function") {
+        editable.focus({ preventScroll: true });
+        return document.activeElement === editable;
+      }
+      return false;
+    };
+
+    if (focusEditable()) {
+      return;
+    }
+
+    // Repli immédiat sur le bouton, puis nouvelle tentative sur l'éditeur au
+    // prochain rendu : X peut réordonner le DOM juste après la sélection et
+    // voler le focus, on le lui rend une fois le rendu stabilisé.
     picker.querySelector(".xtension-draft-language-trigger")?.focus?.({ preventScroll: true });
+    window.requestAnimationFrame(() => {
+      focusEditable();
+    });
   }
 
   function isDraftLanguageMenuOpen(picker) {
