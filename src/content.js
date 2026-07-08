@@ -47,8 +47,11 @@
     translate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11.5 5c-.7 2.7-2.6 5.2-5.5 7.2M6.5 8.2c1 1.4 2.2 2.5 3.8 3.4M14 19l3.2-8 3.3 8M15.1 16.4h4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     generate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 13.8 8l5.2 1.8-5.2 1.8L12 16.8l-1.8-5.2L5 9.8 10.2 8 12 2.8ZM5.5 14.5l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4ZM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7L18 15Z" fill="currentColor"/></svg>',
     suggestions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14M5 12h10M5 17.5h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M18 15.5 19.2 18l2.3 1-2.3 1-1.2 2.5-1.2-2.5-2.3-1 2.3-1 1.2-2.5Z" fill="currentColor"/></svg>',
-    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8.5 4 13l4.5 4.5M4 13h10.5a4.5 4.5 0 0 0 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 8.5 20 13l-4.5 4.5M20 13H9.5a4.5 4.5 0 0 1 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    // Icônes Annuler/Rétablir : retournées verticalement (miroir sur l'axe
+    // horizontal, matrix 1 0 0 -1 0 24) -> la flèche pointe toujours à gauche/
+    // droite, mais la partie courbée passe en bas au lieu du haut.
+    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><g transform="matrix(1 0 0 -1 0 24)"><path d="M8.5 8.5 4 13l4.5 4.5M4 13h10.5a4.5 4.5 0 0 0 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>',
+    redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><g transform="matrix(1 0 0 -1 0 24)"><path d="M15.5 8.5 20 13l-4.5 4.5M20 13H9.5a4.5 4.5 0 0 1 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>'
   };
   // Émoticônes pour Annuler/Rétablir (flèches sur fond bleu), demandées explicitement.
   const DRAFT_ACTION_EMOJI = {
@@ -4096,17 +4099,27 @@
       return;
     }
 
-    const currentText = getReplyEditorText(target);
+    let currentText = getReplyEditorText(target);
     if (!currentText) {
-      const emptyPanel = showDraftActionPanelLoading(target, actionId);
-      setDraftActionPanelMessage(
-        emptyPanel,
-        localizedText(definition.emptyKey, definition.emptyFallback),
-        "",
-        { tone: "warning", autoCloseMs: 2600 }
+      // Générer avec un brouillon VIDE = répondre au tweet. On injecte une
+      // consigne par défaut (jamais affichée) ; le modèle rédige une réponse au
+      // tweet à partir du contexte déjà transmis (texte du tweet + image). Pour
+      // les autres actions (corriger/traduire), un brouillon vide n'a rien à faire.
+      if (actionId !== "generate") {
+        const emptyPanel = showDraftActionPanelLoading(target, actionId);
+        setDraftActionPanelMessage(
+          emptyPanel,
+          localizedText(definition.emptyKey, definition.emptyFallback),
+          "",
+          { tone: "warning", autoCloseMs: 2600 }
+        );
+        showToast(localizedText(definition.emptyKey, definition.emptyFallback));
+        return;
+      }
+      currentText = localizedText(
+        "draftGenerateReplyDefault",
+        "Write a relevant, natural, concise reply to this tweet."
       );
-      showToast(localizedText(definition.emptyKey, definition.emptyFallback));
-      return;
     }
 
     // Traduction : si le brouillon est déjà dans la langue cible, inutile de
