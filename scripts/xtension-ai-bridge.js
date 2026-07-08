@@ -122,9 +122,28 @@ const llamaCudaReleaseUrl = process.env.XTENSION_LLAMA_CUDA_URL
   || "https://github.com/ggml-org/llama.cpp/releases/download/b9882/llama-b9882-bin-win-cuda-12.4-x64.zip";
 const cudartReleaseUrl = process.env.XTENSION_CUDART_URL
   || "https://github.com/ggml-org/llama.cpp/releases/download/b9882/cudart-llama-bin-win-cuda-12.4-x64.zip";
-// Nombre de couches offloadées sur le GPU en mode GPU (999 = toutes ; le 12B Q4
-// (~7 Go) tient dans 11 Go de VRAM).
-const llmGpuLayers = Number(process.env.XTENSION_LLM_GPU_LAYERS || 999);
+// Nombre de couches offloadées sur le GPU. Normalement CALCULÉ automatiquement
+// selon la VRAM détectée (voir computeGpuLoadPlan). L'env XTENSION_LLM_GPU_LAYERS,
+// si défini, PRIME sur ce calcul (debug / forçage). null => calcul auto.
+const rawGpuLayersOverride = process.env.XTENSION_LLM_GPU_LAYERS;
+const llmGpuLayersOverride = (rawGpuLayersOverride != null
+  && String(rawGpuLayersOverride).trim() !== ""
+  && Number.isFinite(Number(rawGpuLayersOverride)))
+  ? Number(rawGpuLayersOverride)
+  : null;
+// Réserves VRAM (Mo). RESERVE : jamais allouée, pour le bureau Windows/Chrome
+// (accél. GPU) et les pics. COMPUTE : buffer de calcul CUDA (obligatoire dès
+// qu'une couche est sur GPU). Surchargeables pour l'ajustement fin d'une machine.
+const vramReserveMb = Number(process.env.XTENSION_LLM_VRAM_RESERVE_MB || 1024);
+const vramComputeBufferMb = Number(process.env.XTENSION_LLM_VRAM_COMPUTE_MB || 768);
+// VRAM totale supposée (Mo) quand nvidia-smi est indisponible : on dimensionne
+// prudemment (offload partiel) plutôt que de risquer un -ngl 999 aveugle.
+const assumedVramMb = Number(process.env.XTENSION_LLM_VRAM_ASSUMED_MB || 6144);
+// Au-dessous de ce total VRAM (Mo), la vision (mmproj) part sur le CPU (chemin
+// froid, ~1×/génération, impact vitesse quasi nul) pour préserver la VRAM du LLM.
+const vramMmprojCpuThresholdMb = Number(process.env.XTENSION_LLM_MMPROJ_CPU_THRESHOLD_MB || 12288);
+// Dernier plan de chargement GPU calculé (exposé par /status, journalisé).
+let lastGpuPlan = null;
 
 function getBridgeConfigPath() {
   return path.join(getBridgeDataDir(), "config.json");
@@ -207,7 +226,22 @@ const server = http.createServer(async (request, response) => {
         model: llmModelFileName,
         mode: gpu ? "gpu" : "cpu",
         gpu,
-        gpuBuildInstalled: isGpuBuildInstalled()
+        gpuBuildInstalled: isGpuBuildInstalled(),
+        // Plan de chargement adaptatif VRAM (mode GPU, une fois le serveur lancé).
+        ...(gpu && lastGpuPlan ? {
+          vram: {
+            vramTotalMb: lastGpuPlan.vramTotalMb,
+            vramFreeMb: lastGpuPlan.vramFreeMb,
+            nglUsed: lastGpuPlan.ngl,
+            layersTotal: lastGpuPlan.layersTotal,
+            kvOnGpu: lastGpuPlan.kvOnGpu,
+            kvType: lastGpuPlan.kvType,
+            mmprojOnGpu: lastGpuPlan.mmprojOnGpu,
+            flashAttn: lastGpuPlan.flashAttn,
+            marginMb: lastGpuPlan.marginMb,
+            source: lastGpuPlan.source
+          }
+        } : {})
       },
       transcription: { available: true }
     });
@@ -884,6 +918,348 @@ async function installLlamaBuild(url, engineDir, downloadsDir, options = {}) {
   fs.rmSync(extractDir, { recursive: true, force: true });
 }
 
+// ----------------------------------------------------------------------------
+// Chargement adaptatif VRAM / RAM (mode GPU uniquement)
+// ----------------------------------------------------------------------------
+// Objectif : charger le maximum sur la VRAM et faire déborder le reste vers la
+// RAM de façon MAÎTRISÉE (offload partiel -ngl N calculé), pour ne jamais
+// atteindre le « sysmem fallback » du pilote NVIDIA (paging silencieux 5-50×
+// plus lent). Tout est best-effort : si la détection échoue, on retombe sur un
+// dimensionnement prudent, jamais un crash.
+
+// P0 — Détection VRAM via nvidia-smi. Renvoie { totalMb, freeMb } du premier GPU
+// ou null (pas de nvidia-smi, non-NVIDIA, timeout).
+async function detectGpuVram() {
+  try {
+    const smi = await resolveExecutable([
+      process.env.XTENSION_NVIDIA_SMI,
+      "nvidia-smi",
+      "nvidia-smi.exe",
+      "C:\\Windows\\System32\\nvidia-smi.exe"
+    ].filter(Boolean));
+    if (!smi) {
+      logBridgeEvent("llm_vram_detect_skipped", { reason: "nvidia-smi not found" });
+      return null;
+    }
+    const result = await runProcessCapture(smi, [
+      "--query-gpu=memory.total,memory.free",
+      "--format=csv,noheader,nounits"
+    ], { timeoutMs: 4000 });
+    const firstLine = String(result.stdout || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+    if (!firstLine) {
+      return null;
+    }
+    const parts = firstLine.split(",").map((part) => Number(part.trim()));
+    const totalMb = parts[0];
+    const freeMb = parts[1];
+    if (!Number.isFinite(totalMb) || !Number.isFinite(freeMb) || totalMb <= 0 || freeMb < 0) {
+      return null;
+    }
+    return { totalMb, freeMb };
+  } catch (error) {
+    logBridgeEvent("llm_vram_detect_failed", { error: truncateText(error.message || "", 200) });
+    return null;
+  }
+}
+
+// Lecteur minimal de métadonnées GGUF : en-tête (magic, version, tensor_count,
+// kv_count) puis paires clé/valeur, dont on ne retient que les quelques entiers
+// utiles au dimensionnement (couches + dimensions du KV). Lecture par fenêtres
+// de 1 Mo, en sautant (avance de curseur) les grosses valeurs comme le
+// vocabulaire tokenizer, sans jamais charger le fichier entier (~7 Go).
+// Best-effort : renvoie {} sur toute anomalie -> l'appelant retombe sur la table.
+function readGgufMetadata(modelPath) {
+  const WANT = {
+    ".block_count": "blockCount",
+    ".embedding_length": "embeddingLength",
+    ".attention.head_count": "headCount",
+    ".attention.head_count_kv": "headCountKv",
+    ".attention.key_length": "keyLength",
+    ".attention.value_length": "valueLength"
+  };
+  // Tailles (octets) des types scalaires GGUF ; 8=string, 9=array traités à part.
+  const SCALAR_SIZE = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 };
+  let fd = -1;
+  try {
+    fd = fs.openSync(modelPath, "r");
+    const fileSize = fs.fstatSync(fd).size;
+    const CHUNK = 1024 * 1024;
+    let buf = Buffer.alloc(0);
+    let bufStart = 0; // offset fichier de buf[0]
+    let pos = 0;      // offset fichier du prochain octet à consommer
+
+    const ensure = (n) => {
+      const rel = pos - bufStart;
+      if (rel >= 0 && rel + n <= buf.length) {
+        return;
+      }
+      if (pos + n > fileSize) {
+        throw new Error("gguf_eof");
+      }
+      const toRead = Math.min(Math.max(CHUNK, n), fileSize - pos);
+      const chunk = Buffer.alloc(toRead);
+      const got = fs.readSync(fd, chunk, 0, toRead, pos);
+      if (got < n) {
+        throw new Error("gguf_short_read");
+      }
+      buf = got === toRead ? chunk : chunk.subarray(0, got);
+      bufStart = pos;
+    };
+    const take = (n) => {
+      ensure(n);
+      const rel = pos - bufStart;
+      const out = buf.subarray(rel, rel + n);
+      pos += n;
+      return out;
+    };
+    const u32 = () => take(4).readUInt32LE(0);
+    const u64 = () => Number(take(8).readBigUInt64LE(0));
+    const readKey = () => {
+      const len = u64();
+      if (len > 512) { // une clé GGUF est courte ; au-delà = anomalie
+        pos += len;
+        return "";
+      }
+      return take(len).toString("utf8");
+    };
+    const readScalar = (type) => {
+      switch (type) {
+        case 0: return take(1).readUInt8(0);
+        case 1: return take(1).readInt8(0);
+        case 2: return take(2).readUInt16LE(0);
+        case 3: return take(2).readInt16LE(0);
+        case 4: return take(4).readUInt32LE(0);
+        case 5: return take(4).readInt32LE(0);
+        case 6: return take(4).readFloatLE(0);
+        case 7: return take(1).readUInt8(0);
+        case 10: return Number(take(8).readBigUInt64LE(0));
+        case 11: return Number(take(8).readBigInt64LE(0));
+        case 12: return take(8).readDoubleLE(0);
+        default: return null;
+      }
+    };
+    const skipValue = (type) => {
+      if (type === 8) { // string
+        pos += u64();
+        return;
+      }
+      if (type === 9) { // array : elemType(u32) + count(u64) + éléments
+        const elemType = u32();
+        const count = u64();
+        if (elemType === 8) {
+          for (let i = 0; i < count; i += 1) {
+            pos += u64();
+          }
+        } else {
+          const size = SCALAR_SIZE[elemType];
+          if (!size) {
+            throw new Error("gguf_bad_array_type");
+          }
+          pos += size * count;
+        }
+        return;
+      }
+      const size = SCALAR_SIZE[type];
+      if (!size) {
+        throw new Error("gguf_bad_type");
+      }
+      pos += size;
+    };
+
+    if (take(4).toString("ascii") !== "GGUF") {
+      return {};
+    }
+    const version = u32();
+    if (version < 2 || version > 3) {
+      return {}; // v1 (compteurs u32) non géré -> repli table
+    }
+    u64(); // tensor_count (non utilisé, consommé pour avancer)
+    const kvCount = u64();
+    const meta = {};
+    const wantSuffixes = Object.keys(WANT);
+    for (let i = 0; i < kvCount; i += 1) {
+      const key = readKey();
+      const type = u32();
+      const suffix = wantSuffixes.find((s) => key.endsWith(s));
+      if (suffix && type !== 8 && type !== 9) {
+        const value = readScalar(type);
+        if (Number.isFinite(value) && value > 0) {
+          meta[WANT[suffix]] = Math.floor(value);
+        }
+      } else {
+        skipValue(type);
+      }
+      if (Object.keys(meta).length === wantSuffixes.length) {
+        break; // toutes les clés utiles trouvées
+      }
+    }
+    return meta;
+  } catch (error) {
+    return {};
+  } finally {
+    if (fd >= 0) {
+      try { fs.closeSync(fd); } catch (e) { /* best effort */ }
+    }
+  }
+}
+
+// Repli grossier sur le nombre de couches quand la lecture GGUF échoue (table
+// par tier ; les vraies valeurs viennent du GGUF, ceci n'est qu'un garde-fou).
+function fallbackBlockCount(fileName) {
+  const name = String(fileName || "").toLowerCase();
+  if (name.includes("12b")) return 48;
+  if (name.includes("e4b")) return 34;
+  if (name.includes("4b")) return 34;
+  return 32;
+}
+
+// Estime la taille du cache KV (Mo) pour le contexte donné, toutes couches, en
+// fp16 ou quantifié q8_0 (~1 o/élément). Utilise les dimensions d'attention du
+// GGUF (key_length/value_length quand présents — important pour Gemma dont le
+// head_dim ne vaut pas embedding/heads). Renvoie null si les infos manquent.
+function estimateKvMb(meta, ctxTokens, quantized) {
+  const layers = meta.blockCount;
+  const heads = meta.headCount;
+  const headsKv = meta.headCountKv || heads;
+  let kLen = meta.keyLength;
+  let vLen = meta.valueLength;
+  if ((!kLen || !vLen) && meta.embeddingLength && heads) {
+    const headDim = meta.embeddingLength / heads;
+    kLen = kLen || headDim;
+    vLen = vLen || headDim;
+  }
+  if (![layers, headsKv, kLen, vLen, ctxTokens].every((v) => Number.isFinite(v) && v > 0)) {
+    return null;
+  }
+  const bytesPerElem = quantized ? 1 : 2; // q8_0 ≈ 1 o/élément (surcoût de bloc négligé)
+  const bytesPerTokenPerLayer = headsKv * (kLen + vLen) * bytesPerElem;
+  const bytes = ctxTokens * layers * bytesPerTokenPerLayer;
+  return bytes / (1024 * 1024);
+}
+
+// P1 + P2 + P3 — Construit le plan de chargement GPU : nombre de couches à
+// offloader (-ngl), type de KV, et placement de la vision. L'override d'env prime
+// toujours. Sans VRAM détectée, dimensionnement prudent (VRAM basse supposée).
+async function computeGpuLoadPlan(model) {
+  const ctx = llmContextSize;
+  const plan = {
+    ngl: 999,
+    nglMode: "all",
+    flashAttn: true,
+    kvType: "f16",
+    kvOnGpu: true,
+    mmprojOnGpu: true,
+    vramTotalMb: null,
+    vramFreeMb: null,
+    layersTotal: null,
+    perLayerMb: null,
+    modelSizeMb: null,
+    kvEstimateMb: null,
+    marginMb: null,
+    source: "override"
+  };
+
+  // 1) Override d'env : prime sur tout le calcul auto (debug / forçage).
+  if (llmGpuLayersOverride != null) {
+    plan.ngl = llmGpuLayersOverride;
+    plan.nglMode = "override";
+    plan.source = "override";
+    lastGpuPlan = plan;
+    logBridgeEvent("llm_vram_plan", { ...plan });
+    return plan;
+  }
+
+  // 2) Métadonnées du modèle (couches + dimensions KV) et taille du fichier.
+  const meta = readGgufMetadata(model);
+  const blockCount = meta.blockCount || fallbackBlockCount(path.basename(model));
+  plan.layersTotal = blockCount;
+  let modelSizeMb = null;
+  try {
+    modelSizeMb = fs.statSync(model).size / (1024 * 1024);
+    plan.modelSizeMb = Math.round(modelSizeMb);
+  } catch (error) {
+    modelSizeMb = null;
+  }
+
+  // 3) VRAM disponible (best-effort). Échec => VRAM basse supposée (prudent).
+  const vram = await detectGpuVram();
+  let totalMb;
+  let freeMb;
+  if (vram) {
+    totalMb = vram.totalMb;
+    freeMb = vram.freeMb;
+    plan.source = meta.blockCount ? "gguf+smi" : "table+smi";
+  } else {
+    totalMb = assumedVramMb;
+    freeMb = assumedVramMb;
+    plan.source = meta.blockCount ? "gguf+assumed" : "table+assumed";
+  }
+  plan.vramTotalMb = Math.round(totalMb);
+  plan.vramFreeMb = Math.round(freeMb);
+
+  // Sans taille de fichier ou sans nombre de couches, impossible de dimensionner :
+  // tout sur GPU (-ngl 999), flash-attn quand même. Prudent mais fonctionnel.
+  if (!modelSizeMb || !blockCount) {
+    lastGpuPlan = plan;
+    logBridgeEvent("llm_vram_plan", { ...plan });
+    return plan;
+  }
+
+  const perLayerMb = modelSizeMb / (blockCount + 2);
+  plan.perLayerMb = Math.round(perLayerMb * 10) / 10;
+  const computeBufferMb = Math.round(vramComputeBufferMb * Math.max(1, ctx / 4096));
+
+  // Combien de couches tiennent, en réservant le buffer de calcul, la réserve
+  // système ET le KV (chemin chaud : il reste collé aux couches sur le GPU).
+  const planFor = (quantized) => {
+    const kvMb = estimateKvMb(meta, ctx, quantized);
+    const kvReserve = kvMb != null ? kvMb : 0;
+    const weightsBudgetMb = freeMb - vramReserveMb - computeBufferMb - kvReserve;
+    const layersThatFit = Math.floor(weightsBudgetMb / perLayerMb);
+    return { kvMb, layersThatFit };
+  };
+
+  // P2 — rétrécir le KV AVANT de sacrifier des couches : fp16 d'abord ; si offload
+  // partiel, retenter en KV quantifié q8_0 (≈ ÷2 du KV) pour regagner des couches.
+  let quantized = false;
+  let step = planFor(false);
+  if (step.layersThatFit < blockCount + 1) {
+    const q = planFor(true);
+    if (q.layersThatFit > step.layersThatFit) {
+      quantized = true;
+      step = q;
+    }
+  }
+
+  const ngl = Math.max(0, Math.min(step.layersThatFit, blockCount + 1));
+  plan.kvType = quantized ? "q8_0" : "f16";
+  plan.kvEstimateMb = step.kvMb != null ? Math.round(step.kvMb) : null;
+  if (ngl >= blockCount + 1) {
+    plan.ngl = 999;
+    plan.nglMode = "all";
+  } else {
+    plan.ngl = ngl;
+    plan.nglMode = "partial";
+  }
+
+  // P3 — vision (mmproj) sur CPU si petit GPU OU si le LLM est déjà en offload
+  // partiel (chaque Mo de VRAM compte). Chemin froid : impact vitesse négligeable.
+  const smallGpu = totalMb <= vramMmprojCpuThresholdMb;
+  plan.mmprojOnGpu = !(smallGpu || plan.nglMode === "partial");
+
+  // Marge estimée = VRAM libre - (poids offloadés + KV + buffer de calcul + réserve).
+  const weightsOnGpuMb = plan.ngl === 999 ? modelSizeMb : ngl * perLayerMb;
+  const kvOnGpuMb = step.kvMb != null ? step.kvMb : 0;
+  plan.marginMb = Math.round(freeMb - vramReserveMb - computeBufferMb - weightsOnGpuMb - kvOnGpuMb);
+
+  lastGpuPlan = plan;
+  logBridgeEvent("llm_vram_plan", { ...plan });
+  return plan;
+}
+
 async function startLlmServer(executable, model, gpu) {
   const baseUrl = `http://${llmServerHost}:${llmServerPort}`;
 
@@ -895,25 +1271,54 @@ async function startLlmServer(executable, model, gpu) {
     return baseUrl;
   }
 
+  // Mode GPU : plan de chargement adaptatif (VRAM détectée -> -ngl calculé, KV,
+  // vision). Recalculé à CHAQUE démarrage, donc aussi après un changement de mode
+  // via /config (applyGpuPreference -> stopLlmServer -> ensureLlmReady). Mode CPU :
+  // pas de plan, -ngl 0.
+  const plan = gpu ? await computeGpuLoadPlan(model) : null;
+  if (!gpu) {
+    lastGpuPlan = null;
+  }
+
   const args = [
     "-m", model,
     "--host", llmServerHost,
     "--port", String(llmServerPort),
     "-c", String(llmContextSize),
     "-t", String(llmThreads),
-    // Mode GPU : offload des couches sur la carte (-ngl N). Mode CPU : -ngl 0.
-    "-ngl", gpu ? String(llmGpuLayers) : "0",
+    // Mode GPU : offload calculé (-ngl N, ou 999 si tout tient). Mode CPU : -ngl 0.
+    "-ngl", gpu ? String(plan.ngl) : "0",
     "--jinja",
     "--no-webui"
   ];
+  if (gpu) {
+    // P2 — flash-attention systématique en mode GPU : réduit le KV et accélère
+    // (aujourd'hui non passé donc « auto » — le forçage garantit le gain).
+    args.push("-fa", "on");
+    // KV quantifié q8_0 quand la VRAM serre (décidé dans le plan).
+    if (plan.kvType === "q8_0") {
+      args.push("-ctk", "q8_0", "-ctv", "q8_0");
+    }
+  }
   // Multimodal : charge le projecteur vision s'il est présent (le modèle peut
   // alors « voir » les images passées dans la requête).
   const mmprojPath = getMmprojPath();
   if (mmprojPath) {
     args.push("--mmproj", mmprojPath);
+    // P3 — vision sur CPU quand la VRAM serre : le LLM reste 100 % GPU (rapide),
+    // seule l'image est encodée sur CPU (rare, ~1× par génération).
+    if (gpu && plan && !plan.mmprojOnGpu) {
+      args.push("--no-mmproj-offload");
+    }
   }
 
-  logBridgeEvent("llm_server_starting", { executable: path.basename(executable), model: path.basename(model), threads: llmThreads, mode: gpu ? "gpu" : "cpu" });
+  logBridgeEvent("llm_server_starting", {
+    executable: path.basename(executable),
+    model: path.basename(model),
+    threads: llmThreads,
+    mode: gpu ? "gpu" : "cpu",
+    ...(gpu ? { ngl: plan.ngl, kvType: plan.kvType, flashAttn: true, mmprojOnGpu: plan.mmprojOnGpu } : {})
+  });
   // Mode CPU (défaut) : build CPU de llama.cpp + -ngl 0, et on MASQUE tout GPU au
   // processus (rien n'est chargé en VRAM). Mode GPU : build CUDA + -ngl N, on ne
   // masque rien pour laisser llama.cpp voir la carte.
