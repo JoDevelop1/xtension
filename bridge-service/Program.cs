@@ -1,4 +1,8 @@
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -42,6 +46,9 @@ internal sealed class BridgeServiceConfig
 
     [JsonPropertyName("restartDelayMs")]
     public int RestartDelayMs { get; set; } = 2000;
+
+    [JsonPropertyName("runBridgeInUserSession")]
+    public bool RunBridgeInUserSession { get; set; } = true;
 
     [JsonPropertyName("environment")]
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -142,6 +149,7 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
     protected override void OnStart(string[] args)
     {
         Directory.CreateDirectory(config.LogDirectory);
+        EnsureBridgeWritablePaths();
         WriteLog("Service starting.");
         stopTokenSource = new CancellationTokenSource();
         supervisorTask = Task.Run(() => RunSupervisorAsync(stopTokenSource.Token));
@@ -228,6 +236,28 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
     {
         Directory.CreateDirectory(config.WorkingDirectory);
 
+        if (config.RunBridgeInUserSession && !Environment.UserInteractive)
+        {
+            try
+            {
+                if (TryStartBridgeProcessInActiveUserSession(out var userProcess))
+                {
+                    return userProcess;
+                }
+            }
+            catch (Exception error)
+            {
+                WriteLog($"Active user launch failed: {error}");
+            }
+
+            WriteLog("Active user launch unavailable; falling back to service account launch.");
+        }
+
+        return StartBridgeProcessWithServiceToken();
+    }
+
+    private Process StartBridgeProcessWithServiceToken()
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = config.BridgeExe,
@@ -271,30 +301,170 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
         return process;
     }
 
-    private void ApplyEnvironment(ProcessStartInfo startInfo)
+    private bool TryStartBridgeProcessInActiveUserSession(out Process process)
     {
-        if (!string.IsNullOrWhiteSpace(config.UserProfile))
+        process = null!;
+        var sessionId = WTSGetActiveConsoleSessionId();
+        if (sessionId == uint.MaxValue)
         {
-            startInfo.Environment["USERPROFILE"] = config.UserProfile;
-            startInfo.Environment["HOME"] = config.UserProfile;
-            startInfo.Environment["APPDATA"] = Path.Combine(config.UserProfile, "AppData", "Roaming");
-            startInfo.Environment["LOCALAPPDATA"] = Path.Combine(config.UserProfile, "AppData", "Local");
-            startInfo.Environment["XTENSION_BRIDGE_USER_HOME"] = config.UserProfile;
-            startInfo.Environment["CODEX_HOME"] = Path.Combine(config.UserProfile, ".codex");
-            AddIfNotBlank(startInfo, "HOMEDRIVE", GetHomeDrive(config.UserProfile));
-            AddIfNotBlank(startInfo, "HOMEPATH", GetHomePath(config.UserProfile));
-            AddIfNotBlank(startInfo, "USERNAME", GetUserNameFromProfile(config.UserProfile));
+            WriteLog("No active console session found.");
+            return false;
         }
 
-        AddPathEntries(startInfo, GetPathAdditions());
+        var userToken = IntPtr.Zero;
+        var primaryToken = IntPtr.Zero;
+        var environmentBlock = IntPtr.Zero;
+        PROCESS_INFORMATION processInfo = default;
+
+        try
+        {
+            if (!WTSQueryUserToken(sessionId, out userToken))
+            {
+                WriteLog($"WTSQueryUserToken failed for session {sessionId}: {GetLastWin32Error()}");
+                return false;
+            }
+
+            if (!DuplicateTokenEx(
+                    userToken,
+                    TokenForPrimaryProcess,
+                    IntPtr.Zero,
+                    SecurityImpersonation,
+                    TokenPrimary,
+                    out primaryToken))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "DuplicateTokenEx failed.");
+            }
+
+            var environment = BuildBridgeEnvironment(CreateUserEnvironment(primaryToken));
+            environmentBlock = CreateNativeEnvironmentBlock(environment);
+
+            var startupInfo = new STARTUPINFO
+            {
+                cb = Marshal.SizeOf<STARTUPINFO>(),
+                lpDesktop = @"winsta0\default"
+            };
+
+            var commandLine = QuoteCommandLine(config.BridgeExe);
+            if (!CreateProcessAsUser(
+                    primaryToken,
+                    config.BridgeExe,
+                    commandLine,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    false,
+                    CreateNoWindow | CreateUnicodeEnvironment,
+                    environmentBlock,
+                    config.WorkingDirectory,
+                    ref startupInfo,
+                    out processInfo))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateProcessAsUser failed.");
+            }
+
+            process = Process.GetProcessById((int)processInfo.dwProcessId);
+            WriteLog($"Bridge process started in active user session {sessionId}: pid={process.Id}");
+            return true;
+        }
+        finally
+        {
+            if (processInfo.hProcess != IntPtr.Zero)
+            {
+                CloseHandle(processInfo.hProcess);
+            }
+
+            if (processInfo.hThread != IntPtr.Zero)
+            {
+                CloseHandle(processInfo.hThread);
+            }
+
+            if (environmentBlock != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(environmentBlock);
+            }
+
+            if (primaryToken != IntPtr.Zero)
+            {
+                CloseHandle(primaryToken);
+            }
+
+            if (userToken != IntPtr.Zero)
+            {
+                CloseHandle(userToken);
+            }
+        }
+    }
+
+    private void ApplyEnvironment(ProcessStartInfo startInfo)
+    {
+        var environment = BuildBridgeEnvironment(startInfo.Environment.Select(item =>
+            new KeyValuePair<string, string?>(item.Key, item.Value)));
+        startInfo.Environment.Clear();
+        foreach (var item in environment)
+        {
+            startInfo.Environment[item.Key] = item.Value;
+        }
+    }
+
+    private Dictionary<string, string> BuildBridgeEnvironment(IEnumerable<KeyValuePair<string, string?>> baseEnvironment)
+    {
+        var environment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in baseEnvironment)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Key))
+            {
+                environment[item.Key] = item.Value ?? "";
+            }
+        }
 
         foreach (var item in config.EnvironmentVariables)
         {
             if (!string.IsNullOrWhiteSpace(item.Key))
             {
-                startInfo.Environment[item.Key] = item.Value ?? "";
+                environment[item.Key] = item.Value ?? "";
             }
         }
+
+        if (!string.IsNullOrWhiteSpace(config.UserProfile))
+        {
+            environment["USERPROFILE"] = config.UserProfile;
+            environment["HOME"] = config.UserProfile;
+            environment["APPDATA"] = Path.Combine(config.UserProfile, "AppData", "Roaming");
+            environment["LOCALAPPDATA"] = Path.Combine(config.UserProfile, "AppData", "Local");
+            environment["XTENSION_BRIDGE_USER_HOME"] = config.UserProfile;
+            AddIfNotBlank(environment, "HOMEDRIVE", GetHomeDrive(config.UserProfile));
+            AddIfNotBlank(environment, "HOMEPATH", GetHomePath(config.UserProfile));
+            AddIfNotBlank(environment, "USERNAME", GetUserNameFromProfile(config.UserProfile));
+        }
+
+        AddPathEntries(environment, GetPathAdditions());
+        return environment;
+    }
+
+    private IEnumerable<KeyValuePair<string, string?>> CreateUserEnvironment(IntPtr primaryToken)
+    {
+        var nativeEnvironment = IntPtr.Zero;
+        try
+        {
+            if (CreateEnvironmentBlock(out nativeEnvironment, primaryToken, false))
+            {
+                return ParseNativeEnvironmentBlock(nativeEnvironment).ToList();
+            }
+
+            WriteLog($"CreateEnvironmentBlock failed: {GetLastWin32Error()}");
+        }
+        finally
+        {
+            if (nativeEnvironment != IntPtr.Zero)
+            {
+                DestroyEnvironmentBlock(nativeEnvironment);
+            }
+        }
+
+        return Environment.GetEnvironmentVariables()
+            .Cast<System.Collections.DictionaryEntry>()
+            .Select(item => new KeyValuePair<string, string?>(
+                Convert.ToString(item.Key) ?? "",
+                Convert.ToString(item.Value)));
     }
 
     private IEnumerable<string> GetPathAdditions()
@@ -305,15 +475,14 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
         {
             yield return Path.Combine(config.UserProfile, "AppData", "Roaming", "npm");
             yield return Path.Combine(config.UserProfile, ".local", "bin");
-            yield return Path.Combine(config.UserProfile, ".grok", "bin");
         }
     }
 
-    private static void AddIfNotBlank(ProcessStartInfo startInfo, string key, string value)
+    private static void AddIfNotBlank(IDictionary<string, string> environment, string key, string value)
     {
         if (!string.IsNullOrWhiteSpace(value))
         {
-            startInfo.Environment[key] = value;
+            environment[key] = value;
         }
     }
 
@@ -342,11 +511,11 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
         return Path.GetFileName(userProfile.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     }
 
-    private static void AddPathEntries(ProcessStartInfo startInfo, IEnumerable<string> additions)
+    private static void AddPathEntries(IDictionary<string, string> environment, IEnumerable<string> additions)
     {
-        var existingPath = startInfo.Environment.TryGetValue("PATH", out var upperPath)
+        var existingPath = environment.TryGetValue("PATH", out var upperPath)
             ? upperPath
-            : startInfo.Environment.TryGetValue("Path", out var mixedPath)
+            : environment.TryGetValue("Path", out var mixedPath)
                 ? mixedPath
                 : "";
 
@@ -356,8 +525,125 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
         var nextPath = string.Join(Path.PathSeparator, entries);
-        startInfo.Environment["PATH"] = nextPath;
-        startInfo.Environment["Path"] = nextPath;
+        environment["PATH"] = nextPath;
+        environment["Path"] = nextPath;
+    }
+
+    private void EnsureBridgeWritablePaths()
+    {
+        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            config.LogDirectory
+        };
+
+        AddDirectoryFromEnvironment(directories, "XTENSION_BRIDGE_LOG_FILE", isFilePath: true);
+        AddDirectoryFromEnvironment(directories, "TEMP", isFilePath: false);
+        AddDirectoryFromEnvironment(directories, "TMP", isFilePath: false);
+
+        foreach (var directory in directories.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            try
+            {
+                GrantBuiltInUsersModify(directory);
+            }
+            catch (Exception error)
+            {
+                WriteLog($"Could not update ACL for {directory}: {error.Message}");
+            }
+        }
+    }
+
+    private void AddDirectoryFromEnvironment(HashSet<string> directories, string key, bool isFilePath)
+    {
+        if (!config.EnvironmentVariables.TryGetValue(key, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+        {
+            return;
+        }
+
+        var expandedValue = Environment.ExpandEnvironmentVariables(rawValue);
+        var directory = isFilePath ? Path.GetDirectoryName(expandedValue) : expandedValue;
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            directories.Add(directory);
+        }
+    }
+
+    private static void GrantBuiltInUsersModify(string directoryPath)
+    {
+        Directory.CreateDirectory(directoryPath);
+        var usersSid = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
+        var directoryInfo = new DirectoryInfo(directoryPath);
+        var directorySecurity = directoryInfo.GetAccessControl(AccessControlSections.Access);
+        directorySecurity.AddAccessRule(new FileSystemAccessRule(
+            usersSid,
+            FileSystemRights.Modify,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+        directoryInfo.SetAccessControl(directorySecurity);
+
+        foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly))
+        {
+            var fileInfo = new FileInfo(filePath);
+            var fileSecurity = fileInfo.GetAccessControl(AccessControlSections.Access);
+            fileSecurity.AddAccessRule(new FileSystemAccessRule(
+                usersSid,
+                FileSystemRights.Modify,
+                AccessControlType.Allow));
+            fileInfo.SetAccessControl(fileSecurity);
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<string, string?>> ParseNativeEnvironmentBlock(IntPtr environmentBlock)
+    {
+        var offset = 0;
+        while (true)
+        {
+            var entry = Marshal.PtrToStringUni(IntPtr.Add(environmentBlock, offset));
+            if (string.IsNullOrEmpty(entry))
+            {
+                yield break;
+            }
+
+            var separatorIndex = entry.StartsWith("=", StringComparison.Ordinal)
+                ? entry.IndexOf('=', 1)
+                : entry.IndexOf('=');
+            if (separatorIndex > 0)
+            {
+                yield return new KeyValuePair<string, string?>(
+                    entry[..separatorIndex],
+                    entry[(separatorIndex + 1)..]);
+            }
+
+            offset += (entry.Length + 1) * sizeof(char);
+        }
+    }
+
+    private static IntPtr CreateNativeEnvironmentBlock(Dictionary<string, string> environment)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var item in environment.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(item.Key) || item.Key.Contains('=') || item.Key.Contains('\0'))
+            {
+                continue;
+            }
+
+            builder.Append(item.Key).Append('=').Append(item.Value ?? "").Append('\0');
+        }
+
+        builder.Append('\0');
+        return Marshal.StringToHGlobalUni(builder.ToString());
+    }
+
+    private static string QuoteCommandLine(string value)
+    {
+        return "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static string GetLastWin32Error()
+    {
+        return new Win32Exception(Marshal.GetLastWin32Error()).Message;
     }
 
     private void StopBridgeProcess()
@@ -429,5 +715,86 @@ internal sealed class XtensionBridgeWindowsService : ServiceBase
         }
 
         return value[..Math.Max(0, maxLength - 3)] + "...";
+    }
+
+    private const uint TokenAssignPrimary = 0x0001;
+    private const uint TokenDuplicate = 0x0002;
+    private const uint TokenQuery = 0x0008;
+    private const uint TokenAdjustDefault = 0x0080;
+    private const uint TokenAdjustSessionId = 0x0100;
+    private const uint TokenForPrimaryProcess = TokenAssignPrimary | TokenDuplicate | TokenQuery | TokenAdjustDefault | TokenAdjustSessionId;
+    private const int SecurityImpersonation = 2;
+    private const int TokenPrimary = 1;
+    private const uint CreateUnicodeEnvironment = 0x00000400;
+    private const uint CreateNoWindow = 0x08000000;
+
+    [DllImport("kernel32.dll")]
+    private static extern uint WTSGetActiveConsoleSessionId();
+
+    [DllImport("wtsapi32.dll", SetLastError = true)]
+    private static extern bool WTSQueryUserToken(uint sessionId, out IntPtr token);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool DuplicateTokenEx(
+        IntPtr existingToken,
+        uint desiredAccess,
+        IntPtr tokenAttributes,
+        int impersonationLevel,
+        int tokenType,
+        out IntPtr newToken);
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool CreateProcessAsUser(
+        IntPtr token,
+        string applicationName,
+        string commandLine,
+        IntPtr processAttributes,
+        IntPtr threadAttributes,
+        bool inheritHandles,
+        uint creationFlags,
+        IntPtr environment,
+        string currentDirectory,
+        ref STARTUPINFO startupInfo,
+        out PROCESS_INFORMATION processInformation);
+
+    [DllImport("userenv.dll", SetLastError = true)]
+    private static extern bool CreateEnvironmentBlock(out IntPtr environment, IntPtr token, bool inherit);
+
+    [DllImport("userenv.dll", SetLastError = true)]
+    private static extern bool DestroyEnvironmentBlock(IntPtr environment);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr handle);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct STARTUPINFO
+    {
+        public int cb;
+        public string? lpReserved;
+        public string? lpDesktop;
+        public string? lpTitle;
+        public int dwX;
+        public int dwY;
+        public int dwXSize;
+        public int dwYSize;
+        public int dwXCountChars;
+        public int dwYCountChars;
+        public int dwFillAttribute;
+        public int dwFlags;
+        public short wShowWindow;
+        public short cbReserved2;
+        public IntPtr lpReserved2;
+        public IntPtr hStdInput;
+        public IntPtr hStdOutput;
+        public IntPtr hStdError;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PROCESS_INFORMATION
+    {
+        public IntPtr hProcess;
+        public IntPtr hThread;
+        public uint dwProcessId;
+        public uint dwThreadId;
     }
 }

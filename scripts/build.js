@@ -8,7 +8,7 @@ const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.4.16";
+const version = "0.5.0";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",
@@ -42,6 +42,10 @@ const shared = {
       run_at: "document_idle"
     }
   ],
+  // Pont monde-principal (world: MAIN) : permet d'écrire dans le ContentState de
+  // Draft.js via son onChange React (seule méthode qui garde le texte éditable).
+  // Ajouté aux cibles Chromium uniquement (chromiumShared) ; Firefox < 128 ne
+  // supporte pas world: MAIN dans les content_scripts et retombe sur execCommand.
   web_accessible_resources: [
     {
       resources: ["pdf-menu-icon.png", "flags/*.svg"],
@@ -57,7 +61,16 @@ const shared = {
 };
 
 const chromiumShared = {
-  ...shared
+  ...shared,
+  content_scripts: [
+    ...shared.content_scripts,
+    {
+      matches: contentMatches,
+      js: ["main-world.js"],
+      run_at: "document_start",
+      world: "MAIN"
+    }
+  ]
 };
 
 const targets = {
@@ -133,7 +146,7 @@ function copyDirectory(from, to) {
 }
 
 function copyExtensionFiles(targetDir) {
-  const files = ["background.js", "content.js", "content.css", "options.html", "options.js", "options.css", "popup.html", "popup.css", "popup.js"];
+  const files = ["background.js", "content.js", "main-world.js", "content.css", "options.html", "options.js", "options.css", "popup.html", "popup.css", "popup.js"];
 
   for (const file of files) {
     copyFile(path.join(src, file), path.join(targetDir, file));

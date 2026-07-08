@@ -1,6 +1,6 @@
 # Security
 
-Xtension does not collect data and does not communicate with a third-party application server.
+Xtension does not collect data and does not communicate with a third-party application server. The optional AI draft tools and dictation run entirely on the user's own computer through the local Xtension Bridge; no text or audio leaves the machine, and there is no API key or cloud AI provider.
 
 To report a vulnerability:
 

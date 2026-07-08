@@ -2,25 +2,25 @@
 
 Xtension does not collect, sell, or store personal data on a developer server.
 
-The extension runs in the browser on X/Twitter pages. PDF export is processed locally. AI reply and draft tools are optional and use the local Xtension Bridge when the user installs and runs it on Windows.
+The extension runs in the browser on X/Twitter pages. PDF export is processed locally. The draft tools (correction, translation, reformulation) and voice dictation are optional and run entirely on the user's own computer through the local Xtension Bridge, which the user installs and runs on Windows. No text or audio is sent to any server.
 
 ## Data Processed Locally
 
 - Visible text from the selected X/Twitter article, tweet, reply composer, or thread.
 - Source URL of the selected content.
 - Public images, avatars, card images, and video preview thumbnails displayed in the selected content.
-- User draft text when the user asks Xtension to correct, translate, or generate a draft.
-- Extension settings stored in browser extension storage, including bridge URL, optional bridge token, selected provider, and selected model.
+- User draft text when the user asks Xtension to correct, translate, or reformulate a draft.
+- Voice recordings captured for dictation, transcribed locally and then discarded.
+- Extension settings stored in browser extension storage, including the local engine URL and an optional engine token.
 
-## Optional AI Provider Requests
+## Local AI Processing
 
-When AI tools are enabled, Xtension sends the visible X/Twitter context and user draft text to the bridge running on the user's own computer:
+When the draft tools or dictation are enabled, Xtension sends the visible X/Twitter context, user draft text, or voice recording to the Xtension Bridge running on the user's own computer:
 
-- The bridge is bound to `127.0.0.1` by default.
-- The bridge calls the selected desktop CLI already installed by the user: Codex, Grok, Gemini, or Claude.
+- The bridge is bound to `127.0.0.1` and is only reachable from the local machine.
+- The bridge runs a small AI model locally (via llama.cpp) for text tasks and a local speech-to-text engine (whisper) for dictation. The model is downloaded once from a public model host, then runs offline.
+- Nothing is sent to Xtension, to the developer, or to any third-party AI server. There is no API key and no cloud provider.
 - The extension itself cannot execute local commands.
-
-Xtension does not provide, install, or operate the selected AI provider. Provider request handling is governed by the user's CLI installation and account.
 
 ## Data Not Collected by Xtension
 

@@ -62,8 +62,7 @@ if (-not $UserProfile) {
 if (-not $BridgeExe) {
   $BridgeExe = Resolve-ExistingPath @(
     (Join-Path $PSScriptRoot "XtensionBridge.exe"),
-    (Join-Path $repoRoot "dist\bridge\XtensionBridge.exe"),
-    (Join-Path $repoRoot "dist\bridge\XtensionCodexBridge.exe")
+    (Join-Path $repoRoot "dist\bridge\XtensionBridge.exe")
   )
 }
 if (-not $ServiceExe) {
@@ -81,8 +80,9 @@ if (-not $ServiceExe -or -not (Test-Path -LiteralPath $ServiceExe -PathType Leaf
   throw "Service host executable not found. Run npm run bridge:service:build first."
 }
 
-$logDir = Join-Path $env:ProgramData "Xtension\Bridge\logs"
-$tempDir = Join-Path $env:ProgramData "Xtension\Bridge\temp"
+$dataDir = Join-Path $env:ProgramData "Xtension\Bridge"
+$logDir = Join-Path $dataDir "logs"
+$tempDir = Join-Path $dataDir "temp"
 $targetBridge = Join-Path $InstallDir "XtensionBridge.exe"
 $targetService = Join-Path $InstallDir "XtensionBridgeService.exe"
 $targetConfig = Join-Path $InstallDir "bridge-service.json"
@@ -90,6 +90,7 @@ $targetConfig = Join-Path $InstallDir "bridge-service.json"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+& icacls.exe $dataDir /grant "*S-1-5-32-545:(OI)(CI)M" /T /C | Out-Null
 
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existing) {
@@ -103,26 +104,21 @@ if ($existing) {
 
 Unregister-ScheduledTask -TaskName $ServiceName -Confirm:$false -ErrorAction SilentlyContinue
 
+# Kill any lingering bridge or service processes that would keep the target .exe locked.
+Get-Process -Name "XtensionBridge", "XtensionBridgeService" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 600
+
 Copy-Item -LiteralPath $BridgeExe -Destination $targetBridge -Force
 Copy-Item -LiteralPath $ServiceExe -Destination $targetService -Force
-
-$codexCli = Resolve-CommandPath "codex" @(
-  (Join-Path $UserProfile "AppData\Roaming\npm\codex.cmd")
-)
-$grokCli = Resolve-CommandPath "grok" @(
-  (Join-Path $UserProfile ".grok\bin\grok.exe")
-)
-$geminiCli = Resolve-CommandPath "gemini" @(
-  (Join-Path $UserProfile "AppData\Roaming\npm\gemini.cmd")
-)
-$claudeCli = Resolve-CommandPath "claude" @(
-  (Join-Path $UserProfile ".local\bin\claude.exe")
-)
 
 $environment = [ordered]@{
   XTENSION_BRIDGE_PORT = [string]$Port
   XTENSION_BRIDGE_LOG_FILE = (Join-Path $logDir "bridge.log")
-  CODEX_HOME = (Join-Path $UserProfile ".codex")
+  USERPROFILE = $UserProfile
+  HOME = $UserProfile
+  APPDATA = (Join-Path $UserProfile "AppData\Roaming")
+  LOCALAPPDATA = (Join-Path $UserProfile "AppData\Local")
+  XTENSION_BRIDGE_USER_HOME = $UserProfile
   HOMEDRIVE = [IO.Path]::GetPathRoot($UserProfile).TrimEnd("\")
   HOMEPATH = $UserProfile.Substring(([IO.Path]::GetPathRoot($UserProfile).TrimEnd("\")).Length)
   USERNAME = Split-Path -Leaf $UserProfile
@@ -133,18 +129,6 @@ $environment = [ordered]@{
 if ($BridgeToken) {
   $environment.XTENSION_BRIDGE_TOKEN = $BridgeToken
 }
-if ($codexCli) {
-  $environment.CODEX_CLI = $codexCli
-}
-if ($grokCli) {
-  $environment.GROK_CLI = $grokCli
-}
-if ($geminiCli) {
-  $environment.GEMINI_CLI = $geminiCli
-}
-if ($claudeCli) {
-  $environment.CLAUDE_CLI = $claudeCli
-}
 
 $config = [ordered]@{
   bridgeExe = $targetBridge
@@ -152,6 +136,7 @@ $config = [ordered]@{
   userProfile = $UserProfile
   logDirectory = $logDir
   restartDelayMs = 2000
+  runBridgeInUserSession = $true
   environment = $environment
 }
 

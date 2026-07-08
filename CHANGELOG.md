@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0
+
+- Moves all AI features to a fully local engine: the Xtension Bridge now runs a compact model (Gemma 3 4B via llama.cpp) on the user's own computer for correction, translation, and post reformulation, plus local speech-to-text for voice dictation. No cloud, no API key, no data leaves the machine.
+- Rebuilds voice dictation around Parakeet TDT 0.6B v3 (ggml, CPU-only): a spoken phrase now appears in about one second instead of up to thirty, with live interim text while you are still speaking (refreshed every ~1.2 s and replaced by the final phrase at each pause).
+- Eliminates the "Thank you." / "Sous-titres réalisés par la communauté d'Amara.org" endings: silence and noise produce no text at all (transducer engine that emits nothing without speech, plus an energy gate, Silero VAD on the whisper fallback, and a hallucination filter).
+- Keeps a whisper.cpp fallback (small-q5_1, resident server, adaptive encoder window, per-session pinned language) for languages Parakeet does not cover; the browser locale is only a routing hint and the spoken language is still auto-detected.
+- Warms up the dictation engine and the text model as soon as the composer opens, so the first microphone click and the first correction are already fast.
+- Removes the multi-provider system (Codex, Grok, Gemini, Claude) and the Grok sign-in/reconnect flow.
+- Removes the reply-suggestions panel; the composer keeps Correction, Translation, Reformulation, and Dictation.
+- Simplifies the options page: no provider or model menus, just the enable toggle, draft language, and local engine status.
+
 ## v0.4.15
 
 - Starts each X/Twitter thread tweet on a new page when its text and images would otherwise split across pages.

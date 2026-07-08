@@ -17,11 +17,17 @@
   const DRAFT_ACTIONS_ATTRIBUTE = "data-xtension-draft-actions";
   const DRAFT_ACTIONS_HOST_SELECTOR = "[data-xtension-draft-actions-host]";
   const DRAFT_ACTIONS_HOST_ATTRIBUTE = "data-xtension-draft-actions-host";
-  const DRAFT_ACTIONS_HOST_VERSION = "composer-submit-cleanup-v2";
+  const DRAFT_ACTIONS_HOST_VERSION = "composer-submit-cleanup-v3";
   const CONTENT_BUILD_ATTRIBUTE = "data-xtension-content-build";
   const DRAFT_ACTION_BUTTON_ATTRIBUTE = "data-xtension-draft-action-button";
   const DRAFT_GENERATION_LANGUAGE_STORAGE_KEY = "draftGenerationLanguage";
   const DRAFT_ACTION_TIMINGS_STORAGE_KEY = "draftActionTimings";
+  const DRAFT_DICTATION_MIME_TYPE_CANDIDATES = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4"
+  ];
   const REPLY_SUGGESTIONS_HIDDEN_STORAGE_KEY = "replySuggestionsHidden";
   const REPLY_SUGGESTIONS_PANEL_SELECTOR = "[data-xtension-reply-suggestions]";
   const REPLY_SUGGESTIONS_PANEL_ATTRIBUTE = "data-xtension-reply-suggestions";
@@ -36,11 +42,18 @@
     generate: 18000
   };
   const DRAFT_ACTION_ICON_SVGS = {
+    dictate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1M12 18v3M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     correct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     translate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11.5 5c-.7 2.7-2.6 5.2-5.5 7.2M6.5 8.2c1 1.4 2.2 2.5 3.8 3.4M14 19l3.2-8 3.3 8M15.1 16.4h4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     generate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 13.8 8l5.2 1.8-5.2 1.8L12 16.8l-1.8-5.2L5 9.8 10.2 8 12 2.8ZM5.5 14.5l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4ZM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7L18 15Z" fill="currentColor"/></svg>',
     suggestions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14M5 12h10M5 17.5h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M18 15.5 19.2 18l2.3 1-2.3 1-1.2 2.5-1.2-2.5-2.3-1 2.3-1 1.2-2.5Z" fill="currentColor"/></svg>',
-    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7H4v4M4.6 10.4A8 8 0 1 0 7.4 5.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8.5 4 13l4.5 4.5M4 13h10.5a4.5 4.5 0 0 0 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 8.5 20 13l-4.5 4.5M20 13H9.5a4.5 4.5 0 0 1 0-9H12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  // Émoticônes pour Annuler/Rétablir (flèches sur fond bleu), demandées explicitement.
+  const DRAFT_ACTION_EMOJI = {
+    undo: "↩️",
+    redo: "↪️"
   };
   const DRAFT_GENERATION_LANGUAGES = [
     { id: "auto", iconPath: "flags/auto.svg", code: "AUTO", nativeName: "Auto", labelKey: "draftLanguageAuto", fallback: "Auto" },
@@ -148,6 +161,7 @@
   let extensionContextInvalidated = false;
   let lastEnhancedPathname = "";
   let statusPageScrollToken = 0;
+  let activeDraftDictationSession = null;
 
   function start() {
     if (extensionContextInvalidated) {
@@ -452,6 +466,9 @@
   }
 
   function removeDraftActionHost(host) {
+    if (activeDraftDictationSession?.button && host?.contains?.(activeDraftDictationSession.button)) {
+      stopDraftDictationSession(activeDraftDictationSession, { abort: true });
+    }
     host?.querySelectorAll?.(".xtension-draft-language-picker").forEach(removeDraftLanguageMenuForPicker);
     host?.remove?.();
   }
@@ -986,7 +1003,7 @@
       button.setAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE, action.id);
       button.title = label;
       button.setAttribute("aria-label", label);
-      if (action.id === "suggestions") {
+      if (action.id === "suggestions" || action.id === "dictate") {
         button.setAttribute("aria-pressed", "false");
       }
       button.append(createDraftActionIcon(action.id));
@@ -1000,11 +1017,28 @@
     });
 
     wrapper.append(createDraftGenerationLanguagePicker());
+    // Démarre l'enregistrement de l'historique du texte (pour Annuler/Rétablir)
+    // dès que la barre d'outils apparaît sur un composeur.
+    ensureDraftHistory(editor);
+    // Préchauffe le bridge (LLM + moteur de dictée) dès que le composeur
+    // apparaît : la première correction et le premier clic micro sont à chaud.
+    warmupBridgeSoon();
     getReplySuggestionsHidden().then(() => {
       updateReplySuggestionsToggleButtons(editor);
     }).catch(() => {});
 
     return wrapper;
+  }
+
+  let lastBridgeWarmupAt = 0;
+
+  function warmupBridgeSoon() {
+    const now = Date.now();
+    if (now - lastBridgeWarmupAt < 5 * 60 * 1000) {
+      return;
+    }
+    lastBridgeWarmupAt = now;
+    sendRuntimeMessage({ type: "xtension-warmup-bridge" }).catch(() => {});
   }
 
   function stopDraftActionButtonEvent(event) {
@@ -1029,7 +1063,11 @@
 
   async function activateDraftActionButton(button, fallbackEditor, action) {
     const now = Date.now();
-    if (button._xtensionDraftActionLastActivatedAt && now - button._xtensionDraftActionLastActivatedAt < 450) {
+    // Annuler/Rétablir sont peu coûteux et destinés à être cliqués en rafale :
+    // throttle court. Les autres actions (correction/traduction) restent bridées
+    // pour éviter un double déclenchement onéreux.
+    const throttleMs = action === "undo" || action === "redo" ? 120 : 450;
+    if (button._xtensionDraftActionLastActivatedAt && now - button._xtensionDraftActionLastActivatedAt < throttleMs) {
       return;
     }
 
@@ -1039,17 +1077,36 @@
 
   function createDraftActionIcon(action) {
     const icon = document.createElement("span");
-    const actionId = normalizeDraftAction(action);
+    const rawId = cleanText(action).toLowerCase();
 
     icon.className = "xtension-draft-action-icon";
     icon.setAttribute("aria-hidden", "true");
+    // Annuler/Rétablir : émoticône (flèche), pas une icône SVG monochrome.
+    if (DRAFT_ACTION_EMOJI[rawId]) {
+      icon.classList.add("is-emoji");
+      icon.textContent = DRAFT_ACTION_EMOJI[rawId];
+      return icon;
+    }
+    // Ne PAS rabattre via normalizeDraftAction (qui renverrait "correct" -> coche)
+    // pour les identifiants qui ont leur propre icône (ex. undo/redo en SVG).
+    const actionId = DRAFT_ACTION_ICON_SVGS[rawId] ? rawId : normalizeDraftAction(action);
     icon.innerHTML = DRAFT_ACTION_ICON_SVGS[actionId] || DRAFT_ACTION_ICON_SVGS.generate;
     return icon;
   }
 
   function renderDraftActionButtonIcon(button, action) {
-    const actionId = normalizeDraftAction(action);
-    const iconId = button.classList.contains("is-undo") ? "undo" : actionId;
+    const rawId = cleanText(action).toLowerCase();
+    if (DRAFT_ACTION_EMOJI[rawId]) {
+      const emojiIcon = button.querySelector(".xtension-draft-action-icon") || createDraftActionIcon(rawId);
+      emojiIcon.classList.add("is-emoji");
+      emojiIcon.textContent = DRAFT_ACTION_EMOJI[rawId];
+      if (!emojiIcon.isConnected) {
+        button.replaceChildren(emojiIcon);
+      }
+      return;
+    }
+    const normalizedId = DRAFT_ACTION_ICON_SVGS[rawId] ? rawId : normalizeDraftAction(action);
+    const iconId = button.classList.contains("is-undo") ? "undo" : normalizedId;
     const icon = button.querySelector(".xtension-draft-action-icon") || createDraftActionIcon(iconId);
 
     icon.innerHTML = DRAFT_ACTION_ICON_SVGS[iconId] || DRAFT_ACTION_ICON_SVGS.generate;
@@ -1417,6 +1474,13 @@
   function getDraftActionDefinitions() {
     return [
       {
+        id: "dictate",
+        labelKey: "dictationButtonLabel",
+        activeLabelKey: "dictationButtonStopLabel",
+        fallback: "Dictate",
+        activeFallback: "Stop dictation"
+      },
+      {
         id: "correct",
         messageType: "xtension-correct-reply-draft",
         responseKey: "correctedText",
@@ -1462,9 +1526,14 @@
         unchangedFallback: "The generated reply did not change the draft."
       },
       {
-        id: "suggestions",
-        labelKey: "suggestionsButtonLabel",
-        fallback: "Suggestions"
+        id: "undo",
+        labelKey: "draftUndoButtonLabel",
+        fallback: "Undo"
+      },
+      {
+        id: "redo",
+        labelKey: "draftRedoButtonLabel",
+        fallback: "Redo"
       }
     ];
   }
@@ -1848,97 +1917,18 @@
   }
 
   async function showReplySuggestions(editor, tweet) {
-    const activeEditor = resolveLiveReplyEditor(editor) || editor;
-    if (await getReplySuggestionsHidden()) {
-      updateReplySuggestionsToggleButtons(activeEditor);
-      return;
-    }
-
-    if (activeEditor?._xtensionReplySuggestionsPromise) {
-      await activeEditor._xtensionReplySuggestionsPromise.catch(() => false);
-      return;
-    }
-
-    const panel = createReplySuggestionsPanel(activeEditor);
-    const generationPromise = (async () => {
-      setReplySuggestionsPanelLoading(panel, "preparing");
-      placeReplySuggestionsPanel(activeEditor, panel);
-
-      try {
-        const context = await collectReplySuggestionContext(tweet);
-        await showReplySuggestionsForContext(activeEditor, context, panel);
-      } catch (error) {
-        setReplySuggestionsPanelError(panel, "generation_failed", error?.message || "");
-      }
-    })();
-
-    activeEditor._xtensionReplySuggestionsPromise = generationPromise;
-    try {
-      await generationPromise;
-    } finally {
-      if (activeEditor._xtensionReplySuggestionsPromise === generationPromise) {
-        activeEditor._xtensionReplySuggestionsPromise = null;
-      }
-    }
+    // Suggestions de réponses retirées.
+    return;
   }
 
   async function showReplySuggestionsForDraftEditor(editor, options = {}) {
-    const target = findEditableReplyEditor(editor) || editor;
-    if (options.force) {
-      await setReplySuggestionsHidden(false);
-    } else if (await getReplySuggestionsHidden()) {
-      updateReplySuggestionsToggleButtons(target);
-      return false;
-    }
-
-    const existingPanel = getReplySuggestionsPanelForEditor(target);
-    if (existingPanel && !options.force) {
-      showReplySuggestionsPanel(existingPanel, target);
-      attachReplySuggestionsPanel(target, existingPanel);
-      positionReplySuggestionsPanel(target, existingPanel);
-      return true;
-    }
-    if (existingPanel && options.force) {
-      removeReplySuggestionsPanel(existingPanel);
-    }
-
-    if (target?._xtensionReplySuggestionsPromise) {
-      await target._xtensionReplySuggestionsPromise.catch(() => false);
-      return true;
-    }
-
-    const generationPromise = showReplySuggestionsForDraftEditorOnce(target, options);
-    if (target) {
-      target._xtensionReplySuggestionsPromise = generationPromise;
-    }
-
-    try {
-      return await generationPromise;
-    } finally {
-      if (target?._xtensionReplySuggestionsPromise === generationPromise) {
-        target._xtensionReplySuggestionsPromise = null;
-      }
-    }
+    // Suggestions de réponses retirées.
+    return false;
   }
 
   async function toggleReplySuggestionsForDraftEditor(editor) {
-    const target = findEditableReplyEditor(editor) || editor;
-    const panel = getReplySuggestionsPanelForEditor(target);
-    if (panel) {
-      if (panel.hidden || await getReplySuggestionsHidden()) {
-        await setReplySuggestionsHidden(false);
-        showReplySuggestionsPanel(panel, target);
-        return true;
-      }
-
-      await hideReplySuggestionsPanel(panel, true);
-      return false;
-    }
-
-    await setReplySuggestionsHidden(false);
-    return await showReplySuggestionsForDraftEditor(target, {
-      instruction: getReplyEditorText(target)
-    });
+    // Suggestions de réponses retirées.
+    return false;
   }
 
   async function showReplySuggestionsForDraftEditorOnce(target, options = {}) {
@@ -2007,22 +1997,24 @@
         }).then((response) => {
           if (!response?.ok) {
             setReplySuggestionsPanelProfileError(panel, index, response?.error || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
-            return false;
+            return { ok: false, code: cleanText(response?.code || "") };
           }
 
           setReplySuggestionsPanelProfileReply(panel, panel._xtensionReplyEditor || activeEditor, index, response.reply);
-          return true;
+          return { ok: true, code: "" };
         }).catch((error) => {
           setReplySuggestionsPanelProfileError(panel, index, error?.message || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
-          return false;
+          return { ok: false, code: cleanText(error?.code || "") };
         });
       });
 
       const results = await Promise.allSettled(tasks);
-      const hasReply = results.some((result) => result.status === "fulfilled" && result.value);
+      const outcomes = results.map((result) => (result.status === "fulfilled" ? result.value : { ok: false, code: "" }));
+      const hasReply = outcomes.some((outcome) => outcome?.ok);
       finishReplySuggestionsPanelStreaming(panel);
       if (!hasReply) {
-        setReplySuggestionsPanelError(panel, "generation_failed", localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+        const setupCode = outcomes.map((outcome) => outcome?.code).find((code) => isReplyAiSetupErrorCode(code));
+        setReplySuggestionsPanelError(panel, setupCode || "generation_failed", localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
       }
     } catch (error) {
       setReplySuggestionsPanelError(panel, "generation_failed", error?.message || "");
@@ -3312,6 +3304,7 @@
     positionReplySuggestionsPanel(panel._xtensionReplyEditor, panel);
   }
 
+
   function createReplyAiConfigureButton() {
     const configure = document.createElement("button");
     configure.type = "button";
@@ -3326,10 +3319,13 @@
   }
 
   function isReplyAiSetupErrorCode(code) {
-    return code === "not_configured" || code === "bridge_unreachable";
+    return code === "not_configured" || code === "bridge_unreachable" || code === "provider_login_required";
   }
 
   function getReplyAiSetupErrorMessage(code) {
+    if (code === "provider_login_required") {
+      return localizedText("replyAiProviderLoginRequired", "The AI provider is signed out. Click Reconnect to open a sign-in window on your computer, then request the suggestions again.");
+    }
     if (code === "bridge_unreachable") {
       return localizedText("replyAiBridgeUnavailable", "Xtension Bridge is not running. Open Xtension options to install or start it, then try again.");
     }
@@ -3709,11 +3705,94 @@
     });
   }
 
+  function connectRuntimePort(name) {
+    try {
+      const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
+      return runtime?.connect ? runtime.connect({ name }) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Génération en STREAMING : ouvre un port, affiche le texte au fil de l'eau dans
+  // l'éditeur (via le pont Draft, throttlé à ~70 ms), et résout avec le texte
+  // FINAL. Résout null si le streaming est indisponible/échoue -> l'appelant
+  // retombe sur le chemin message classique (la génération marche donc toujours).
+  function streamGenerateReplyText(payload, editor) {
+    return new Promise((resolve) => {
+      const port = connectRuntimePort("xtension-generate-stream");
+      if (!port) {
+        resolve(null);
+        return;
+      }
+      const target = findEditableReplyEditor(editor);
+      let settled = false;
+      let lastRenderAt = 0;
+
+      const finish = (value) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        try { port.disconnect(); } catch (error) { /* ignore */ }
+        resolve(value);
+      };
+
+      const renderLive = (fullText) => {
+        if (!target || !fullText) {
+          return;
+        }
+        const now = Date.now();
+        if (now - lastRenderAt < 70) {
+          return;
+        }
+        lastRenderAt = now;
+        // Aperçu au fil de l'eau via le pont Draft (no-op si le pont est absent,
+        // ex. Firefox : le rendu final passera par injectReplyDraft).
+        applyDraftTextViaBridge(target, cleanMultilineText(fullText));
+      };
+
+      port.onMessage.addListener((message) => {
+        if (!message) {
+          return;
+        }
+        if (message.type === "delta") {
+          renderLive(message.text || "");
+        } else if (message.type === "done") {
+          finish(cleanMultilineText(message.text || ""));
+        } else if (message.type === "error") {
+          finish(null);
+        }
+      });
+      port.onDisconnect?.addListener(() => finish(null));
+      // Filet : si rien n'arrive (service worker tué, etc.), on abandonne le stream.
+      window.setTimeout(() => finish(null), 125000);
+
+      try {
+        port.postMessage({ type: "start", ...payload });
+      } catch (error) {
+        finish(null);
+      }
+    });
+  }
+
   async function transformReplyText(action, text, editor) {
     const actionId = normalizeDraftAction(action);
     const definition = getDraftActionDefinition(actionId);
     const context = await getReplyDraftContext(editor);
     const targetLanguage = await getDraftActionTargetLanguage(actionId, context, text);
+
+    // La génération s'affiche au fil de l'eau (streaming). Repli automatique sur
+    // le chemin message classique si le streaming n'aboutit pas.
+    if (actionId === "generate") {
+      const streamed = await streamGenerateReplyText(
+        { locale: getUiLocale(), targetLanguage, context, text },
+        editor
+      );
+      if (streamed != null) {
+        return cleanMultilineText(streamed);
+      }
+    }
 
     const response = await sendRuntimeMessage({
       type: definition.messageType,
@@ -3737,7 +3816,7 @@
       throw error;
     }
 
-    return cleanText(response[definition.responseKey] || response.text || "");
+    return cleanMultilineText(response[definition.responseKey] || response.text || "");
   }
 
   async function getReplyDraftContext(editor) {
@@ -3806,9 +3885,38 @@
     return cleanText(context?.tweetLanguage || inferDraftLanguage(draftText) || getUiLocale() || "en");
   }
 
+  // Renvoie un message si le brouillon est DÉJÀ dans la langue cible (donc rien à
+  // traduire), sinon "" (on traduit normalement). Détection heuristique : en cas
+  // de doute (langue non reconnue), on ne bloque pas et on laisse traduire.
+  async function getAlreadyInTargetLanguageMessage(text, editor) {
+    const draftLanguage = normalizeLanguageCode(inferDraftLanguage(text));
+    if (!draftLanguage) {
+      return "";
+    }
+    const context = await getReplyDraftContext(editor);
+    const targetLanguage = normalizeLanguageCode(await getDraftActionTargetLanguage("translate", context, text));
+    if (!targetLanguage || targetLanguage !== draftLanguage) {
+      return "";
+    }
+    const languageName = getLanguageDisplayName(draftLanguage);
+    return localizedText(
+      "toastTranslationAlreadyInLanguage",
+      "This draft is already in {language}. Change the language in the toolbar to translate it."
+    ).replace("{language}", languageName);
+  }
+
+  function normalizeLanguageCode(value) {
+    return cleanText(value).toLowerCase().split(/[-_]/)[0];
+  }
+
+  function getLanguageDisplayName(code) {
+    const match = DRAFT_GENERATION_LANGUAGES.find((language) => language.id === code);
+    return match ? localizedText(match.labelKey, match.fallback) : code.toUpperCase();
+  }
+
   function normalizeDraftAction(action) {
     const value = cleanText(action).toLowerCase();
-    return ["correct", "translate", "generate", "suggestions"].includes(value) ? value : "correct";
+    return ["dictate", "correct", "translate", "generate", "suggestions"].includes(value) ? value : "correct";
   }
 
   function getDraftActionDefinition(action) {
@@ -3963,38 +4071,32 @@
 
   async function handleDraftActionButtonClick(button, editor, action) {
     const target = findEditableReplyEditor(editor);
-    const actionId = normalizeDraftAction(action);
-    const definition = getDraftActionDefinition(actionId);
+    const rawAction = cleanText(action).toLowerCase();
     if (!target || button._xtensionDraftActionBusy) {
       return;
     }
+
+    // Annuler / Rétablir : navigation dans l'historique du texte (indépendant des
+    // actions IA). N'affecte jamais l'état des boutons de correction.
+    if (rawAction === "undo" || rawAction === "redo") {
+      await navigateDraftHistory(target, rawAction);
+      return;
+    }
+
+    const actionId = normalizeDraftAction(action);
+    const definition = getDraftActionDefinition(actionId);
 
     if (actionId === "suggestions") {
       await toggleReplySuggestionsForDraftEditor(target);
       return;
     }
 
-    if (button._xtensionDraftActionOriginal) {
-      const originalText = button._xtensionDraftActionOriginal;
-      button._xtensionDraftActionOriginal = "";
-      await injectReplyDraft(target, originalText);
-      setDraftActionButtonState(button, actionId, "normal");
+    if (actionId === "dictate") {
+      toggleDraftDictation(button, target);
       return;
     }
 
     const currentText = getReplyEditorText(target);
-    if (actionId === "generate") {
-      const shown = await showReplySuggestionsForDraftEditor(target, {
-        force: true,
-        instruction: currentText
-      });
-      if (!shown) {
-        const emptyMessage = localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions.");
-        showToast(emptyMessage);
-      }
-      return;
-    }
-
     if (!currentText) {
       const emptyPanel = showDraftActionPanelLoading(target, actionId);
       setDraftActionPanelMessage(
@@ -4005,6 +4107,19 @@
       );
       showToast(localizedText(definition.emptyKey, definition.emptyFallback));
       return;
+    }
+
+    // Traduction : si le brouillon est déjà dans la langue cible, inutile de
+    // lancer tout le protocole de traduction. On le signale et on laisse
+    // l'utilisateur changer la langue via le sélecteur de la barre d'outils.
+    if (actionId === "translate") {
+      const alreadyMessage = await getAlreadyInTargetLanguageMessage(currentText, target);
+      if (alreadyMessage) {
+        const infoPanel = showDraftActionPanelLoading(target, actionId);
+        setDraftActionPanelMessage(infoPanel, alreadyMessage, "", { tone: "warning", autoCloseMs: 2600 });
+        showToast(alreadyMessage);
+        return;
+      }
     }
 
     button._xtensionDraftActionBusy = true;
@@ -4036,16 +4151,22 @@
         return;
       }
 
-      clearOtherDraftActionUndoStates(button);
-      button._xtensionDraftActionOriginal = currentText;
+      // On mémorise l'état AVANT la transformation dans l'historique, afin que
+      // Annuler puisse y revenir, puis on insère le résultat.
+      ensureDraftHistory(target);
+      recordDraftHistorySnapshot(target);
       await markDraftActionPanelProgress(actionPanel, "insert");
       const inserted = await injectReplyDraft(target, transformedText);
       if (!inserted) {
         throw new Error(localizedText("draftActionInsertFailed", "The text was generated but X did not accept the insertion."));
       }
+      // ...et on mémorise l'état APRÈS transformation (pour Rétablir).
+      recordDraftHistorySnapshot(target);
       await markDraftActionPanelProgress(actionPanel, "done");
       recordDraftActionTiming(actionId, Date.now() - actionStartedAt).catch(() => {});
-      setDraftActionButtonState(button, actionId, "undo");
+      // Le bouton reste une action normale : recorriger doit toujours recorriger,
+      // jamais « revenir en arrière ». Le retour en arrière se fait via Annuler.
+      setDraftActionButtonState(button, actionId, "normal");
       setDraftActionPanelMessage(
         actionPanel,
         localizedText(getDraftActionDoneKey(actionId), getDraftActionDoneFallback(actionId)),
@@ -4079,6 +4200,863 @@
         progressToast.remove();
       }
     }
+  }
+
+  const DICTATION_TICK_MS = 100;
+  const DICTATION_PHRASE_PAUSE_MS = 800;
+  // Arrêt auto de la session après ce silence. Assez long pour laisser une
+  // vraie pause de réflexion en cours de dictée sans couper (les mots suivants
+  // seraient perdus), assez court pour que « s'arrêter de parler » termine.
+  const DICTATION_SESSION_END_MS = 3500;
+  const DICTATION_MAX_PHRASE_MS = 12000;
+  const DICTATION_SILENCE_THRESHOLD = 0.012;
+  // Aperçu quasi temps réel : pendant une phrase LONGUE et ininterrompue, la
+  // phrase en cours est re-transcrite périodiquement et affichée. Les phrases
+  // courtes (qui se terminent avant le seuil ci-dessous) n'en font pas : leur
+  // transcription finale à la pause suffit, ce qui évite de re-transcrire tout
+  // le clip audio (Parakeet recharge son modèle à chaque appel) trop souvent.
+  const DICTATION_INTERIM_INTERVAL_MS = 1500;
+  // L'aperçu ne démarre qu'une fois la phrase en cours au-delà de cette durée
+  // (sinon la segmentation par pause de 800 ms fournit déjà le retour, ~1 s).
+  const DICTATION_INTERIM_MIN_PHRASE_MS = 1800;
+  // Une phrase sans au moins ~1/4 s d'énergie vocale n'est pas envoyée au
+  // bridge (souffle, clavier) : rien à transcrire, aucune hallucination.
+  const DICTATION_MIN_PHRASE_SPEECH_MS = 250;
+  // Sans aucune parole détectée depuis le début, la session s'arrête seule.
+  const DICTATION_NO_SPEECH_TIMEOUT_MS = 8000;
+  // Aperçus interim (re-transcription de la phrase en cours) : désactivés. Le
+  // texte n'est écrit dans la boîte qu'aux phrases finales. Repasser à true
+  // réactiverait l'aperçu (au prix d'écritures plus fréquentes dans l'éditeur).
+  const DICTATION_INTERIM_ENABLED = false;
+
+  function toggleDraftDictation(button, editor) {
+    const target = findEditableReplyEditor(editor);
+    if (!target) {
+      showToast(localizedText("toastDictationEditorMissing", "Unable to find the reply editor."));
+      return;
+    }
+
+    if (activeDraftDictationSession?.button === button) {
+      stopDraftDictationSession(activeDraftDictationSession, { stoppedByUser: true });
+      return;
+    }
+    if (activeDraftDictationSession) {
+      stopDraftDictationSession(activeDraftDictationSession, { abort: true });
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      showToast(localizedText("toastDictationUnsupported", "Dictation is not available in this browser."));
+      return;
+    }
+
+    const session = {
+      id: createDraftDictationSessionId(),
+      button,
+      editor: target,
+      baseText: getReplyEditorText(target),
+      language: getDraftDictationLanguage(button, target),
+      stream: null,
+      recorder: null,
+      chunks: [],
+      mimeType: "",
+      audioContext: null,
+      analyser: null,
+      vadTimer: null,
+      // true si la détection d'activité vocale (analyser WebAudio) est en
+      // place. Si elle échoue, on ne peut ni mesurer l'énergie ni découper par
+      // phrase : la dictée bascule en mode manuel (tout l'audio est transcrit à
+      // l'arrêt, sans la garde phraseSpeechMs qui, sinon, jetterait tout).
+      vadActive: false,
+      // Texte dicté par phrase (index = ordre des phrases). Chaque entrée est
+      // { text, final } : un aperçu interim est remplacé par la version finale
+      // de SA phrase, sans dépendre de l'ordre de retour des requêtes.
+      segments: [],
+      phraseSeq: 0,
+      lastWrittenText: null,
+      userTookOver: false,
+      transcribeQueue: Promise.resolve(),
+      heardSpeech: false,
+      speaking: false,
+      phraseHadSpeech: false,
+      phraseSpeechMs: 0,
+      sinceInterimMs: 0,
+      interimBusy: false,
+      pendingInterim: false,
+      // true entre recorder.stop() et son onstop (transition asynchrone d'un
+      // flush de phrase) : évite de finaliser prématurément si l'utilisateur
+      // clique « stop » pile pendant cette fenêtre.
+      flushPending: false,
+      detectedLanguage: "",
+      silenceMs: 0,
+      phraseMs: 0,
+      ended: false,
+      errorShown: false,
+      finalizing: false,
+      stoppedByUser: false
+    };
+
+    activeDraftDictationSession = session;
+    setDraftDictationButtonListening(button, true);
+    showToast(localizedText("toastDictationListening", "Listening..."), {
+      persistent: true,
+      role: "status"
+    });
+
+    startDictationCapture(session).catch((error) => {
+      handleDraftDictationError(session, { error: normalizeDictationCaptureError(error) });
+      finishDraftDictationSession(session);
+    });
+  }
+
+  function getDraftDictationLanguage() {
+    // La dictée transcrit TOUJOURS la langue PARLÉE, jamais une traduction. On
+    // renvoie une langue vide -> whisper auto-détecte la langue depuis l'audio,
+    // donc le texte apparaît dans la langue de l'utilisateur quelle que soit la
+    // langue du tweet d'origine, de l'UI du navigateur ou du sélecteur. Le
+    // sélecteur de langue de la barre d'outils ne concerne QUE Traduire/Générer :
+    // le forcer ici ferait « traduire » le français en anglais si le sélecteur
+    // était sur EN, exactement le bug à éviter.
+    return "";
+  }
+
+  function normalizeSpeechRecognitionLanguage(value) {
+    const language = cleanText(value || "").replace("_", "-");
+    const lower = language.toLowerCase();
+    const defaults = {
+      fr: "fr-FR",
+      en: "en-US",
+      es: "es-ES",
+      de: "de-DE",
+      ja: "ja-JP"
+    };
+
+    if (defaults[lower]) {
+      return defaults[lower];
+    }
+
+    if (/^[a-z]{2}-[a-z]{2}$/i.test(language)) {
+      return language;
+    }
+
+    const base = lower.split("-")[0];
+    return defaults[base] || language || "en-US";
+  }
+
+  function createDraftDictationSessionId() {
+    return `dictation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  async function acquireDictationMicrophone() {
+    const constraints = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    };
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      // NotReadableError / TrackStartError transitoire : le micro peut se
+      // libérer une fraction de seconde plus tard (flux d'une session
+      // précédente en cours de fermeture). On retente UNE fois avant d'abandonner.
+      const name = cleanText(error?.name || "").toLowerCase();
+      if (/notreadable|trackstart|couldnotstart/.test(name)) {
+        logXtensionError("dictation getUserMedia (retry after busy)", error);
+        await delay(350);
+        return navigator.mediaDevices.getUserMedia(constraints);
+      }
+      throw error;
+    }
+  }
+
+  async function startDictationCapture(session) {
+    const stream = await acquireDictationMicrophone();
+
+    if (session.ended || session !== activeDraftDictationSession) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    session.stream = stream;
+    session.mimeType = pickDictationMimeType() || "audio/webm";
+    startDictationPhraseRecorder(session);
+
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioContext = new AudioCtx();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      session.audioContext = audioContext;
+      session.analyser = analyser;
+      session.vadActive = true;
+      const data = new Uint8Array(analyser.fftSize);
+      session.vadTimer = window.setInterval(() => dictationVadTick(session, analyser, data), DICTATION_TICK_MS);
+    } catch (error) {
+      // Sans VAD : pas d'arrêt auto ni de découpage par phrase ni d'aperçu ;
+      // la dictée reste utilisable en mode manuel (l'utilisateur clique pour
+      // arrêter, tout l'audio est alors transcrit d'un bloc, cf. vadActive).
+      logXtensionError("dictation VAD setup", error);
+      session.vadActive = false;
+    }
+  }
+
+  function startDictationPhraseRecorder(session) {
+    if (session.ended) {
+      return;
+    }
+    const recorder = new MediaRecorder(session.stream, session.mimeType ? { mimeType: session.mimeType } : undefined);
+    session.recorder = recorder;
+    session.chunks = [];
+    session.phraseMs = 0;
+    session.phraseSpeechMs = 0;
+    session.sinceInterimMs = 0;
+    session.pendingInterim = false;
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        session.chunks.push(event.data);
+      }
+      // requestData() a été appelé pour un aperçu : les chunks accumulés de la
+      // phrase en cours sont maintenant complets, on peut les transcrire.
+      if (session.pendingInterim) {
+        session.pendingInterim = false;
+        sendDictationInterim(session);
+      }
+    };
+    recorder.start();
+  }
+
+  function dictationVadTick(session, analyser, data) {
+    if (session.ended || session.finalizing) {
+      return;
+    }
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let index = 0; index < data.length; index += 1) {
+      const value = (data[index] - 128) / 128;
+      sum += value * value;
+    }
+    const rms = Math.sqrt(sum / data.length);
+    session.phraseMs += DICTATION_TICK_MS;
+    session.sinceInterimMs += DICTATION_TICK_MS;
+
+    if (rms >= DICTATION_SILENCE_THRESHOLD) {
+      session.heardSpeech = true;
+      session.phraseHadSpeech = true;
+      session.speaking = true;
+      session.phraseSpeechMs += DICTATION_TICK_MS;
+      session.silenceMs = 0;
+    } else {
+      session.silenceMs += DICTATION_TICK_MS;
+      if (session.speaking && session.phraseHadSpeech && session.silenceMs >= DICTATION_PHRASE_PAUSE_MS) {
+        flushDictationPhrase(session, false);
+      } else if (session.heardSpeech && session.silenceMs >= DICTATION_SESSION_END_MS) {
+        stopDraftDictationSession(session, { stoppedByUser: false });
+        return;
+      } else if (!session.heardSpeech && session.phraseMs >= DICTATION_NO_SPEECH_TIMEOUT_MS) {
+        stopDraftDictationSession(session, { stoppedByUser: false });
+        return;
+      }
+    }
+
+    maybeRequestDictationInterim(session);
+
+    if (session.phraseHadSpeech && session.phraseMs >= DICTATION_MAX_PHRASE_MS) {
+      flushDictationPhrase(session, false);
+    }
+  }
+
+  // Aperçu quasi temps réel : toutes les ~1,2 s de parole, la phrase en cours
+  // (chunks accumulés depuis le début du recorder) est transcrite et affichée.
+  // Un seul aperçu à la fois (latest-wins) : si la transcription précédente est
+  // encore en vol, on attend le prochain tick plutôt que d'empiler des requêtes.
+  function maybeRequestDictationInterim(session) {
+    // Aperçus interim DÉSACTIVÉS : le texte n'est écrit dans la boîte qu'aux
+    // phrases FINALES (à la pause). Re-transcrire la phrase en cours ne servirait
+    // qu'à un aperçu qu'on n'affiche plus, au prix d'un appel bridge coûteux
+    // (rechargement du modèle) et d'une écriture supplémentaire dans l'éditeur.
+    if (!DICTATION_INTERIM_ENABLED) {
+      return;
+    }
+    if (
+      session.interimBusy
+      || session.pendingInterim
+      || !session.phraseHadSpeech
+      || session.phraseMs < DICTATION_INTERIM_MIN_PHRASE_MS
+      || session.phraseSpeechMs < DICTATION_MIN_PHRASE_SPEECH_MS
+      || session.sinceInterimMs < DICTATION_INTERIM_INTERVAL_MS
+      || session.recorder?.state !== "recording"
+    ) {
+      return;
+    }
+    session.sinceInterimMs = 0;
+    session.interimBusy = true;
+    session.pendingInterim = true;
+    try {
+      session.recorder.requestData();
+    } catch (error) {
+      session.pendingInterim = false;
+      session.interimBusy = false;
+    }
+  }
+
+  async function sendDictationInterim(session) {
+    const phraseSeq = session.phraseSeq;
+    try {
+      if (session.ended || session.finalizing || session.userTookOver || !session.chunks.length) {
+        return;
+      }
+      const blob = new Blob(session.chunks, { type: session.mimeType });
+      const text = await transcribeDictationBlob(session, blob, "interim");
+      if (session.ended || session.userTookOver || phraseSeq !== session.phraseSeq) {
+        // La phrase a été finalisée (ou la session fermée) pendant la requête :
+        // sa version finale fait foi, on jette cet aperçu périmé.
+        return;
+      }
+      const segment = session.segments[phraseSeq];
+      if (text && (!segment || !segment.final)) {
+        session.segments[phraseSeq] = { text, final: false };
+        renderDictationText(session);
+      }
+    } catch (error) {
+      // Aperçu best-effort : la transcription finale de la phrase suivra.
+      logXtensionError("dictation interim preview", error);
+    } finally {
+      session.interimBusy = false;
+    }
+  }
+
+  // Termine la phrase courante : stoppe le recorder, transcrit ce segment, puis
+  // relance immédiatement un recorder pour la suite (le "trou" tombe sur le silence).
+  function flushDictationPhrase(session, isFinal) {
+    const recorder = session.recorder;
+    // La phrase en cours est figée : tout aperçu encore en vol pour elle sera
+    // jeté (comparaison de phraseSeq), sa transcription finale fait foi.
+    const phraseSeq = session.phraseSeq;
+    const phraseSpeechMs = session.phraseSpeechMs;
+    session.phraseSeq += 1;
+    session.speaking = false;
+    session.phraseHadSpeech = false;
+    session.silenceMs = 0;
+    if (session.pendingInterim) {
+      // Un aperçu était demandé mais sa requête n'est pas encore partie (le
+      // dataavailable n'a pas eu lieu) : on l'annule ET on libère interimBusy,
+      // sinon plus aucun aperçu ne partirait jusqu'à la fin de la session.
+      session.pendingInterim = false;
+      session.interimBusy = false;
+    }
+
+    if (!recorder || recorder.state === "inactive") {
+      if (isFinal) {
+        if (session.flushPending) {
+          // Un flush non final est en cours (stop() appelé, onstop pas encore
+          // exécuté) : c'est SON onstop qui finalisera (il voit finalizing).
+          // Ne pas finaliser ici, sinon on conclurait avant la dernière phrase.
+        } else {
+          session.transcribeQueue = session.transcribeQueue.finally(() => {
+            finishDraftDictationSession(session);
+          });
+        }
+      }
+      return;
+    }
+
+    session.flushPending = true;
+    recorder.onstop = () => {
+      session.flushPending = false;
+      const chunks = session.chunks;
+      session.chunks = [];
+      // Si l'utilisateur a cliqué « stop » pendant la transition de ce flush,
+      // session.finalizing est passé à true : ce segment devient le dernier.
+      const finalizeNow = isFinal || session.finalizing;
+      if (!finalizeNow && !session.ended) {
+        startDictationPhraseRecorder(session);
+      }
+      // En mode manuel (sans VAD), phraseSpeechMs reste à 0 : on ne peut pas
+      // jeter l'audio sur ce critère, sinon plus rien ne serait jamais
+      // transcrit. La garde d'énergie ne s'applique donc que si le VAD tourne.
+      const hasEnoughSpeech = !session.vadActive || phraseSpeechMs >= DICTATION_MIN_PHRASE_SPEECH_MS;
+      if (chunks.length && hasEnoughSpeech) {
+        const blob = new Blob(chunks, { type: session.mimeType });
+        enqueueDictationTranscribe(session, blob, phraseSeq, finalizeNow);
+      } else {
+        // Phrase sans parole exploitable : rien à transcrire ; retirer un
+        // éventuel aperçu provisoire.
+        if (session.segments[phraseSeq] && !session.segments[phraseSeq].final) {
+          delete session.segments[phraseSeq];
+          renderDictationText(session);
+        }
+        if (finalizeNow) {
+          // Attendre les transcriptions déjà en file avant de conclure.
+          session.transcribeQueue = session.transcribeQueue.finally(() => {
+            finishDraftDictationSession(session);
+          });
+        }
+      }
+    };
+
+    try {
+      recorder.stop();
+    } catch (error) {
+      session.flushPending = false;
+      if (!isFinal && !session.ended) {
+        startDictationPhraseRecorder(session);
+      } else if (isFinal) {
+        finishDraftDictationSession(session);
+      }
+    }
+  }
+
+  function enqueueDictationTranscribe(session, blob, phraseSeq, isFinal) {
+    session.transcribeQueue = session.transcribeQueue.then(async () => {
+      const text = await transcribeDictationBlob(session, blob, "final");
+      if (text) {
+        session.heardSpeech = true;
+        session.segments[phraseSeq] = { text, final: true };
+      } else if (session.segments[phraseSeq] && !session.segments[phraseSeq].final) {
+        // Le bridge n'a rien retenu (silence, bruit) : l'aperçu provisoire de
+        // cette phrase est retiré au lieu d'être figé dans le texte.
+        delete session.segments[phraseSeq];
+      }
+      renderDictationText(session);
+    }).catch(() => {}).finally(() => {
+      if (isFinal) {
+        finishDraftDictationSession(session);
+      }
+    });
+  }
+
+  // Texte dicté complet : phrases finalisées + aperçus provisoires, dans
+  // l'ordre des phrases (indépendant de l'ordre de retour des requêtes).
+  function dictationCombinedText(session) {
+    let combined = "";
+    for (const segment of session.segments) {
+      if (segment && segment.text) {
+        combined = appendDictationPhrase(combined, segment.text);
+      }
+    }
+    return combined;
+  }
+
+  // Texte dicté DÉFINITIF : uniquement les phrases finalisées (les aperçus
+  // interim en sont exclus). C'est ce qui est écrit dans l'éditeur. On n'écrit
+  // QUE sur les phrases finales (pas sur chaque aperçu interim) pour espacer les
+  // écritures, et le texte n'apparaît donc dans la boîte qu'une fois la phrase
+  // terminée (à la pause) — comme une vraie dictée.
+  function dictationCommittedText(session) {
+    let combined = "";
+    for (const segment of session.segments) {
+      if (segment && segment.final && segment.text) {
+        combined = appendDictationPhrase(combined, segment.text);
+      }
+    }
+    return combined;
+  }
+
+  function renderDictationText(session) {
+    // Écriture dans l'éditeur : phrases FINALES uniquement. Aucun aperçu dans un
+    // toast/overlay (le texte va directement dans la boîte de réponse).
+    scheduleDictationEditorCommit(session);
+  }
+
+  function appendDictationPhrase(committed, phrase) {
+    const base = cleanText(committed);
+    const next = cleanText(phrase);
+    if (!base) {
+      return next;
+    }
+    if (!next) {
+      return base;
+    }
+    const separator = /[\s\n]$/.test(base) ? "" : " ";
+    return `${base}${separator}${next}`;
+  }
+
+  async function transcribeDictationBlob(session, blob, mode) {
+    const isInterim = mode === "interim";
+    try {
+      const audioBase64 = await blobToBase64(blob);
+      const response = await sendRuntimeMessage({
+        type: "xtension-transcribe-dictation",
+        audioBase64,
+        durationMs: 0,
+        // La langue détectée par le bridge sur la première phrase est épinglée
+        // pour le reste de la session : l'auto-détection coûte ~1 s par requête.
+        language: session.detectedLanguage || session.language || "",
+        // Indice non contraignant pour le choix du moteur côté bridge.
+        hintLanguage: cleanText(navigator.language || ""),
+        mode: isInterim ? "interim" : "final",
+        mimeType: session.mimeType,
+        size: blob.size
+      });
+      if (!response?.ok) {
+        if (!isInterim && !session.errorShown) {
+          handleDraftDictationError(session, {
+            error: response?.code || "transcription-failed",
+            message: response?.error || ""
+          });
+        }
+        return "";
+      }
+      const result = response.result && typeof response.result === "object"
+        ? response.result
+        : { text: response.transcript || response.text || "" };
+      if (result.language && !session.detectedLanguage) {
+        session.detectedLanguage = cleanText(result.language);
+      }
+      return cleanMultilineText(result.text || "").replace(/\s*\n\s*/g, " ").trim();
+    } catch (error) {
+      logXtensionError(`dictation transcribe (${mode})`, error);
+      return "";
+    }
+  }
+
+  function pickDictationMimeType() {
+    if (!window.MediaRecorder?.isTypeSupported) {
+      return "";
+    }
+    const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+    return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+  }
+
+  function normalizeDictationCaptureError(error) {
+    // On logge TOUJOURS l'erreur brute : sinon elle est avalée dans un toast et
+    // reste invisible en console (impossible à diagnostiquer autrement).
+    logXtensionError("dictation getUserMedia", error);
+    const name = cleanText(error?.name || error?.message || error || "").toLowerCase();
+    if (/notallowed|permission|denied|security/.test(name)) {
+      return "not-allowed";
+    }
+    // NotReadableError / TrackStartError : un périphérique EXISTE mais est
+    // inaccessible car déjà pris (autre appli, autre onglet, ou la session de
+    // dictée précédente dont le flux n'a pas encore été libéré). Ce n'est PAS
+    // « aucun micro » — le mélanger avec audio-capture affichait un message
+    // trompeur (« Aucun micro n'a été détecté ») alors que le micro est occupé.
+    if (/notreadable|trackstart|couldnotstart|in\s?use|busy/.test(name)) {
+      return "audio-busy";
+    }
+    if (/notfound|devicesnotfound|no microphone|overconstrained|constraint/.test(name)) {
+      return "audio-capture";
+    }
+    return "start-failed";
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = String(reader.result || "");
+        const comma = result.indexOf(",");
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = () => reject(reader.error || new Error("read failed"));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Écriture du texte COMPLET dans l'éditeur Draft.js de X.
+  //
+  // Fait établi (vérifié en direct sur x.com) : document.execCommand("insertText")
+  // affiche le texte dans le DOM mais ne met JAMAIS à jour le ContentState
+  // interne de Draft.js -> le modèle reste vide, donc le texte est FIGÉ (rien à
+  // effacer/modifier côté modèle). La SEULE méthode qui rend le texte pleinement
+  // éditable est de passer par le onChange React de Draft (nouvel EditorState),
+  // ce que fait le pont monde-principal (main-world.js), inaccessible depuis un
+  // content-script isolé.
+  //
+  // On tente donc le pont en priorité ; on retombe sur execCommand seulement s'il
+  // est absent/inopérant (ex. Firefox sans world MAIN) : le texte s'affiche et
+  // reste publiable, même s'il n'est pas éditable.
+  async function writeFullTextToDraft(editor, text) {
+    const value = cleanMultilineText(text);
+    const matches = () => {
+      const current = getReplyEditorText(editor);
+      return current === value || (current.includes(value) && current.length <= value.length + 2);
+    };
+
+    if (applyDraftTextViaBridge(editor, value)) {
+      // React réconcilie le DOM de façon asynchrone : on laisse passer quelques
+      // frames avant de vérifier le résultat réel.
+      await nextFrame();
+      await nextFrame();
+      if (matches()) {
+        return true;
+      }
+    }
+
+    // Repli : execCommand (texte affiché et publiable, mais potentiellement non
+    // éditable). Le focus + selectAll couvrent le contenu que Draft connaît.
+    editor.focus();
+    await nextFrame();
+    document.execCommand("selectAll", false, null);
+    document.execCommand("insertText", false, value);
+    await nextFrame();
+    if (matches()) {
+      return true;
+    }
+
+    editor.focus();
+    document.execCommand("selectAll", false, null);
+    document.execCommand("delete", false);
+    await nextFrame();
+    document.execCommand("insertText", false, value);
+    await nextFrame();
+    return matches();
+  }
+
+  // Demande au pont monde-principal (main-world.js) d'écrire `text` dans le
+  // ContentState de Draft via son onChange React — la seule voie qui garde le
+  // texte éditable. Communication par le DOM PARTAGÉ (fiable entre mondes) :
+  // attribut sur l'éditeur + événement DOM synchrone. Retourne false si le pont
+  // est absent (l'appelant retombe alors sur execCommand).
+  function applyDraftTextViaBridge(editor, text) {
+    try {
+      if (document.documentElement.getAttribute("data-xtension-mainworld") !== "1") {
+        return false;
+      }
+      editor.setAttribute("data-xtension-draft-text", text);
+      // Dispatch SYNCHRONE : l'écouteur du monde principal s'exécute avant le
+      // retour, consomme l'attribut, applique le texte et pose data-…-done.
+      document.dispatchEvent(new Event("xtension-draft-apply"));
+      const done = editor.getAttribute("data-xtension-draft-done");
+      editor.removeAttribute("data-xtension-draft-done");
+      // On ne retire PAS data-xtension-draft-text ici : le pont en est le seul
+      // consommateur (il l'efface après lecture). Ainsi, si la livraison inter-
+      // mondes n'était pas synchrone (rare), le pont le lit quand même ensuite.
+      // done === "0" : le pont a essayé mais n'a pas trouvé la fibre Draft.
+      // done === null : livraison non synchrone -> on considère le pont présent
+      // et l'appelant vérifie le résultat réel via matches().
+      return done !== "0";
+    } catch (error) {
+      logXtensionError("applyDraftTextViaBridge", error);
+      return false;
+    }
+  }
+
+  // Les écritures dans l'éditeur sont sérialisées : une transcription finale
+  // peut revenir pendant qu'une écriture précédente attend encore la
+  // réconciliation asynchrone de Draft.js. Les enchaîner sur une file évite
+  // qu'elles se marchent dessus et lisent un DOM transitoire.
+  function scheduleDictationEditorCommit(session) {
+    if (!session) {
+      return Promise.resolve();
+    }
+    session.editorCommitQueue = (session.editorCommitQueue || Promise.resolve())
+      .then(() => commitDictationToEditor(session))
+      .catch((error) => logXtensionError("dictation editor commit", error));
+    return session.editorCommitQueue;
+  }
+
+  // Écriture de dictée SÛRE : n'écrit dans l'éditeur QUE les phrases finalisées
+  // (texte complet = base + phrases finales), et seulement si l'utilisateur n'a
+  // pas repris la main. Une transcription peut revenir tardivement (bridge lent)
+  // ALORS QUE l'utilisateur édite déjà. On compare donc le contenu courant à une
+  // référence : s'il a changé, c'est que l'utilisateur a édité.
+  //   - AVANT la première écriture, la référence est baseText (le contenu au
+  //     démarrage de la dictée). Si l'utilisateur a tapé avant la 1re phrase
+  //     finale, on NE l'écrase PAS : on re-base la dictée sur son texte.
+  //   - APRÈS notre première écriture, la référence est ce qu'on a écrit en
+  //     dernier ; s'il a changé, l'utilisateur a repris la main et on s'arrête.
+  async function commitDictationToEditor(session) {
+    if (!session || session.userTookOver) {
+      return;
+    }
+    const editor = findEditableReplyEditor(session.editor);
+    if (!editor) {
+      return;
+    }
+    const current = getReplyEditorText(editor);
+    const reference = session.lastWrittenText != null ? session.lastWrittenText : session.baseText;
+    if (current !== reference) {
+      if (session.lastWrittenText == null) {
+        // L'utilisateur a tapé avant notre première écriture : son texte devient
+        // la nouvelle base, la dictée s'ajoutera après.
+        session.baseText = current;
+      } else {
+        // L'utilisateur a édité notre dictée : on ne touche plus à l'éditeur.
+        session.userTookOver = true;
+        return;
+      }
+    }
+
+    const target = cleanMultilineText(mergeDictationDraftText(session.baseText, dictationCommittedText(session)));
+    if (current === target) {
+      session.lastWrittenText = current;
+      return;
+    }
+
+    await writeFullTextToDraft(editor, target);
+    // On relit ce que Draft.js a réellement retenu, pour comparer justement au
+    // prochain passage (et détecter une vraie reprise en main de l'utilisateur).
+    session.lastWrittenText = getReplyEditorText(editor);
+  }
+
+  function handleDraftDictationError(session, event) {
+    if (!session || session !== activeDraftDictationSession) {
+      return;
+    }
+
+    const code = cleanText(event?.error || "");
+    const messageKey = {
+      "not-allowed": "toastDictationPermissionDenied",
+      "service-not-allowed": "toastDictationPermissionDenied",
+      "audio-capture": "toastDictationMicrophoneMissing",
+      "audio-busy": "toastDictationMicrophoneBusy",
+      "no-speech": "toastDictationNoSpeech",
+      unsupported: "toastDictationUnsupported",
+      "start-failed": "toastDictationStartFailed",
+      bridge_unreachable: "replyAiBridgeUnavailable",
+      not_configured: "replyAiBridgeUnavailable",
+      // Un bridge trop ancien (avant la dictée) répond 404 sur /transcribe.
+      not_found: "toastDictationBridgeOutdated",
+      ffmpeg_missing: "toastDictationFfmpegMissing",
+      transcription_unavailable: "toastDictationTranscriptionUnavailable",
+      transcription_timeout: "toastDictationTranscriptionTimeout",
+      transcription_failed: "toastDictationTranscriptionFailed",
+      "transcription-failed": "toastDictationTranscriptionFailed",
+      audio_too_large: "toastDictationAudioTooLarge"
+    }[code] || "toastDictationFailed";
+    const fallback = {
+      toastDictationPermissionDenied: "Microphone permission was denied.",
+      toastDictationMicrophoneMissing: "No microphone was detected.",
+      toastDictationMicrophoneBusy: "The microphone is in use by another app or browser tab. Close it, then try again.",
+      toastDictationNoSpeech: "No speech was detected.",
+      toastDictationUnsupported: "Dictation is not available in this browser.",
+      toastDictationStartFailed: "Unable to start dictation.",
+      toastDictationTranscriptionUnavailable: "Local transcription is not installed in Xtension Bridge.",
+      toastDictationTranscriptionTimeout: "Local transcription timed out.",
+      toastDictationTranscriptionFailed: "Local transcription failed.",
+      toastDictationAudioTooLarge: "The recording is too long.",
+      toastDictationBridgeOutdated: "Xtension Bridge is out of date and does not support dictation. Update it from Xtension options.",
+      toastDictationFfmpegMissing: "Dictation needs ffmpeg, which was not found. Install ffmpeg and try again.",
+      replyAiBridgeUnavailable: "Xtension Bridge is not running. Open Xtension options to install or start it, then try again.",
+      toastDictationFailed: "Dictation failed."
+    }[messageKey] || "Dictation failed.";
+
+    session.errorShown = true;
+    // Pour un code connu, on privilégie le message localisé (actionnable) ;
+    // le message brut du bridge (« 404 Not found. », etc.) ne sert que de
+    // dernier recours quand aucun code ne correspond.
+    const raw = cleanText(event?.message || "");
+    showToast(messageKey === "toastDictationFailed" && raw ? raw : localizedText(messageKey, fallback));
+  }
+
+  function mergeDictationDraftText(baseText, transcript) {
+    const base = cleanMultilineText(baseText);
+    const dictated = cleanMultilineText(transcript);
+    if (!base) {
+      return dictated;
+    }
+    if (!dictated) {
+      return base;
+    }
+
+    const separator = /[\s\n]$/.test(base) ? "" : " ";
+    return `${base}${separator}${dictated}`;
+  }
+
+  function clearDictationTimers(session) {
+    if (session.vadTimer) {
+      window.clearInterval(session.vadTimer);
+      session.vadTimer = null;
+    }
+  }
+
+  function stopDictationStream(stream) {
+    try {
+      stream?.getTracks?.().forEach((track) => track.stop());
+    } catch (error) {
+      // best-effort
+    }
+  }
+
+  function closeDictationAudio(session) {
+    try {
+      session.audioContext?.close?.();
+    } catch (error) {
+      // best-effort
+    }
+    session.audioContext = null;
+    session.analyser = null;
+  }
+
+  function stopDraftDictationSession(session, options = {}) {
+    if (!session || session.ended || session.finalizing) {
+      return;
+    }
+    session.stoppedByUser = Boolean(options.stoppedByUser);
+    session.finalizing = true;
+
+    clearDictationTimers(session);
+    stopDictationStream(session.stream);
+    closeDictationAudio(session);
+
+    if (options.abort) {
+      try {
+        if (session.recorder && session.recorder.state !== "inactive") {
+          session.recorder.onstop = null;
+          session.recorder.stop();
+        }
+      } catch (error) {
+        // ignore
+      }
+      finishDraftDictationSession(session);
+      return;
+    }
+
+    // Transcrire le dernier segment puis finaliser.
+    flushDictationPhrase(session, true);
+  }
+
+  function finishDraftDictationSession(session) {
+    if (!session || session.ended) {
+      return;
+    }
+    session.ended = true;
+    if (activeDraftDictationSession === session) {
+      activeDraftDictationSession = null;
+    }
+
+    clearDictationTimers(session);
+    try {
+      if (session.recorder && session.recorder.state !== "inactive") {
+        session.recorder.onstop = null;
+        session.recorder.stop();
+      }
+    } catch (error) {
+      // déjà arrêté
+    }
+    stopDictationStream(session.stream);
+    closeDictationAudio(session);
+    setDraftDictationButtonListening(session.button, false);
+
+    // Filet de sécurité : garantir que la dernière phrase finalisée est bien
+    // ajoutée à l'éditeur (les phrases précédentes l'ont été au fil de l'eau).
+    if (dictationCommittedText(session)) {
+      scheduleDictationEditorCommit(session);
+    }
+
+    if (!session.errorShown) {
+      const message = session.heardSpeech
+        ? localizedText("toastDictationDone", "Dictation inserted.")
+        : localizedText("toastDictationNoSpeech", "No speech was detected.");
+      showToast(message, { duration: session.heardSpeech ? 1600 : 3000 });
+    }
+  }
+
+  function setDraftDictationButtonListening(button, listening) {
+    if (!button) {
+      return;
+    }
+
+    button.classList.toggle("is-listening", listening);
+    button.setAttribute("aria-pressed", listening ? "true" : "false");
+    const definition = getDraftActionDefinition("dictate");
+    const label = listening
+      ? localizedText(definition.activeLabelKey, definition.activeFallback)
+      : localizedText(definition.labelKey, definition.fallback);
+    setDraftActionButtonLabel(button, label);
   }
 
   function getDraftActionDoneKey(action) {
@@ -4152,38 +5130,165 @@
       return false;
     }
 
+    const matches = (value) => {
+      const text = getReplyEditorText(target);
+      return text === value || (text.includes(value) && text.length <= value.length + 2);
+    };
+
+    if (matches(trimmedMessage)) {
+      return true;
+    }
+
     target._xtensionReplyInjecting = true;
 
     try {
-      if (getReplyEditorText(target) === trimmedMessage) {
-        dispatchReplyInput(target, trimmedMessage, "insertText");
-        if (await waitForReplyDraftCommitted(target, trimmedMessage, 900)) {
+      // Voie PRINCIPALE : pont monde-principal -> onChange React de Draft.js.
+      // C'est la SEULE méthode qui écrit dans le ContentState et garde le texte
+      // PLEINEMENT ÉDITABLE (vérifié en direct : execCommand affiche le texte
+      // mais laisse le modèle Draft vide -> texte figé, ni effaçable ni
+      // modifiable). Repli execCommand ci-dessous si le pont est absent.
+      if (applyDraftTextViaBridge(target, trimmedMessage)) {
+        await nextFrame();
+        await nextFrame();
+        if (matches(trimmedMessage)) {
           return true;
         }
       }
 
-      await activateReplyEditor(target);
-      if (!await clearReplyEditor(target)) {
-        return false;
-      }
-      if (!await insertReplyText(target, trimmedMessage)) {
-        return false;
-      }
-      if (!await verifyReplyTextInserted(target, trimmedMessage)) {
-        await rewriteReplyEditorText(target, trimmedMessage);
-      }
-      if (await waitForReplyDraftCommitted(target, trimmedMessage, 900)) {
+      // Repli : insertion via execCommand("insertText") sur une sélection totale.
+      // Le texte s'affiche et reste PUBLIABLE, mais peut ne PAS être éditable (le
+      // modèle Draft n'est pas mis à jour). On n'émet aucun event synthétique
+      // (beforeinput/input/paste fabriqués), qui désynchronisent l'éditeur.
+      target.focus();
+      await nextFrame();
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, trimmedMessage);
+      await nextFrame();
+
+      if (matches(trimmedMessage)) {
         return true;
       }
 
-      if (!await rewriteReplyEditorText(target, trimmedMessage)) {
-        return false;
+      // Repli 1 : re-sélectionner puis réinsérer (toujours de façon atomique).
+      target.focus();
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, trimmedMessage);
+      await nextFrame();
+
+      if (matches(trimmedMessage)) {
+        return true;
       }
-      return await waitForReplyDraftCommitted(target, trimmedMessage, 1200);
+
+      // Repli 2 : en dernier recours seulement, vider explicitement puis réinsérer.
+      target.focus();
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false);
+      await nextFrame();
+      document.execCommand("insertText", false, trimmedMessage);
+      await nextFrame();
+
+      return matches(trimmedMessage);
     } finally {
       window.setTimeout(() => {
         target._xtensionReplyInjecting = false;
-      }, 350);
+      }, 200);
+    }
+  }
+
+  // ==========================================================================
+  // Historique de brouillon — boutons Annuler (↶) / Rétablir (↷)
+  // On mémorise chaque état du texte (frappe utilisateur + résultats des actions
+  // IA). Les boutons naviguent dans cette pile. La restauration passe par
+  // injectReplyDraft (insertion native execCommand), le seul chemin qui garde
+  // l'éditeur Draft.js de X synchronisé.
+  // ==========================================================================
+  const DRAFT_HISTORY_MAX = 100;
+
+  function ensureDraftHistory(editorContainer) {
+    const editor = findEditableReplyEditor(editorContainer);
+    if (!editor) {
+      return null;
+    }
+    if (!editor._xtensionHistory) {
+      editor._xtensionHistory = { stack: [], pointer: -1 };
+      recordDraftHistorySnapshot(editor);
+      editor.addEventListener("input", () => {
+        if (editor._xtensionHistoryRestoring) {
+          return;
+        }
+        window.clearTimeout(editor._xtensionHistoryTimer);
+        editor._xtensionHistoryTimer = window.setTimeout(() => {
+          recordDraftHistorySnapshot(editor);
+        }, 350);
+      });
+    }
+    return editor;
+  }
+
+  function recordDraftHistorySnapshot(editor) {
+    if (!editor || editor._xtensionHistoryRestoring || !editor._xtensionHistory) {
+      return;
+    }
+    const history = editor._xtensionHistory;
+    const text = getReplyEditorText(editor);
+    if (history.pointer >= 0 && history.stack[history.pointer] === text) {
+      return;
+    }
+    // On tronque l'éventuel « futur » (états rétablis) avant d'empiler le nouveau.
+    history.stack = history.stack.slice(0, history.pointer + 1);
+    history.stack.push(text);
+    history.pointer = history.stack.length - 1;
+    if (history.stack.length > DRAFT_HISTORY_MAX) {
+      history.stack.shift();
+      history.pointer = Math.max(0, history.pointer - 1);
+    }
+  }
+
+  async function navigateDraftHistory(target, direction) {
+    const editor = ensureDraftHistory(target);
+    if (!editor) {
+      return;
+    }
+    // On fige un éventuel snapshot en attente pour capturer l'état courant avant
+    // de naviguer (sinon la dernière frappe non enregistrée serait perdue).
+    window.clearTimeout(editor._xtensionHistoryTimer);
+    recordDraftHistorySnapshot(editor);
+    const history = editor._xtensionHistory;
+    if (!history || !history.stack.length) {
+      return;
+    }
+    if (direction === "undo") {
+      if (history.pointer <= 0) {
+        showToast(localizedText("toastDraftHistoryNothingToUndo", "Nothing to undo."));
+        return;
+      }
+      history.pointer -= 1;
+    } else {
+      if (history.pointer >= history.stack.length - 1) {
+        showToast(localizedText("toastDraftHistoryNothingToRedo", "Nothing to redo."));
+        return;
+      }
+      history.pointer += 1;
+    }
+    await restoreDraftHistoryText(editor, history.stack[history.pointer]);
+  }
+
+  async function restoreDraftHistoryText(editor, text) {
+    editor._xtensionHistoryRestoring = true;
+    try {
+      if (text) {
+        await injectReplyDraft(editor, text);
+      } else {
+        editor.focus();
+        await nextFrame();
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false);
+        await nextFrame();
+      }
+    } finally {
+      window.setTimeout(() => {
+        editor._xtensionHistoryRestoring = false;
+      }, 300);
     }
   }
 
@@ -8114,11 +9219,13 @@
     document.removeEventListener("input", scheduleEnhancement, true);
     document.removeEventListener("pointerup", handleDraftActionPointerUp, true);
     document.removeEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
-
     cleanupXtensionInjectedUi();
   }
 
   function cleanupXtensionInjectedUi() {
+    if (activeDraftDictationSession) {
+      stopDraftDictationSession(activeDraftDictationSession, { abort: true });
+    }
     document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
     document.querySelectorAll(".xtension-draft-language-menu").forEach((menu) => menu.remove());
     document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast`).forEach((node) => node.remove());
@@ -8180,6 +9287,18 @@
     }
 
     return element.getAttribute("class") || fallback;
+  }
+
+  // Journalisation unifi\u00e9e des erreurs Xtension. Toutes les erreurs \u2014 y compris
+  // celles aval\u00e9es pour rester best-effort \u2014 passent par ici, afin d'\u00eatre
+  // visibles en console (pr\u00e9fixe \u00ab [Xtension] \u00bb) pour le diagnostic.
+  function logXtensionError(context, error) {
+    try {
+      const detail = error && (error.stack || error.message || error.name);
+      console.warn(`[Xtension] ${context}:`, detail || error || "(no detail)");
+    } catch (loggingError) {
+      // ne jamais laisser la journalisation casser le flux
+    }
   }
 
   function cleanText(value) {

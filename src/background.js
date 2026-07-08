@@ -2,100 +2,20 @@ const extensionApi = globalThis.chrome || globalThis.browser;
 const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
 
-const REPLY_AI_CONFIG_VERSION = 15;
+const REPLY_AI_CONFIG_VERSION = 16;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
-const DEFAULT_REPLY_PROVIDER = "codex";
-const DEFAULT_CODEX_MODEL = "gpt-5.3-codex-spark";
-const DEFAULT_REPLY_COUNT = 3;
-const MIN_REPLY_COUNT = 3;
-const MAX_REPLY_COUNT = 5;
-const DEFAULT_REPLY_STYLE = "auto";
 const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
 const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
-const REPLY_PROVIDERS = new Set(["codex", "grok", "gemini", "claude"]);
-const PROVIDER_ALIASES = new Map([
-  ["codex-cli", "codex"],
-  ["grok-cli", "grok"],
-  ["croc", "grok"],
-  ["croc-cli", "grok"],
-  ["gemini-cli", "gemini"],
-  ["claude-cli", "claude"],
-  ["claude-code", "claude"]
-]);
-const DEFAULT_REPLY_SYSTEM_PROMPT = [
-  "You write native X/Twitter replies that sound like a real person with a clear point of view. The goal is not neutral analysis; the goal is a reply that is human, true, relevant, and postable.",
-  "Before writing, silently identify the original post's real claim, emotion, target, likely audience, and the strongest defensible stance for the user: amplify it, oppose it, call it out, or reframe it with conviction.",
-  "Base every reply on ORIGINAL_TWEET and VISIBLE_CONTEXT. Treat toneSignals, mediaContext, authorProfileContext, quoted tweets, link cards, conversation context, and webSearchResults as context.",
-  "Use live web search only when a reply would otherwise depend on current, named, or factual information not present in visible context: news, public people, companies, products, prices, laws, statistics, dates, technical claims, or source verification. Do not search for simple opinion, personal reaction, or common-sense reasoning.",
-  "Every factual claim must be supportable from visible context or webSearchResults. If a useful fact is missing or uncertain, avoid it or state the uncertainty plainly.",
-  "Write every reply in TARGET_LANGUAGE. Do not use another language unless the target language is unknown.",
-  "Return only JSON in this exact shape: {\"replies\":[{\"styleId\":\"short\",\"style\":\"Short impact\",\"text\":\"...\"},{\"styleId\":\"medium\",\"style\":\"Medium argument\",\"text\":\"...\"},{\"styleId\":\"long\",\"style\":\"Longer argument\",\"text\":\"...\"}]}. Use stable styleId values only: short, medium, long, reaction, argument, support, useful, question, codex, custom, humor, sharp, callout.",
-  "Write exactly {{replyCount}} replies. Make them genuinely different options, not paraphrases.",
-  "Every reply must be exactly one sentence. Never write two sentences in the same reply. No paragraph, no bullet, no thread-like answer.",
-  "Never use Unicode code point U+2014 in any reply. Use a comma instead.",
-  "If REPLY_STYLE is auto, choose a clear side first. If the original post is an outrage claim and visible context does not disprove it, amplify the outrage with a reason instead of softening it. If the post is misleading, oppose it directly. Do not write a balanced pro/con take.",
-  "In auto mode, produce three postable variants around the same clear stance with useful length variety: short, medium, and long. Do not write questions in auto mode.",
-  "Reply 1 must be very short and impact-driven: one punchy sentence, 45 to 110 characters, with a clear emotional or rhetorical hit.",
-  "Reply 2 must be one medium sentence, 100 to 210 characters, with one concrete reason or consequence.",
-  "Reply 3 must be one denser sentence, 170 to 300 characters, with a fuller argument, but never pad, repeat, or write filler just to be long.",
-  "If REPLY_STYLE is humor, keep it context-specific and human. If REPLY_STYLE is sharp, be direct without sounding like an essay. If REPLY_STYLE is useful, add one concrete consequence or practical point. If REPLY_STYLE is question, ask a non-generic question that advances the discussion.",
-  "Prioritize conviction plus reason: a clear side, a concrete consequence, and a sentence that sounds like a person reacting on X/Twitter.",
-  "Do not hedge with consultant phrases such as 'there is a tradeoff', 'technically legal yet', 'it depends', 'to be fair', 'on the one hand', or 'this may feel like' unless the user explicitly asks for nuance.",
-  "Do not write vague encouragement such as 'great question', 'it's great that', 'I'm sure there are reasons', 'it might help', 'consider testing', or empty agreement.",
-  "Do not write corporate wording, expert-report wording, generic praise, assistant-like phrasing, filler, moralizing, or a reply that could fit any tweet.",
-  "Replies should be punchy and natural for X/Twitter. If an idea needs a second sentence, choose the strongest idea and compress it into one sentence.",
-  "For developer-tool questions, useful arguments can include repo-aware edits, fewer context switches, running checks, explaining tradeoffs, faster iteration, or better fit with the user's workflow. State these as direct benefits, not as questions.",
-  "Do not invent numbers, dates, names, sources, or claims. If a statistic would be useful but is not present in visible context or search results, avoid the statistic or state the uncertainty.",
-  "If webSearchResults are provided, use them as external context. If no webSearchResults are provided, use only visible link cards and quoted tweets and do not pretend you opened links.",
-  "Do not add hashtags unless the original tweet already uses hashtags. Do not mention that you are an AI.",
-  "UI locale, only as fallback: {{uiLocale}}.",
-  "Tweet language hint: {{tweetLanguage}}.",
-  "Target language: {{targetLanguage}}.",
-  "Reply style request: {{replyStyle}}."
-].join("\n");
-const DEFAULT_REPLY_PROMPT_PROFILES = [
-  {
-    label: "Short impact",
-    prompt: [
-      "Write one very short X/Twitter reply for the profile named {{profileName}}.",
-      "It must be punchy, direct, and between 45 and 110 characters when possible.",
-      "Take one clear side based on the visible context and avoid generic agreement.",
-      "Write in TARGET_LANGUAGE and never use Unicode code point U+2014; use a comma instead."
-    ].join("\n")
-  },
-  {
-    label: "Medium argument",
-    prompt: [
-      "Write one medium X/Twitter reply for the profile named {{profileName}}.",
-      "It must be one sentence, usually 100 to 210 characters, with one concrete reason or consequence.",
-      "Make it sound like a real person responding on X/Twitter, not a report.",
-      "Write in TARGET_LANGUAGE and never use Unicode code point U+2014; use a comma instead."
-    ].join("\n")
-  },
-  {
-    label: "Longer argument",
-    prompt: [
-      "Write one longer X/Twitter reply for the profile named {{profileName}}.",
-      "It must be one dense sentence, usually 170 to 300 characters, with a fuller argument and no filler.",
-      "Keep the stance clear and specific to the visible post context.",
-      "Write in TARGET_LANGUAGE and never use Unicode code point U+2014; use a comma instead."
-    ].join("\n")
-  }
-];
+
+const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
 
 const DEFAULT_REPLY_AI_CONFIG = {
   configVersion: REPLY_AI_CONFIG_VERSION,
   enabled: true,
-  provider: DEFAULT_REPLY_PROVIDER,
   codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
   bridgeToken: "",
-  codexModel: DEFAULT_CODEX_MODEL,
-  codexModelPreset: DEFAULT_CODEX_MODEL,
-  prompt: DEFAULT_REPLY_SYSTEM_PROMPT,
-  replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
-  replyCount: DEFAULT_REPLY_COUNT,
-  replyStyle: DEFAULT_REPLY_STYLE,
-  replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE
+  replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
+  generatePrompt: DEFAULT_GENERATE_PROMPT
 };
 
 const DIAGNOSTIC_LOG_STORAGE_KEY = "xtensionDiagnosticLogs";
@@ -125,57 +45,9 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === "xtension-generate-reply-suggestions") {
-    sendLoggedAiResponse(
-      "reply_suggestions",
-      "replies",
-      "generation_failed",
-      sendResponse,
-      () => generateReplySuggestions(message.context, message.locale),
-      {
-        locale: cleanText(message.locale || ""),
-        contextLength: getReplyContextTextLength(message.context),
-        hasContext: Boolean(message.context)
-      }
-    );
 
-    return true;
-  }
 
-  if (message.type === "xtension-get-reply-prompt-profiles") {
-    getReplyPromptProfilesForUi().then((profiles) => {
-      sendResponse({
-        ok: true,
-        profiles
-      });
-    }).catch((error) => {
-      sendResponse({
-        ok: false,
-        error: error.message
-      });
-    });
 
-    return true;
-  }
-
-  if (message.type === "xtension-generate-reply-suggestion-profile") {
-    const profileIndex = normalizeReplyProfileIndex(message.profileIndex);
-    sendLoggedAiResponse(
-      "reply_profile",
-      "reply",
-      "generation_failed",
-      sendResponse,
-      () => generateReplySuggestionProfile(profileIndex, message.context, message.locale),
-      {
-        locale: cleanText(message.locale || ""),
-        profileIndex,
-        contextLength: getReplyContextTextLength(message.context),
-        hasContext: Boolean(message.context)
-      }
-    );
-
-    return true;
-  }
 
   if (message.type === "xtension-correct-reply-draft") {
     sendLoggedAiResponse(
@@ -229,6 +101,36 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "xtension-transcribe-dictation") {
+    sendLoggedAiResponse(
+      "dictation_transcribe",
+      "result",
+      "transcription_failed",
+      sendResponse,
+      () => transcribeDictationAudio(message),
+      {
+        durationMs: Math.max(0, Number(message.durationMs || 0)),
+        inputBytes: Math.max(0, Number(message.size || 0)),
+        locale: cleanText(message.language || ""),
+        mimeType: cleanText(message.mimeType || ""),
+        mode: cleanText(message.mode || "")
+      }
+    );
+
+    return true;
+  }
+
+  if (message.type === "xtension-warmup-bridge") {
+    warmupBridge().then(() => {
+      sendResponse({ ok: true });
+    }).catch(() => {
+      // Préchauffage best-effort : on n'expose aucune erreur au composeur.
+      sendResponse({ ok: false });
+    });
+
+    return true;
+  }
+
   if (message.type === "xtension-get-diagnostic-logs") {
     getDiagnosticLogs().then((logs) => {
       sendResponse({
@@ -273,6 +175,139 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+// Génération en STREAMING via un port (le token-par-token est impossible avec
+// sendMessage). content.js ouvre le port "xtension-generate-stream" ; on relaie le
+// flux du bridge (/transform-stream). Si le streaming échoue (bridge trop ancien →
+// 404, réseau), on RETOMBE sur la génération non-streaming et on renvoie le texte
+// final : la génération marche donc toujours, avec ou sans aperçu au fil de l'eau.
+runtimeApi.onConnect?.addListener((port) => {
+  if (!port || port.name !== "xtension-generate-stream") {
+    return;
+  }
+  let handled = false;
+  port.onMessage.addListener((message) => {
+    if (handled || message?.type !== "start") {
+      return;
+    }
+    handled = true;
+    streamGenerateReplyDraft(port, message).catch((error) => {
+      postToPort(port, { type: "error", error: error?.message || "Generation failed.", code: error?.code || "" });
+    });
+  });
+});
+
+function postToPort(port, message) {
+  try {
+    port.postMessage(message);
+  } catch (error) {
+    // port fermé côté content : rien à faire
+  }
+}
+
+async function streamGenerateReplyDraft(port, message) {
+  const config = await getReplyAiConfig();
+  const draftText = String(message?.text || "").trim();
+  if (!config.enabled) {
+    const error = new Error("AI bridge is not configured.");
+    error.code = "not_configured";
+    throw error;
+  }
+  if (!draftText) {
+    postToPort(port, { type: "done", text: "" });
+    return;
+  }
+
+  const locale = message?.locale || "";
+  const targetLanguage = message?.targetLanguage || "";
+  const context = message?.context || null;
+  const image = await fetchContextImageDataUrl(context);
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  try {
+    const finalText = await streamTransformFromBridge(config, bridgeUrl, {
+      operation: "generate",
+      locale,
+      targetLanguage,
+      context,
+      text: draftText,
+      generatePrompt: config?.generatePrompt || "",
+      ...(image ? { image } : {})
+    }, (delta, full) => {
+      postToPort(port, { type: "delta", delta, text: full });
+    });
+    postToPort(port, { type: "done", text: sanitizeGeneratedReplyText(finalText || "") || draftText });
+  } catch (error) {
+    // Repli : au pire, la génération fonctionne comme avant (sans aperçu live).
+    appendDiagnosticLog({
+      level: "warn",
+      area: "ai",
+      event: "generate_stream_fallback",
+      error: String(error?.message || error).slice(0, 200)
+    }).catch(() => {});
+    const text = await transformReplyDraft("generate", draftText, locale, targetLanguage, context);
+    postToPort(port, { type: "done", text });
+  }
+}
+
+// Lit le flux NDJSON de /transform-stream : {"delta":"..."} au fil de l'eau,
+// {"done":true,"text":"..."} final. Renvoie le texte final. Lève si l'endpoint est
+// absent/en erreur (le repli non-streaming prend alors le relais en amont).
+async function streamTransformFromBridge(config, bridgeUrl, body, onDelta) {
+  const response = await fetch(`${bridgeUrl}/transform-stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...buildBridgeAuthHeaders(config) },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`transform-stream ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalText = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (!line) {
+        continue;
+      }
+      let obj;
+      try {
+        obj = JSON.parse(line);
+      } catch (error) {
+        continue;
+      }
+      if (obj.error) {
+        const error = new Error(obj.error);
+        error.code = obj.code || "";
+        throw error;
+      }
+      if (obj.done) {
+        finalText = obj.text || finalText;
+      } else if (typeof obj.delta === "string") {
+        finalText += obj.delta;
+        if (typeof onDelta === "function") {
+          onDelta(obj.delta, finalText);
+        }
+      }
+    }
+  }
+  return finalText;
+}
 
 function sendLoggedAiResponse(operation, responseKey, fallbackCode, sendResponse, task, metadata = {}) {
   const startedAt = Date.now();
@@ -323,6 +358,12 @@ function getDiagnosticOutputMetadata(value) {
   if (Array.isArray(value)) {
     return {
       outputCount: value.length
+    };
+  }
+
+  if (value && typeof value === "object" && typeof value.text === "string") {
+    return {
+      outputLength: value.text.length
     };
   }
 
@@ -398,19 +439,14 @@ function sanitizeDiagnosticLogEntry(value, depth = 0) {
 }
 
 function logAiRoute(config, operation, details = {}) {
-  const provider = normalizeReplyProvider(config?.provider);
   return appendDiagnosticLog({
     level: "info",
     area: "ai",
     event: "route_selected",
     operation,
-    provider,
-    route: "ai-bridge",
+    route: "local-bridge",
     bridgeConfigured: Boolean(normalizeCodexBridgeUrl(config?.codexBridgeUrl)),
     bridgeTokenPresent: Boolean(config?.bridgeToken),
-    codexModel: normalizeCodexModel(config?.codexModel),
-    replyCount: normalizeReplyCount(config?.replyCount),
-    replyStyle: normalizeReplyStyle(config?.replyStyle),
     replyLanguageMode: normalizeReplyLanguageMode(config?.replyLanguageMode),
     ...details
   }).catch(() => {});
@@ -486,68 +522,6 @@ async function createExtensionTab(url) {
   });
 }
 
-async function generateReplySuggestions(context, locale) {
-  const config = await getReplyAiConfig();
-
-  if (!config.enabled) {
-    logAiRoute(config, "reply_suggestions", {
-      enabled: false
-    });
-    const error = new Error("AI bridge is not configured.");
-    error.code = "not_configured";
-    throw error;
-  }
-
-  const replyCount = normalizeReplyCount(config.replyCount);
-  logAiRoute(config, "reply_suggestions", {
-    model: normalizeCodexModel(config.codexModel)
-  });
-
-  const replies = await generateBridgeReplySuggestions(config, context || {}, locale);
-  if (replies.length >= replyCount) {
-    return replies.slice(0, replyCount);
-  }
-
-  throw new Error("The selected provider returned fewer than three reply suggestions.");
-}
-
-async function getReplyPromptProfilesForUi() {
-  const config = await getReplyAiConfig();
-  return config.replyPromptProfiles.map((profile, index) => ({
-    index,
-    label: profile.label
-  }));
-}
-
-async function generateReplySuggestionProfile(profileIndex, context, locale) {
-  const config = await getReplyAiConfig();
-  const profile = getReplyPromptProfile(config, profileIndex);
-
-  if (!config.enabled) {
-    logAiRoute(config, "reply_profile", {
-      enabled: false,
-      profileIndex,
-      profileLabel: profile.label
-    });
-    const error = new Error("AI bridge is not configured.");
-    error.code = "not_configured";
-    throw error;
-  }
-
-  logAiRoute(config, "reply_profile", {
-    model: normalizeCodexModel(config.codexModel),
-    profileIndex,
-    profileLabel: profile.label
-  });
-
-  const reply = await generateBridgeReplySuggestionProfile(config, profileIndex, profile, context || {}, locale);
-  if (!reply?.text) {
-    throw new Error("The selected provider did not return this reply profile.");
-  }
-
-  return reply;
-}
-
 async function transformReplyDraft(operation, text, locale, targetLanguage, context) {
   const config = await getReplyAiConfig();
   const draftText = String(text || "").trim();
@@ -566,17 +540,121 @@ async function transformReplyDraft(operation, text, locale, targetLanguage, cont
     return "";
   }
 
+  // Génération multimodale : on récupère (best-effort) l'image du tweet pour que
+  // le modèle vision puisse la « voir ». N'affecte pas correct/translate.
+  const image = normalizedOperation === "generate" ? await fetchContextImageDataUrl(context) : "";
+
   logAiRoute(config, `draft_${normalizedOperation}`, {
-    model: normalizeCodexModel(config.codexModel),
-    hasContext: Boolean(context)
+    hasContext: Boolean(context),
+    hasImage: Boolean(image)
   });
 
-  const transformedText = await transformReplyDraftWithBridge(config, normalizedOperation, draftText, locale, targetLanguage, context);
+  const transformedText = await transformReplyDraftWithBridge(config, normalizedOperation, draftText, locale, targetLanguage, context, image);
   if (normalizedOperation === "correct") {
     return refineDraftCorrection(draftText, transformedText, locale, targetLanguage) || draftText;
   }
 
   return transformedText || draftText;
+}
+
+// Récupère la première image du tweet (contexte) en data URL, en version LÉGÈRE
+// (pbs name=small) et bornée en taille. Best-effort : toute erreur -> pas d'image
+// (génération texte seul). Ne jamais faire échouer la génération à cause de l'image.
+async function fetchContextImageDataUrl(context) {
+  try {
+    const media = Array.isArray(context?.mediaContext) ? context.mediaContext : [];
+    const item = media.find((entry) => entry && entry.type === "image" && entry.imageUrl);
+    if (!item) {
+      return "";
+    }
+    const smallUrl = toSmallImageUrl(item.imageUrl);
+    const image = await fetchImageAsDataUrl(smallUrl);
+    // Borne de sécurité : au-delà, on renonce (le bridge limite /transform à ~6 Mo,
+    // et une image trop grande ralentit inutilement l'encodage vision).
+    if (image?.dataUrl && image.dataUrl.length <= 4 * 1024 * 1024) {
+      return image.dataUrl;
+    }
+    return "";
+  } catch (error) {
+    return "";
+  }
+}
+
+// Demande la variante légère d'une image pbs.twimg.com (name=small) au lieu de large.
+function toSmallImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (/pbs\.twimg\.com/i.test(parsed.hostname) && parsed.searchParams.has("name")) {
+      parsed.searchParams.set("name", "small");
+      return parsed.href;
+    }
+    return url;
+  } catch (error) {
+    return url;
+  }
+}
+
+async function warmupBridge() {
+  const config = await getReplyAiConfig();
+  if (config?.enabled === false) {
+    return;
+  }
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    return;
+  }
+  // Démarre le moteur local et amorce le cache du prompt (côté bridge, /warmup
+  // lance le serveur LLM qui se préchauffe tout seul). Best-effort, court timeout.
+  await fetchBridgeRequest(`${bridgeUrl}/warmup`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: "{}"
+  }, {
+    operation: "warmup"
+  }).catch(() => {});
+}
+
+async function transcribeDictationAudio(message) {
+  const config = await getReplyAiConfig();
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const response = await fetchBridgeRequest(`${bridgeUrl}/transcribe`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: JSON.stringify({
+      audioBase64: cleanText(message?.audioBase64 || ""),
+      durationMs: Math.max(0, Number(message?.durationMs || 0)),
+      language: cleanText(message?.language || ""),
+      // Indice non contraignant (locale du navigateur) pour le choix du moteur
+      // côté bridge ; la langue transcrite reste auto-détectée.
+      hintLanguage: cleanText(message?.hintLanguage || ""),
+      mode: cleanText(message?.mode || ""),
+      mimeType: cleanText(message?.mimeType || "audio/webm")
+    })
+  }, {
+    operation: "dictation_transcribe"
+  });
+
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+
+  const data = await response.json();
+  return {
+    text: sanitizeGeneratedReplyText(data?.text || data?.transcript || ""),
+    language: cleanText(data?.language || "")
+  };
 }
 
 async function getReplyAiConfig() {
@@ -600,76 +678,23 @@ function normalizeReplyAiConfig(config) {
 
   normalized.configVersion = REPLY_AI_CONFIG_VERSION;
   normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
-  normalized.provider = normalizeReplyProvider(normalized.provider);
   normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
-  normalized.codexModel = normalizeProviderModel(normalized.provider, normalized.codexModel);
-  normalized.codexModelPreset = cleanText(normalized.codexModelPreset || normalized.codexModel || "");
-  normalized.prompt = cleanDraftText(normalized.prompt || DEFAULT_REPLY_SYSTEM_PROMPT) || DEFAULT_REPLY_SYSTEM_PROMPT;
-  if (shouldUpgradeDefaultPrompt(rawConfig.prompt)) {
-    normalized.prompt = DEFAULT_REPLY_SYSTEM_PROMPT;
-  }
-  normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
-  normalized.replyCount = normalizeReplyCount(normalized.replyCount);
-  normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
   normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
+  normalized.generatePrompt = cleanDraftText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
 
+  delete normalized.provider;
+  delete normalized.codexModel;
+  delete normalized.codexModelPreset;
+  delete normalized.prompt;
+  delete normalized.replyPromptProfiles;
+  delete normalized.replyCount;
+  delete normalized.replyStyle;
   delete normalized.baseUrl;
   delete normalized.model;
   delete normalized.apiKey;
-  delete normalized.webSearchEnabled;
-  delete normalized.webSearchApiKey;
-  delete normalized.codexEnabled;
-  delete normalized.cliModelMode;
-  delete normalized.claudeModel;
-  delete normalized.geminiModel;
-  delete normalized.embeddedLocalEnabled;
-  delete normalized.embeddedLocalModel;
-  delete normalized.embeddedLocalRoutes;
 
   return normalized;
-}
-
-function cloneDefaultReplyPromptProfiles() {
-  return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
-}
-
-function normalizeReplyPromptProfiles(value, legacyPrompt) {
-  const input = Array.isArray(value) ? value : [];
-  const defaults = cloneDefaultReplyPromptProfiles();
-  const legacy = cleanDraftText(legacyPrompt || "");
-
-  return defaults.map((fallback, index) => {
-    const raw = input[index] && typeof input[index] === "object" ? input[index] : {};
-    return {
-      label: cleanText(raw.label || raw.name || fallback.label).slice(0, 80) || fallback.label,
-      prompt: cleanDraftText(raw.prompt || (legacy && index === 0 ? legacy : "") || fallback.prompt) || fallback.prompt
-    };
-  });
-}
-
-function normalizeReplyProfileIndex(value) {
-  const index = Number.parseInt(value, 10);
-  if (!Number.isFinite(index)) {
-    return 0;
-  }
-  return Math.min(2, Math.max(0, index));
-}
-
-function getReplyPromptProfile(config, profileIndex) {
-  const profiles = normalizeReplyPromptProfiles(config?.replyPromptProfiles, config?.prompt);
-  return profiles[normalizeReplyProfileIndex(profileIndex)] || profiles[0];
-}
-
-function shouldUpgradeDefaultPrompt(prompt) {
-  const value = String(prompt || "");
-  return !value
-    || /sharp insight or contrarian angle|useful context or actionable takeaway|punchy social reaction/i.test(value)
-    || /toneSignals include humor|Contextual joke|humor,\s*sharp,\s*useful,\s*question|make reply 1 genuinely funny/i.test(value)
-    || /You write native X\/Twitter reply suggestions|Make the replies specific and worth choosing|Each reply text should usually be 90 to 260 characters/i.test(value)
-    || /high-judgment X\/Twitter reply strategist|one nuanced or tradeoff-based reply|Reasoned argument.*Nuance.*Practical context/i.test(value)
-    || /one human reaction with bite, one concise reasoned argument, and one sharper or more memorable take/i.test(value)
-    || /Reply 2 must be medium length: usually one or two sentences|Reply 3 must be longer only because it adds substance: usually two to four short sentences/i.test(value);
 }
 
 function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
@@ -680,143 +705,7 @@ function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
   return JSON.stringify(rawConfig) !== JSON.stringify(normalizedConfig);
 }
 
-async function generateBridgeReplySuggestions(config, context, locale) {
-  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
-  if (!bridgeUrl) {
-    const error = new Error("AI bridge URL is invalid.");
-    error.code = "not_configured";
-    throw error;
-  }
-
-  const startedAt = Date.now();
-  const response = await fetchBridgeRequest(`${bridgeUrl}/reply`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...buildBridgeAuthHeaders(config)
-    },
-    body: JSON.stringify({
-      operation: "reply",
-      provider: normalizeReplyProvider(config.provider),
-      model: normalizeCodexModel(config.codexModel),
-      systemPrompt: config.prompt,
-      locale,
-      context,
-      replyCount: normalizeReplyCount(config.replyCount),
-      replyStyle: normalizeReplyStyle(config.replyStyle),
-      replyLanguageMode: normalizeReplyLanguageMode(config.replyLanguageMode),
-      targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale)
-    })
-  }, {
-    operation: "reply_suggestions",
-    provider: normalizeReplyProvider(config.provider)
-  });
-
-  if (!response.ok) {
-    appendDiagnosticLog({
-      level: "warn",
-      area: "ai",
-      event: "bridge_failed",
-      operation: "reply_suggestions",
-      provider: normalizeReplyProvider(config.provider),
-      status: response.status,
-      durationMs: Date.now() - startedAt
-    }).catch(() => {});
-    throw new Error(await formatHttpError(response));
-  }
-
-  const data = await response.json();
-  const replies = normalizeReplySuggestions(data?.replies || (data?.reply ? [data.reply] : [data]));
-  appendDiagnosticLog({
-    level: "info",
-    area: "ai",
-    event: "bridge_done",
-    operation: "reply_suggestions",
-    provider: normalizeReplyProvider(config.provider),
-    outputCount: replies.length,
-    durationMs: Date.now() - startedAt
-  }).catch(() => {});
-
-  return replies;
-}
-
-async function generateBridgeReplySuggestionProfile(config, profileIndex, profile, context, locale) {
-  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
-  if (!bridgeUrl) {
-    const error = new Error("AI bridge URL is invalid.");
-    error.code = "not_configured";
-    throw error;
-  }
-
-  const startedAt = Date.now();
-  const response = await fetchBridgeRequest(`${bridgeUrl}/reply`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...buildBridgeAuthHeaders(config)
-    },
-    body: JSON.stringify({
-      operation: "reply",
-      provider: normalizeReplyProvider(config.provider),
-      model: normalizeCodexModel(config.codexModel),
-      systemPrompt: profile.prompt,
-      replyProfile: {
-        index: profileIndex,
-        label: profile.label
-      },
-      locale,
-      context,
-      replyCount: 1,
-      replyStyle: normalizeReplyStyle(config.replyStyle),
-      replyLanguageMode: normalizeReplyLanguageMode(config.replyLanguageMode),
-      targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale)
-    })
-  }, {
-    operation: "reply_profile",
-    provider: normalizeReplyProvider(config.provider),
-    profileIndex,
-    profileLabel: profile.label
-  });
-
-  if (!response.ok) {
-    appendDiagnosticLog({
-      level: "warn",
-      area: "ai",
-      event: "bridge_failed",
-      operation: "reply_profile",
-      provider: normalizeReplyProvider(config.provider),
-      profileIndex,
-      profileLabel: profile.label,
-      status: response.status,
-      durationMs: Date.now() - startedAt
-    }).catch(() => {});
-    throw new Error(await formatHttpError(response));
-  }
-
-  const data = await response.json();
-  const replies = normalizeReplySuggestions(data?.replies || (data?.reply ? [data.reply] : [data])).slice(0, 1);
-  const reply = replies[0] || null;
-  appendDiagnosticLog({
-    level: "info",
-    area: "ai",
-    event: "bridge_done",
-    operation: "reply_profile",
-    provider: normalizeReplyProvider(config.provider),
-    profileIndex,
-    profileLabel: profile.label,
-    outputCount: reply ? 1 : 0,
-    durationMs: Date.now() - startedAt
-  }).catch(() => {});
-
-  return reply ? {
-    ...reply,
-    style: profile.label,
-    profileIndex,
-    profileLabel: profile.label
-  } : null;
-}
-
-async function transformReplyDraftWithBridge(config, operation, text, locale, targetLanguage, context) {
+async function transformReplyDraftWithBridge(config, operation, text, locale, targetLanguage, context, image) {
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -832,20 +721,19 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
     },
     body: JSON.stringify({
       operation: normalizeDraftTransformOperation(operation),
-      provider: normalizeReplyProvider(config.provider),
-      model: normalizeCodexModel(config.codexModel),
       locale,
       targetLanguage,
       context,
-      text
+      text,
+      generatePrompt: config?.generatePrompt || "",
+      ...(image ? { image } : {})
     })
   }, {
-    operation: `draft_${normalizeDraftTransformOperation(operation)}`,
-    provider: normalizeReplyProvider(config.provider)
+    operation: `draft_${normalizeDraftTransformOperation(operation)}`
   });
 
   if (!response.ok) {
-    throw new Error(await formatHttpError(response));
+    throw await createBridgeHttpError(response);
   }
 
   const data = await response.json();
@@ -887,28 +775,6 @@ function normalizeCodexBridgeUrl(value) {
   }
 }
 
-function normalizeCodexModel(value) {
-  const model = cleanText(value || "");
-  if (!model || model === "__cli_default__") {
-    return "";
-  }
-  return model;
-}
-
-function normalizeProviderModel(provider, value) {
-  const model = normalizeCodexModel(value);
-  if (normalizeReplyProvider(provider) !== "codex" && model === DEFAULT_CODEX_MODEL) {
-    return "";
-  }
-  return model;
-}
-
-function normalizeReplyProvider(value) {
-  const rawProvider = cleanText(value || "").toLowerCase().replace(/_/g, "-");
-  const provider = PROVIDER_ALIASES.get(rawProvider) || rawProvider || DEFAULT_REPLY_PROVIDER;
-  return REPLY_PROVIDERS.has(provider) ? provider : DEFAULT_REPLY_PROVIDER;
-}
-
 function buildBridgeAuthHeaders(config) {
   const token = cleanText(config?.bridgeToken || "");
   return token ? { "x-xtension-bridge-token": token } : {};
@@ -923,6 +789,10 @@ function getReplyTargetLanguage(config, tweetLanguage, uiLocale) {
 }
 
 async function formatHttpError(response) {
+  return (await createBridgeHttpError(response)).message;
+}
+
+async function createBridgeHttpError(response) {
   let body = "";
   try {
     body = await response.text();
@@ -930,121 +800,43 @@ async function formatHttpError(response) {
     body = "";
   }
 
-  const message = extractHttpErrorMessage(body);
-  return message ? `${response.status} ${message}` : `${response.status} ${response.statusText || "HTTP error"}`;
+  const parsed = tryParseJson(body);
+  const message = extractHttpErrorMessageFromParsed(parsed)
+    || (!parsed ? truncateText(cleanText(body), 360) : "")
+    || response.statusText
+    || "HTTP error";
+  const error = new Error(`${response.status} ${message}`);
+  // Un bridge trop ancien (sans endpoint /transcribe) répond 404 sans code JSON :
+  // on synthétise "not_found" pour que l'appelant affiche « mettez à jour le
+  // bridge » plutôt que le brut « 404 Not found. ».
+  error.code = cleanText(parsed?.code || "") || (response.status === 404 ? "not_found" : "");
+  error.status = response.status;
+  return error;
 }
 
 function extractHttpErrorMessage(body) {
   const parsed = tryParseJson(body);
   if (parsed) {
-    return parsed.error?.message
-      || parsed.error
-      || parsed.message
-      || parsed.detail
-      || "";
+    return extractHttpErrorMessageFromParsed(parsed);
   }
 
   return truncateText(cleanText(body), 360);
 }
 
-function normalizeReplySuggestions(values) {
-  const normalized = [];
-  const seen = new Set();
-  const input = Array.isArray(values) ? values : [];
-
-  for (const value of input) {
-    const reply = normalizeReplySuggestion(value);
-    if (!reply.text || isLowQualityReplySuggestion(reply)) {
-      continue;
-    }
-
-    const key = normalizeComparableText(reply.text);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    normalized.push(reply);
-  }
-
-  return normalized.slice(0, MAX_REPLY_COUNT);
-}
-
-function normalizeReplySuggestion(value) {
-  if (value && typeof value === "object") {
-    const styleId = normalizeReplyStyleId(value.styleId || value.style_id || value.style || value.type || "");
-    return {
-      styleId: styleId || "codex",
-      style: cleanText(value.style || value.label || ""),
-      text: limitReplySuggestionText(value.text || value.reply || value.content || value.message || "", styleId || "codex")
-    };
-  }
-
-  return {
-    styleId: "codex",
-    style: "",
-    text: limitReplySuggestionText(value, "codex")
-  };
-}
-
-function limitReplySuggestionText(value, styleId) {
-  const sentence = extractFirstReplySentence(value);
-  return clampReplySentence(sentence, getReplySuggestionMaxLength(styleId));
-}
-
-function extractFirstReplySentence(value) {
-  const text = cleanText(sanitizeGeneratedReplyText(value).replace(/\n+/g, " "));
-  if (!text) {
+function extractHttpErrorMessageFromParsed(parsed) {
+  if (!parsed) {
     return "";
   }
 
-  const sentenceMatch = text.match(/^(.+?[.!?…。！？])(?:\s+["'“”‘’([{]*[A-ZÀ-ÖØ-Þ0-9]|\s*$)/);
-  return cleanText(sentenceMatch?.[1] || text.replace(/\s*;\s*/g, ", "));
-}
-
-function clampReplySentence(value, maxLength) {
-  const text = cleanText(value);
-  if (!maxLength || text.length <= maxLength) {
-    return ensureSentencePunctuation(text);
-  }
-
-  const clipped = cleanText(text.slice(0, maxLength).replace(/\s+\S*$/, "").replace(/[,:;\u2013\u2014-]+$/, ""));
-  return ensureSentencePunctuation(clipped || text.slice(0, maxLength));
+  return parsed.error?.message
+    || parsed.error
+    || parsed.message
+    || parsed.detail
+    || "";
 }
 
 function sanitizeGeneratedReplyText(value) {
   return cleanDraftText(value).replace(PROHIBITED_REPLY_SYMBOL_PATTERN, ",");
-}
-
-function ensureSentencePunctuation(value) {
-  const text = cleanText(value);
-  if (!text || /[.!?…。！？]$/.test(text)) {
-    return text;
-  }
-  return `${text}.`;
-}
-
-function getReplySuggestionMaxLength(styleId) {
-  const normalizedStyleId = normalizeReplyStyleId(styleId);
-  if (normalizedStyleId === "short") {
-    return 110;
-  }
-  if (normalizedStyleId === "medium") {
-    return 210;
-  }
-  if (normalizedStyleId === "long") {
-    return 300;
-  }
-  return 220;
-}
-
-function isLowQualityReplySuggestion(reply) {
-  const text = cleanText(reply?.text || "").toLowerCase();
-
-  if (!text) {
-    return true;
-  }
-
-  return /\b(?:great question|it'?s great that|it is great that|i'?m sure there are|consider testing|it might help|might help clarify|fresh perspectives|which feature aligns)\b/i.test(text);
 }
 
 function refineDraftCorrection(originalText, candidateText, locale, targetLanguage) {
@@ -1203,74 +995,11 @@ function cleanDraftText(value) {
     .trim();
 }
 
-function normalizeReplyCount(value) {
-  const count = Number.parseInt(value, 10);
-
-  if (!Number.isFinite(count)) {
-    return DEFAULT_REPLY_COUNT;
-  }
-
-  return Math.min(MAX_REPLY_COUNT, Math.max(MIN_REPLY_COUNT, count));
-}
-
-function normalizeReplyStyle(value) {
-  const style = cleanText(value).toLowerCase();
-  const allowed = new Set(["auto", "humor", "sharp", "useful", "question", "codex", "custom"]);
-
-  return allowed.has(style) ? style : DEFAULT_REPLY_STYLE;
-}
-
 function normalizeDraftTransformOperation(value) {
   const operation = cleanText(value).toLowerCase();
   const allowed = new Set(["correct", "translate", "generate"]);
 
   return allowed.has(operation) ? operation : "correct";
-}
-
-function normalizeReplyStyleId(value) {
-  const style = cleanText(value).toLowerCase();
-
-  if (/short|court|courte|punchy|brief/.test(style)) {
-    return "short";
-  }
-  if (/medium|moyen|moyenne|balanced/.test(style)) {
-    return "medium";
-  }
-  if (/long|longue|detailed|développ|developp/.test(style)) {
-    return "long";
-  }
-  if (/argument|reason|raison|preuve|pourquoi/.test(style)) {
-    return "argument";
-  }
-  if (/reaction|réaction|human|humain|instinct|gut|take/.test(style)) {
-    return "reaction";
-  }
-  if (/callout|call out|dénonc|denonc|scandale/.test(style)) {
-    return "callout";
-  }
-  if (/nuance|tradeoff|équilibre|equilibre|limite|réserve|reserve/.test(style)) {
-    return "argument";
-  }
-  if (/support|agree|accord|positif|positive|soutien/.test(style)) {
-    return "support";
-  }
-  if (/humou?r|joke|funny|meme|vanne|dr[oô]le/.test(style)) {
-    return "humor";
-  }
-  if (/sharp|contrarian|angle|direct|malin|tranch/.test(style)) {
-    return "sharp";
-  }
-  if (/useful|context|takeaway|utile|contexte/.test(style)) {
-    return "useful";
-  }
-  if (/question|relance|engag|conversation/.test(style)) {
-    return "question";
-  }
-  if (/codex|search|recherche/.test(style)) {
-    return "codex";
-  }
-
-  return "";
 }
 
 function normalizeReplyLanguageMode(value) {

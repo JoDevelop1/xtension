@@ -87,6 +87,7 @@ internal static class Program
             Directory.CreateDirectory(installDir);
             Directory.CreateDirectory(logDir);
             Directory.CreateDirectory(serviceTempDir);
+            GrantBuiltInUsersModify(dataDir);
             File.Copy(Path.Combine(tempDir, "XtensionBridge.exe"), Path.Combine(installDir, "XtensionBridge.exe"), true);
             File.Copy(Path.Combine(tempDir, "XtensionBridgeService.exe"), Path.Combine(installDir, "XtensionBridgeService.exe"), true);
             var installedSetup = CopyInstallerToInstallDir(installDir);
@@ -229,6 +230,22 @@ internal static class Program
         }
     }
 
+    private static void GrantBuiltInUsersModify(string directory)
+    {
+        try
+        {
+            RunProcess(
+                "icacls.exe",
+                $"{Quote(directory)} /grant *S-1-5-32-545:(OI)(CI)M /T /C",
+                TimeSpan.FromSeconds(30),
+                allowExitCodes: new[] { 0 });
+        }
+        catch (Exception error)
+        {
+            Log($"Could not update data directory ACL: {error.Message}");
+        }
+    }
+
     private static void RemoveInstalledFiles(string installDir)
     {
         if (!Directory.Exists(installDir))
@@ -268,19 +285,19 @@ internal static class Program
         {
             ["XTENSION_BRIDGE_PORT"] = DefaultPort.ToString(),
             ["XTENSION_BRIDGE_LOG_FILE"] = Path.Combine(logDir, "bridge.log"),
+            ["USERPROFILE"] = userProfile,
+            ["HOME"] = userProfile,
+            ["APPDATA"] = Path.Combine(userProfile, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(userProfile, "AppData", "Local"),
+            ["XTENSION_BRIDGE_USER_HOME"] = userProfile,
             ["TEMP"] = serviceTempDir,
             ["TMP"] = serviceTempDir
         };
 
-        AddIfFound(environment, "CODEX_HOME", Path.Combine(userProfile, ".codex"));
         AddIfFound(environment, "HOMEDRIVE", GetHomeDrive(userProfile));
         AddIfFound(environment, "HOMEPATH", GetHomePath(userProfile));
         AddIfFound(environment, "USERNAME", GetUserNameFromProfile(userProfile));
         AddIfFound(environment, "USERDOMAIN", Environment.UserDomainName);
-        AddIfFound(environment, "CODEX_CLI", ResolveCommandPath("codex", userProfile, Path.Combine(userProfile, "AppData", "Roaming", "npm", "codex.cmd")));
-        AddIfFound(environment, "GROK_CLI", ResolveCommandPath("grok", userProfile, Path.Combine(userProfile, ".grok", "bin", "grok.exe")));
-        AddIfFound(environment, "GEMINI_CLI", ResolveCommandPath("gemini", userProfile, Path.Combine(userProfile, "AppData", "Roaming", "npm", "gemini.cmd")));
-        AddIfFound(environment, "CLAUDE_CLI", ResolveCommandPath("claude", userProfile, Path.Combine(userProfile, ".local", "bin", "claude.exe")));
 
         var config = new BridgeServiceConfig
         {
@@ -289,6 +306,7 @@ internal static class Program
             UserProfile = userProfile,
             LogDirectory = logDir,
             RestartDelayMs = 2000,
+            RunBridgeInUserSession = true,
             Environment = environment
         };
 
@@ -305,43 +323,6 @@ internal static class Program
         {
             target[key] = value;
         }
-    }
-
-    private static string ResolveCommandPath(string commandName, string userProfile, params string[] fallbacks)
-    {
-        var pathEntries = new[]
-            {
-                Path.Combine(userProfile, "AppData", "Roaming", "npm"),
-                Path.Combine(userProfile, ".local", "bin"),
-                Path.Combine(userProfile, ".grok", "bin")
-            }
-            .Concat((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-        var extensions = commandName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || commandName.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)
-            ? new[] { "" }
-            : new[] { ".exe", ".cmd", ".bat", "" };
-
-        foreach (var directory in pathEntries.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            foreach (var extension in extensions)
-            {
-                var candidate = Path.Combine(directory, commandName + extension);
-                if (File.Exists(candidate))
-                {
-                    return Path.GetFullPath(candidate);
-                }
-            }
-        }
-
-        foreach (var fallback in fallbacks)
-        {
-            if (File.Exists(fallback))
-            {
-                return Path.GetFullPath(fallback);
-            }
-        }
-
-        return "";
     }
 
     private static string GetHomeDrive(string userProfile)
@@ -584,6 +565,9 @@ internal sealed class BridgeServiceConfig
 
     [JsonPropertyName("restartDelayMs")]
     public int RestartDelayMs { get; set; }
+
+    [JsonPropertyName("runBridgeInUserSession")]
+    public bool RunBridgeInUserSession { get; set; }
 
     [JsonPropertyName("environment")]
     public SortedDictionary<string, string> Environment { get; set; } = new(StringComparer.OrdinalIgnoreCase);

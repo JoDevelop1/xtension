@@ -240,6 +240,14 @@
   width: 100%;
 }
 
+.xtension-draft-action-icon.is-emoji {
+  align-items: center;
+  display: flex;
+  font-size: 15px;
+  justify-content: center;
+  line-height: 1;
+}
+
 .xtension-draft-language-picker {
   align-items: center;
   background: transparent;
@@ -379,6 +387,27 @@
   transform: none;
 }
 
+.xtension-draft-action-button.is-dictate {
+  color: #c0265a;
+}
+
+.xtension-draft-action-button.is-dictate:hover,
+.xtension-draft-action-button.is-dictate.is-listening {
+  background: rgba(192, 38, 90, 0.13);
+}
+
+.xtension-draft-action-button.is-dictate.is-listening::after {
+  background: #dc2626;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  bottom: 4px;
+  content: "";
+  height: 6px;
+  position: absolute;
+  right: 4px;
+  width: 6px;
+}
+
 .xtension-draft-action-button.is-correct {
   color: #0f8f3d;
 }
@@ -412,11 +441,13 @@
   background: rgba(180, 83, 9, 0.13);
 }
 
-.xtension-draft-action-button.is-undo {
+.xtension-draft-action-button.is-undo,
+.xtension-draft-action-button.is-redo {
   color: rgb(83, 100, 113);
 }
 
-.xtension-draft-action-button.is-undo:hover {
+.xtension-draft-action-button.is-undo:hover,
+.xtension-draft-action-button.is-redo:hover {
   background: rgba(83, 100, 113, 0.14);
 }
 
@@ -814,6 +845,20 @@
 
 .xtension-reply-suggestions-configure:hover {
   background: rgb(39, 44, 48);
+}
+
+.xtension-reply-suggestions-reconnect {
+  background: rgb(29, 155, 240);
+  margin-right: 8px;
+}
+
+.xtension-reply-suggestions-reconnect:hover {
+  background: rgb(26, 140, 216);
+}
+
+.xtension-reply-suggestions-reconnect:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .xtension-toast {
