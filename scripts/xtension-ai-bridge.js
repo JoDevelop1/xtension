@@ -956,181 +956,18 @@ async function detectGpuVram() {
   }
 }
 
-// Lecteur minimal de métadonnées GGUF : en-tête (magic, version, tensor_count,
-// kv_count) puis paires clé/valeur, dont on ne retient que les quelques entiers
-// utiles au dimensionnement (couches + dimensions du KV). Lecture par fenêtres
-// de 1 Mo, en sautant (avance de curseur) les grosses valeurs comme le
-// vocabulaire tokenizer, sans jamais charger le fichier entier (~7 Go).
-// Best-effort : renvoie {} sur toute anomalie -> l'appelant retombe sur la table.
-function readGgufMetadata(modelPath) {
-  const WANT = {
-    ".block_count": "blockCount",
-    ".embedding_length": "embeddingLength",
-    ".attention.head_count": "headCount",
-    ".attention.head_count_kv": "headCountKv",
-    ".attention.key_length": "keyLength",
-    ".attention.value_length": "valueLength"
-  };
-  // Tailles (octets) des types scalaires GGUF ; 8=string, 9=array traités à part.
-  const SCALAR_SIZE = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 };
-  let fd = -1;
-  try {
-    fd = fs.openSync(modelPath, "r");
-    const fileSize = fs.fstatSync(fd).size;
-    const CHUNK = 1024 * 1024;
-    let buf = Buffer.alloc(0);
-    let bufStart = 0; // offset fichier de buf[0]
-    let pos = 0;      // offset fichier du prochain octet à consommer
-
-    const ensure = (n) => {
-      const rel = pos - bufStart;
-      if (rel >= 0 && rel + n <= buf.length) {
-        return;
-      }
-      if (pos + n > fileSize) {
-        throw new Error("gguf_eof");
-      }
-      const toRead = Math.min(Math.max(CHUNK, n), fileSize - pos);
-      const chunk = Buffer.alloc(toRead);
-      const got = fs.readSync(fd, chunk, 0, toRead, pos);
-      if (got < n) {
-        throw new Error("gguf_short_read");
-      }
-      buf = got === toRead ? chunk : chunk.subarray(0, got);
-      bufStart = pos;
-    };
-    const take = (n) => {
-      ensure(n);
-      const rel = pos - bufStart;
-      const out = buf.subarray(rel, rel + n);
-      pos += n;
-      return out;
-    };
-    const u32 = () => take(4).readUInt32LE(0);
-    const u64 = () => Number(take(8).readBigUInt64LE(0));
-    const readKey = () => {
-      const len = u64();
-      if (len > 512) { // une clé GGUF est courte ; au-delà = anomalie
-        pos += len;
-        return "";
-      }
-      return take(len).toString("utf8");
-    };
-    const readScalar = (type) => {
-      switch (type) {
-        case 0: return take(1).readUInt8(0);
-        case 1: return take(1).readInt8(0);
-        case 2: return take(2).readUInt16LE(0);
-        case 3: return take(2).readInt16LE(0);
-        case 4: return take(4).readUInt32LE(0);
-        case 5: return take(4).readInt32LE(0);
-        case 6: return take(4).readFloatLE(0);
-        case 7: return take(1).readUInt8(0);
-        case 10: return Number(take(8).readBigUInt64LE(0));
-        case 11: return Number(take(8).readBigInt64LE(0));
-        case 12: return take(8).readDoubleLE(0);
-        default: return null;
-      }
-    };
-    const skipValue = (type) => {
-      if (type === 8) { // string
-        pos += u64();
-        return;
-      }
-      if (type === 9) { // array : elemType(u32) + count(u64) + éléments
-        const elemType = u32();
-        const count = u64();
-        if (elemType === 8) {
-          for (let i = 0; i < count; i += 1) {
-            pos += u64();
-          }
-        } else {
-          const size = SCALAR_SIZE[elemType];
-          if (!size) {
-            throw new Error("gguf_bad_array_type");
-          }
-          pos += size * count;
-        }
-        return;
-      }
-      const size = SCALAR_SIZE[type];
-      if (!size) {
-        throw new Error("gguf_bad_type");
-      }
-      pos += size;
-    };
-
-    if (take(4).toString("ascii") !== "GGUF") {
-      return {};
-    }
-    const version = u32();
-    if (version < 2 || version > 3) {
-      return {}; // v1 (compteurs u32) non géré -> repli table
-    }
-    u64(); // tensor_count (non utilisé, consommé pour avancer)
-    const kvCount = u64();
-    const meta = {};
-    const wantSuffixes = Object.keys(WANT);
-    for (let i = 0; i < kvCount; i += 1) {
-      const key = readKey();
-      const type = u32();
-      const suffix = wantSuffixes.find((s) => key.endsWith(s));
-      if (suffix && type !== 8 && type !== 9) {
-        const value = readScalar(type);
-        if (Number.isFinite(value) && value > 0) {
-          meta[WANT[suffix]] = Math.floor(value);
-        }
-      } else {
-        skipValue(type);
-      }
-      if (Object.keys(meta).length === wantSuffixes.length) {
-        break; // toutes les clés utiles trouvées
-      }
-    }
-    return meta;
-  } catch (error) {
-    return {};
-  } finally {
-    if (fd >= 0) {
-      try { fs.closeSync(fd); } catch (e) { /* best effort */ }
-    }
-  }
-}
-
-// Repli grossier sur le nombre de couches quand la lecture GGUF échoue. Le seul
-// modèle livré est le Gemma 4 12B (~48 couches) ; la vraie valeur vient toujours
-// du GGUF, ceci n'est qu'un garde-fou.
-function fallbackBlockCount() {
+// Nombre de couches du modèle livré (Gemma 4 12B : 48 blocs transformer). Un seul
+// modèle => constante. Sert à répartir la taille du fichier par couche.
+function modelBlockCount() {
   return 48;
 }
 
-// Estime la taille du cache KV (Mo) pour le contexte donné, toutes couches, en
-// fp16 ou quantifié q8_0 (~1 o/élément). Utilise les dimensions d'attention du
-// GGUF (key_length/value_length quand présents — important pour Gemma dont le
-// head_dim ne vaut pas embedding/heads). Renvoie null si les infos manquent.
-function estimateKvMb(meta, ctxTokens, quantized) {
-  const layers = meta.blockCount;
-  const heads = meta.headCount;
-  const headsKv = meta.headCountKv || heads;
-  let kLen = meta.keyLength;
-  let vLen = meta.valueLength;
-  if ((!kLen || !vLen) && meta.embeddingLength && heads) {
-    const headDim = meta.embeddingLength / heads;
-    kLen = kLen || headDim;
-    vLen = vLen || headDim;
-  }
-  if (![layers, headsKv, kLen, vLen, ctxTokens].every((v) => Number.isFinite(v) && v > 0)) {
-    return null;
-  }
-  const bytesPerElem = quantized ? 1 : 2; // q8_0 ≈ 1 o/élément (surcoût de bloc négligé)
-  const bytesPerTokenPerLayer = headsKv * (kLen + vLen) * bytesPerElem;
-  const bytes = ctxTokens * layers * bytesPerTokenPerLayer;
-  return bytes / (1024 * 1024);
-}
-
-// P1 + P2 + P3 — Construit le plan de chargement GPU : nombre de couches à
-// offloader (-ngl), type de KV, et placement de la vision. L'override d'env prime
-// toujours. Sans VRAM détectée, dimensionnement prudent (VRAM basse supposée).
+// Construit le plan de chargement GPU : combien de couches ENTIÈRES offloader
+// (-ngl N), avec quel KV et où mettre la vision. Principe (= l'intuition « charger
+// le max sur la carte, laisser déborder sur la RAM ») : on remplit la VRAM LIBRE
+// de couches entières ; ce qui ne rentre pas tourne sur le CPU/RAM — un débord
+// MAÎTRISÉ et rapide, au lieu de laisser le pilote NVIDIA paginer en douce (lent).
+// L'override d'env prime ; sans VRAM détectée, dimensionnement prudent.
 async function computeGpuLoadPlan(model) {
   const ctx = llmContextSize;
   const plan = {
@@ -1145,7 +982,6 @@ async function computeGpuLoadPlan(model) {
     layersTotal: null,
     perLayerMb: null,
     modelSizeMb: null,
-    kvEstimateMb: null,
     marginMb: null,
     source: "override"
   };
@@ -1160,9 +996,9 @@ async function computeGpuLoadPlan(model) {
     return plan;
   }
 
-  // 2) Métadonnées du modèle (couches + dimensions KV) et taille du fichier.
-  const meta = readGgufMetadata(model);
-  const blockCount = meta.blockCount || fallbackBlockCount();
+  // 2) Taille du fichier modèle -> coût VRAM par couche (poids répartis sur
+  //    blockCount+2, embeddings/sortie inclus).
+  const blockCount = modelBlockCount();
   plan.layersTotal = blockCount;
   let modelSizeMb = null;
   try {
@@ -1172,76 +1008,61 @@ async function computeGpuLoadPlan(model) {
     modelSizeMb = null;
   }
 
-  // 3) VRAM disponible (best-effort). Échec => VRAM basse supposée (prudent).
+  // 3) VRAM libre (best-effort). Échec => VRAM basse supposée (prudent).
   const vram = await detectGpuVram();
   let totalMb;
   let freeMb;
   if (vram) {
     totalMb = vram.totalMb;
     freeMb = vram.freeMb;
-    plan.source = meta.blockCount ? "gguf+smi" : "table+smi";
+    plan.source = "smi";
   } else {
     totalMb = assumedVramMb;
     freeMb = assumedVramMb;
-    plan.source = meta.blockCount ? "gguf+assumed" : "table+assumed";
+    plan.source = "assumed";
   }
   plan.vramTotalMb = Math.round(totalMb);
   plan.vramFreeMb = Math.round(freeMb);
 
-  // Sans taille de fichier ou sans nombre de couches, impossible de dimensionner :
-  // tout sur GPU (-ngl 999), flash-attn quand même. Prudent mais fonctionnel.
-  if (!modelSizeMb || !blockCount) {
+  // Sans taille de fichier, impossible de dimensionner : tout sur GPU (-ngl 999),
+  // flash-attn quand même. Prudent mais fonctionnel.
+  if (!modelSizeMb) {
     lastGpuPlan = plan;
     logBridgeEvent("llm_vram_plan", { ...plan });
     return plan;
   }
 
+  // Budget VRAM pour les POIDS = libre - réserve système - buffer de calcul. Le KV
+  // n'est pas soustrait explicitement : flash-attn (toujours actif) et, si ça
+  // serre, le KV en q8_0 le gardent petit ; la marge (~1,8 Go réserve+calcul)
+  // l'absorbe. Chaque couche est offloadée ENTIÈRE (poids + son KV restent
+  // ensemble sur le GPU) ; le reste tourne sur CPU.
   const perLayerMb = modelSizeMb / (blockCount + 2);
   plan.perLayerMb = Math.round(perLayerMb * 10) / 10;
   const computeBufferMb = Math.round(vramComputeBufferMb * Math.max(1, ctx / 4096));
+  const budgetMb = freeMb - vramReserveMb - computeBufferMb;
+  const layersThatFit = Math.floor(budgetMb / perLayerMb);
+  const ngl = Math.max(0, Math.min(layersThatFit, blockCount + 1));
 
-  // Combien de couches tiennent, en réservant le buffer de calcul, la réserve
-  // système ET le KV (chemin chaud : il reste collé aux couches sur le GPU).
-  const planFor = (quantized) => {
-    const kvMb = estimateKvMb(meta, ctx, quantized);
-    const kvReserve = kvMb != null ? kvMb : 0;
-    const weightsBudgetMb = freeMb - vramReserveMb - computeBufferMb - kvReserve;
-    const layersThatFit = Math.floor(weightsBudgetMb / perLayerMb);
-    return { kvMb, layersThatFit };
-  };
-
-  // P2 — rétrécir le KV AVANT de sacrifier des couches : fp16 d'abord ; si offload
-  // partiel, retenter en KV quantifié q8_0 (≈ ÷2 du KV) pour regagner des couches.
-  let quantized = false;
-  let step = planFor(false);
-  if (step.layersThatFit < blockCount + 1) {
-    const q = planFor(true);
-    if (q.layersThatFit > step.layersThatFit) {
-      quantized = true;
-      step = q;
-    }
-  }
-
-  const ngl = Math.max(0, Math.min(step.layersThatFit, blockCount + 1));
-  plan.kvType = quantized ? "q8_0" : "f16";
-  plan.kvEstimateMb = step.kvMb != null ? Math.round(step.kvMb) : null;
   if (ngl >= blockCount + 1) {
-    plan.ngl = 999;
+    plan.ngl = 999; // tout tient sur le GPU
     plan.nglMode = "all";
   } else {
-    plan.ngl = ngl;
+    plan.ngl = ngl; // offload partiel : ngl couches sur GPU, le reste sur CPU/RAM
     plan.nglMode = "partial";
   }
 
-  // P3 — vision (mmproj) sur CPU si petit GPU OU si le LLM est déjà en offload
-  // partiel (chaque Mo de VRAM compte). Chemin froid : impact vitesse négligeable.
-  const smallGpu = totalMb <= vramMmprojCpuThresholdMb;
-  plan.mmprojOnGpu = !(smallGpu || plan.nglMode === "partial");
+  // Quand la VRAM serre (offload partiel OU petit GPU <= seuil) : KV en q8_0 (÷2,
+  // qualité négligeable) et vision (mmproj) sur CPU (chemin froid, ~1×/génération).
+  // Gros GPU large : KV fp16 + vision sur GPU.
+  const tight = plan.nglMode === "partial" || totalMb <= vramMmprojCpuThresholdMb;
+  plan.kvType = tight ? "q8_0" : "f16";
+  plan.mmprojOnGpu = !tight;
 
-  // Marge estimée = VRAM libre - (poids offloadés + KV + buffer de calcul + réserve).
+  // Marge = VRAM libre - (poids offloadés + buffer de calcul + réserve) : la place
+  // restante pour le KV et les pics.
   const weightsOnGpuMb = plan.ngl === 999 ? modelSizeMb : ngl * perLayerMb;
-  const kvOnGpuMb = step.kvMb != null ? step.kvMb : 0;
-  plan.marginMb = Math.round(freeMb - vramReserveMb - computeBufferMb - weightsOnGpuMb - kvOnGpuMb);
+  plan.marginMb = Math.round(freeMb - vramReserveMb - computeBufferMb - weightsOnGpuMb);
 
   lastGpuPlan = plan;
   logBridgeEvent("llm_vram_plan", { ...plan });
