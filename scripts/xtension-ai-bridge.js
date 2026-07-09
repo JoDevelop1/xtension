@@ -72,40 +72,32 @@ const whisperServerState = { promise: null, process: null, vadActive: false };
 let whisperCppInstallPromise = null;
 let transcriptionWarmupPromise = null;
 
-// --- LLM local (llama.cpp + modèle GGUF choisi selon la RAM) ---
-// Sélection ADAPTATIVE (benchmark FR correction/reformulation/traduction sur des
-// cas phonétiques durs). Toute la gamme est en Gemma 4 (dernière génération
-// Google, avril 2026, Apache 2.0). Plus la machine a de RAM, plus le modèle est
-// fiable :
-//   >= 14 Go : Gemma 4 12B  -> 8/8 parfait (aussi bon que Qwen2.5-14B, + léger).
-//    9-14 Go : Gemma 4 E4B  -> ~6/8, 0 inversion de sens (bien mieux que les 7-8B).
-//    < 9 Go  : Gemma 3 4B   -> garde-fou léger (évite l'OOM sur petites machines).
-// Écartés par le benchmark : les 7-8B (Qwen/Qwen3) inversent les négations même
-// en Q8 ; Qwen2.5-14B (8/8) est égalé par Gemma 4 12B en plus léger.
-// Surchargable via XTENSION_LLM_MODEL_URL / XTENSION_LLM_MODEL_FILE.
+// --- LLM local (llama.cpp + Gemma 4 12B GGUF) ---
+// UN SEUL modèle dans tout le projet : Gemma 4 12B (dernière génération Google,
+// avril 2026, Apache 2.0), retenu par le benchmark FR (correction / reformulation
+// / traduction sur cas phonétiques durs) : 8/8, aussi bon que Qwen2.5-14B en plus
+// léger, et 0 inversion de sens (les 7-8B Qwen/Qwen3 inversent les négations même
+// en Q8). L'ancien multi-tier RAM (Gemma 4 E4B / Gemma 3 4B) a été RETIRÉ pour
+// alléger le payload de l'installeur : on ne provisionne plus que ce modèle. Ce
+// n'est plus le modèle qui s'adapte à la machine mais le CHARGEMENT (offload
+// partiel calculé selon la VRAM, cf. computeGpuLoadPlan). Le 12B Q4 (~7 Go de
+// poids) demande ~14 Go de RAM en mode CPU. Surchargeable via
+// XTENSION_LLM_MODEL_URL / XTENSION_LLM_MODEL_FILE.
 const llamaReleaseUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b9882/llama-b9882-bin-win-cpu-x64.zip";
 
-// Chaque tier a aussi un projecteur vision (mmproj-F16.gguf, dans le même repo)
-// pour la génération MULTIMODALE : le modèle peut alors « voir » l'image du tweet.
-// Téléchargé en best-effort ; si absent, on reste en texte seul (sans --mmproj).
-const localModelTiers = [
-  { minRamGb: 14, file: "gemma-4-12b-it-Q4_K_M.gguf", url: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_M.gguf", mmprojFile: "mmproj-gemma-4-12b-F16.gguf", mmprojUrl: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/mmproj-F16.gguf" },
-  { minRamGb: 9, file: "gemma-4-E4B-it-Q4_K_M.gguf", url: "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf", mmprojFile: "mmproj-gemma-4-E4B-F16.gguf", mmprojUrl: "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/mmproj-F16.gguf" },
-  { minRamGb: 0, file: "gemma-3-4b-it-Q4_K_M.gguf", url: "https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/main/gemma-3-4b-it-Q4_K_M.gguf", mmprojFile: "mmproj-gemma-3-4b-F16.gguf", mmprojUrl: "https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/main/mmproj-F16.gguf" }
-];
+// Modèle et son projecteur vision (mmproj-F16, pour la génération MULTIMODALE :
+// le modèle peut alors « voir » l'image du tweet). Le mmproj est best-effort : si
+// absent, on reste en texte seul (sans --mmproj).
+const defaultLlmModelFile = "gemma-4-12b-it-Q4_K_M.gguf";
+const defaultLlmModelUrl = "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_M.gguf";
+const defaultLlmMmprojFile = "mmproj-gemma-4-12b-F16.gguf";
+const defaultLlmMmprojUrl = "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/mmproj-F16.gguf";
 
-function selectLocalModelTier() {
-  const totalRamGb = os.totalmem() / (1024 ** 3);
-  const tier = localModelTiers.find((candidate) => totalRamGb >= candidate.minRamGb) || localModelTiers[localModelTiers.length - 1];
-  return { ...tier, ramGb: Math.round(totalRamGb * 10) / 10 };
-}
-
-const selectedModelTier = selectLocalModelTier();
-const llmModelUrl = process.env.XTENSION_LLM_MODEL_URL || selectedModelTier.url;
-const llmModelFileName = process.env.XTENSION_LLM_MODEL_FILE || selectedModelTier.file;
+const llmModelUrl = process.env.XTENSION_LLM_MODEL_URL || defaultLlmModelUrl;
+const llmModelFileName = process.env.XTENSION_LLM_MODEL_FILE || defaultLlmModelFile;
 // Projecteur vision (multimodal). Vide => texte seul.
-const llmMmprojFileName = process.env.XTENSION_LLM_MMPROJ_FILE || selectedModelTier.mmprojFile || "";
-const llmMmprojUrl = process.env.XTENSION_LLM_MMPROJ_URL || selectedModelTier.mmprojUrl || "";
+const llmMmprojFileName = process.env.XTENSION_LLM_MMPROJ_FILE || defaultLlmMmprojFile;
+const llmMmprojUrl = process.env.XTENSION_LLM_MMPROJ_URL || defaultLlmMmprojUrl;
 const llmServerHost = "127.0.0.1";
 const llmServerPort = Number(process.env.XTENSION_LLM_PORT || 47624);
 const llmContextSize = Number(process.env.XTENSION_LLM_CTX || 4096);
@@ -400,8 +392,7 @@ server.listen(port, hostname, () => {
   logBridgeEvent("server_started", { url, pid: process.pid, logFile: bridgeLogFile || "" });
   logBridgeEvent("llm_model_selected", {
     model: llmModelFileName,
-    ramGb: selectedModelTier.ramGb,
-    tierMinRamGb: selectedModelTier.minRamGb
+    ramGb: Math.round((os.totalmem() / (1024 ** 3)) * 10) / 10
   });
 });
 
@@ -1106,14 +1097,11 @@ function readGgufMetadata(modelPath) {
   }
 }
 
-// Repli grossier sur le nombre de couches quand la lecture GGUF échoue (table
-// par tier ; les vraies valeurs viennent du GGUF, ceci n'est qu'un garde-fou).
-function fallbackBlockCount(fileName) {
-  const name = String(fileName || "").toLowerCase();
-  if (name.includes("12b")) return 48;
-  if (name.includes("e4b")) return 34;
-  if (name.includes("4b")) return 34;
-  return 32;
+// Repli grossier sur le nombre de couches quand la lecture GGUF échoue. Le seul
+// modèle livré est le Gemma 4 12B (~48 couches) ; la vraie valeur vient toujours
+// du GGUF, ceci n'est qu'un garde-fou.
+function fallbackBlockCount() {
+  return 48;
 }
 
 // Estime la taille du cache KV (Mo) pour le contexte donné, toutes couches, en
@@ -1174,7 +1162,7 @@ async function computeGpuLoadPlan(model) {
 
   // 2) Métadonnées du modèle (couches + dimensions KV) et taille du fichier.
   const meta = readGgufMetadata(model);
-  const blockCount = meta.blockCount || fallbackBlockCount(path.basename(model));
+  const blockCount = meta.blockCount || fallbackBlockCount();
   plan.layersTotal = blockCount;
   let modelSizeMb = null;
   try {

@@ -126,16 +126,13 @@ renvoie les Mo total/libre (une ligne par GPU).
   (rapide), seule l'image est encodée sur CPU (rare, ~1× par génération).
 - Sur gros GPU (VRAM large) → laisser le mmproj sur GPU (défaut actuel).
 
-### P4 — Choix du modèle tenant compte de la VRAM **[DÉCISION PRODUIT — à valider]**
-Aujourd'hui le tier vient de la RAM. Sur **petit GPU**, deux stratégies :
-- **(a) Garder le tier RAM en offload partiel** (qualité max, plus lent car des
-  couches tournent sur CPU). ← cohérent avec la demande « on charge ce qu'on
-  peut sur le GPU, le reste en RAM ».
-- **(b) Descendre au plus gros modèle qui tient ENTIÈREMENT sur le GPU** (vitesse
-  max, qualité moindre).
-- **Défaut proposé : (a)**, pour ne pas dégrader la qualité sans prévenir.
-  Éventuellement exposer plus tard un choix « qualité vs vitesse », mais **hors
-  de l'UI simplifiée** pour l'instant.
+### P4 — Choix du modèle tenant compte de la VRAM **[TRANCHÉ — SANS OBJET]**
+Décision produit (2026-07-09) : le **multi-tier a été retiré**. Le projet ne garde
+qu'**un seul modèle** (Gemma 4 12B Q4_K_M) pour alléger le payload de l'installeur.
+Il n'y a donc plus de choix de modèle à faire : seul le **chargement** s'adapte
+(offload partiel calculé, stratégie (a) de fait). `selectLocalModelTier` et le
+tableau `localModelTiers` (E4B / 4B) ont été supprimés de
+`scripts/xtension-ai-bridge.js`.
 
 ### P5 — Observabilité (`/health`, `/status`) + logs
 - Exposer dans la réponse `/status` : `vramTotalMb`, `vramFreeMb`, `nglUsed`,

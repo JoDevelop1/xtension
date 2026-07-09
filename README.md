@@ -40,7 +40,7 @@ The installer is mirrored in this repository under `releases/windows/` so GitHub
 npm run bridge
 ```
 
-The bridge listens on `http://127.0.0.1:47623` and exposes `/transform` (correction, translation, reformulation) and `/transcribe` (dictation) to the extension. On first use it automatically downloads, into `%ProgramData%\Xtension\Bridge`, the `llama.cpp` runtime and a compact GGUF model (Gemma 3 4B, Q4_K_M) for text tasks, plus the whisper.cpp binaries and speech models for dictation (Parakeet TDT 0.6B v3 as the fast primary engine, whisper small-q5_1 with Silero VAD as the fallback). Everything then runs offline on the CPU (a GPU is optional). For a shared-token setup:
+The bridge listens on `http://127.0.0.1:47623` and exposes `/transform` (correction, translation, reformulation) and `/transcribe` (dictation) to the extension. On first use it automatically downloads, into `%ProgramData%\Xtension\Bridge`, the `llama.cpp` runtime and the GGUF model (Gemma 4 12B, Q4_K_M) for text tasks, plus the whisper.cpp binaries and speech models for dictation (Parakeet TDT 0.6B v3 as the fast primary engine, whisper small-q5_1 with Silero VAD as the fallback). Everything then runs offline on the CPU, or on the GPU (optional): in GPU mode the loading adapts to the available VRAM (computed partial offload) rather than switching models. For a shared-token setup:
 
 ```powershell
 $env:XTENSION_BRIDGE_TOKEN='choose-a-local-token'
