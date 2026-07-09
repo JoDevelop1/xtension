@@ -86,6 +86,10 @@
                 <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpGpu" data-help="If you have an NVIDIA graphics card with CUDA drivers, turn this on: replies generate much faster (the model runs on the GPU). The first time you enable it, the CUDA engine (~500 MB) is downloaded and the engine restarts. Leave it off to run on the CPU, which works on every machine.">?</button>
               </div>
               <p id="reply-ai-gpu-status" class="field-note" data-i18n="optionsGpuStatusCpu">Running on the CPU.</p>
+              <div class="inline-actions">
+                <button id="reply-ai-gpu-unload" type="button" class="secondary" data-i18n="optionsGpuUnload">Free the graphics card (unload the model)</button>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpGpuUnload" data-help="Stops the local model and frees your graphics card memory (VRAM) right away, without uninstalling. Use it before gaming or another GPU app. The model reloads automatically the next time you correct or generate.">?</button>
+              </div>
             </div>
 
             <!-- Réglages moteur AUTOMATIQUES et transparents (adresse locale + token) :

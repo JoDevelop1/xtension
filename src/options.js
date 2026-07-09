@@ -30,6 +30,7 @@
   const generatePromptInput = document.querySelector("#reply-ai-generate-prompt");
   const gpuInput = document.querySelector("#reply-ai-gpu");
   const gpuStatusElement = document.querySelector("#reply-ai-gpu-status");
+  const gpuUnloadButton = document.querySelector("#reply-ai-gpu-unload");
   const statusElement = document.querySelector("#reply-ai-status");
   const engineStatusElement = document.querySelector("#reply-ai-engine-status");
   const bridgeDownloadLink = document.querySelector("#reply-ai-bridge-download");
@@ -61,6 +62,10 @@
     gpuInput?.addEventListener("change", async () => {
       await saveConfig();
       await sendGpuModeToBridge(gpuInput.checked);
+    });
+
+    gpuUnloadButton?.addEventListener("click", async () => {
+      await unloadEngine();
     });
 
     logsRefreshButton?.addEventListener("click", async () => {
@@ -236,6 +241,31 @@
       const data = await response.json().catch(() => ({}));
       applyGpuStatusFromBridge(data);
       showStatus(localizedText("optionsSaved", "Settings saved."), "success");
+    } catch (error) {
+      setGpuStatus(localizedText("optionsGpuBridgeUnreachable", "Could not reach the local engine to change mode. Make sure it is running, then try again."));
+      showStatus(localizedText("optionsGpuBridgeUnreachable", "Could not reach the local engine to change mode."), "error");
+    }
+  }
+
+  // Décharge le moteur du bridge (endpoint /unload) pour libérer la mémoire de la
+  // carte graphique (VRAM) immédiatement, sans changer de mode ni désinstaller. Le
+  // modèle se recharge tout seul à la prochaine correction/génération.
+  async function unloadEngine() {
+    const config = getFormConfig();
+    const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
+    setGpuStatus(localizedText("optionsGpuUnloading", "Freeing the graphics card..."));
+    try {
+      const response = await fetch(`${bridgeUrl}/unload`, {
+        method: "POST",
+        headers: buildBridgeAuthHeaders(config)
+      });
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      await response.json().catch(() => ({}));
+      setGpuStatus(localizedText("optionsGpuUnloaded", "Graphics card freed. The model will reload on next use."));
+      setEngineStatus(localizedText("optionsEngineIdle", "Local engine detected. Click \"Prepare engine\" to load the model."));
+      showStatus(localizedText("optionsGpuUnloaded", "Graphics card freed. The model will reload on next use."), "success");
     } catch (error) {
       setGpuStatus(localizedText("optionsGpuBridgeUnreachable", "Could not reach the local engine to change mode. Make sure it is running, then try again."));
       showStatus(localizedText("optionsGpuBridgeUnreachable", "Could not reach the local engine to change mode."), "error");

@@ -259,6 +259,25 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  // Décharge le moteur LLM (tue llama-server) pour LIBÉRER IMMÉDIATEMENT la VRAM,
+  // sans changer le mode ni désinstaller. Le modèle se recharge tout seul à la
+  // prochaine requête (/transform, /warmup). Piloté par un bouton des options
+  // (« Libérer la carte graphique »), utile avant de jouer / lancer une appli GPU.
+  if (request.method === "POST" && request.url === "/unload") {
+    stopLlmServer();
+    lastGpuPlan = null;
+    logBridgeEvent("llm_unloaded", {});
+    const gpu = isGpuModeEnabled();
+    sendJson(response, 200, {
+      ok: true,
+      ready: false,
+      gpu,
+      mode: gpu ? "gpu" : "cpu",
+      gpuBuildInstalled: isGpuBuildInstalled()
+    });
+    return;
+  }
+
   // Génération en STREAMING (NDJSON) : une ligne {"delta":"..."} par token au fil
   // de l'eau, puis une ligne finale {"done":true,"text":"<texte complet nettoyé>"}.
   // Additif : /transform (non-streaming) reste le chemin de repli.
