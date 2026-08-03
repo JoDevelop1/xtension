@@ -39,12 +39,13 @@ The extension package does not include a model, API key, or OpenAI credential. C
 The browser extension cannot spawn a desktop CLI or safely own its OAuth refresh token. The connector is the local boundary between the extension and Codex; it contains no Gemma, llama.cpp, Whisper, or other local model. The user downloads and runs the Windows installer from:
 
 ```text
-https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe
+https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe
 ```
 
-That URL redirects to the asset of the latest GitHub Release, and its SHA-256 is published at
-`https://xtension.jodevelop.com/dl/XtensionBridgeSetup.SHA256.txt`. Maintainers can also run the
-connector from source:
+The download link in the extension and on the website points straight at GitHub, so users can see
+where the binary comes from before clicking. `https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe`
+still works and redirects to the same asset, for older installs and for scripts. Maintainers can
+also run the connector from source:
 
 ```powershell
 npm run bridge

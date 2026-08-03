@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.10
+
+- The download links in the extension and on the website now point straight at `github.com` instead of going through a redirect on the project domain. Users see where the binary comes from before they click, rather than discovering it after. The `xtension.jodevelop.com/dl/…` aliases keep working for older installs and for scripts.
+- The download section states explicitly that every file is served by GitHub Releases, from this project's own repository.
+
 ## v0.6.9
 
 - Fixes image generation silently failing on long runs. The connector allowed up to 5 minutes to produce an image, but closed the HTTP connection after 4. A long generation was therefore completed by Codex and logged as successful, while the browser never received it and the image never appeared. The connection now outlives the longest possible operation.

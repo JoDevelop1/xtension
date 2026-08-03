@@ -2,15 +2,16 @@
 
 Until Xtension is published in browser stores, users can install it manually from a release archive.
 
-The simplest source is the project website, which always serves the current build with its checksum:
+All builds are published as GitHub Release assets. The download links in the extension and on the
+website point directly at github.com so you can see the source before clicking:
 
 ```text
-https://xtension.jodevelop.com/dl/xtension-chrome.zip
-https://xtension.jodevelop.com/dl/xtension-edge.zip
-https://xtension.jodevelop.com/dl/xtension-firefox.zip
-https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe
-https://xtension.jodevelop.com/dl/SHA256SUMS.txt
+https://github.com/JoDevelop1/xtension/releases/latest
+https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe
 ```
+
+The `https://xtension.jodevelop.com/dl/…` aliases still resolve to the same assets and remain
+available for scripts and for extensions installed before 0.6.10.
 
 `https://xtension.jodevelop.com/version.json` returns the current version and these URLs as JSON.
 The same archives are attached to each GitHub release.
