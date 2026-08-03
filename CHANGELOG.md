@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.7
+
+- Removes voice dictation entirely. ChatGPT-managed Codex exposes no transcription model, so the feature could never produce a result; the button, the microphone capture, the recorder, the voice-activity detection and the `/transcribe` route are all gone. The packages now contain **zero** `getUserMedia`, `MediaRecorder` or audio-capture code, which also removes any microphone declaration from the store forms. Speech input, if it ever returns, will be a separate application.
+- Relicenses the project under the **Apache License 2.0**. Xtension is free software: use, modification and redistribution are allowed, including commercially, with an explicit patent grant. Adds a `NOTICE` file.
+- Trims about 50 KB from every browser package.
+
 ## v0.6.6
 
 Security and store-readiness release. No feature change.

@@ -35,8 +35,6 @@ Lorsque vous activez les outils de brouillon, une barre d'outils compacte appara
 
 Ces fonctions IA nécessitent le **connecteur Codex Xtension**, un petit programme que vous installez séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, n'est joignable que depuis votre propre machine, et démarre le Codex App Server officiel en réutilisant la connexion ChatGPT déjà présente sur votre ordinateur. Xtension ne demande jamais de clé d'API OpenAI et n'envoie jamais vos données à un serveur appartenant au développeur. Le connecteur se télécharge séparément : https://xtension.jodevelop.com
 
-La dictée vocale est délibérément indisponible dans ce mode : Codex géré par ChatGPT n'expose pas de modèle de transcription, et Xtension refuse de basculer silencieusement vers un autre service vocal.
-
 L'interface de l'extension est disponible en anglais, français, allemand, espagnol et japonais.
 
 Permissions utilisées :
@@ -46,7 +44,7 @@ Permissions utilisées :
 - `localhost:47623` / `127.0.0.1:47623` : connecter les outils IA optionnels au connecteur Codex qui tourne sur votre propre ordinateur. L'extension elle-même ne peut pas exécuter de commandes locales.
 - `storage` : enregistrer vos réglages dans le navigateur.
 
-Xtension ne collecte aucune donnée personnelle, n'envoie rien à un serveur appartenant au développeur, ne contient ni analyse d'audience ni pistage, et ne modifie pas votre compte X/Twitter. L'intégralité du code source est publiée sur https://github.com/JoDevelop1/xtension
+Xtension ne collecte aucune donnée personnelle, n'envoie rien à un serveur appartenant au développeur, ne contient ni analyse d'audience ni pistage, et ne modifie pas votre compte X/Twitter. L'extension ne contient aucun code de capture micro ou audio. L'intégralité du code source est publiée sous licence Apache 2.0 sur https://github.com/JoDevelop1/xtension
 
 Xtension est un projet indépendant. Il n'est affilié ni à X Corp., ni à OpenAI, Microsoft, Google, Mozilla ou Apple.
 

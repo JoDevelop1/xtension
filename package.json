@@ -1,9 +1,9 @@
 {
   "name": "xtension",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Browser extension for X/Twitter draft tools powered by the user's OpenAI Codex account.",
   "private": true,
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/build.js",
     "build:assets": "python scripts/generate_assets.py",

@@ -387,27 +387,6 @@
   transform: none;
 }
 
-.xtension-draft-action-button.is-dictate {
-  color: #c0265a;
-}
-
-.xtension-draft-action-button.is-dictate:hover,
-.xtension-draft-action-button.is-dictate.is-listening {
-  background: rgba(192, 38, 90, 0.13);
-}
-
-.xtension-draft-action-button.is-dictate.is-listening::after {
-  background: #dc2626;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  bottom: 4px;
-  content: "";
-  height: 6px;
-  position: absolute;
-  right: 4px;
-  width: 6px;
-}
-
 .xtension-draft-action-button.is-correct {
   color: #0f8f3d;
 }

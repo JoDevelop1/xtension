@@ -162,37 +162,6 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === "xtension-transcribe-dictation") {
-    sendLoggedAiResponse(
-      "dictation_transcribe",
-      "result",
-      "transcription_failed",
-      sendResponse,
-      () => transcribeDictationAudio(message),
-      {
-        durationMs: Math.max(0, Number(message.durationMs || 0)),
-        inputBytes: Math.max(0, Number(message.size || 0)),
-        locale: cleanText(message.language || ""),
-        mimeType: cleanText(message.mimeType || ""),
-        mode: cleanText(message.mode || "")
-      }
-    );
-
-    return true;
-  }
-
-  if (message.type === "xtension-get-bridge-capabilities") {
-    getBridgeCapabilities().then((capabilities) => {
-      sendResponse({ ok: true, ...capabilities });
-    }).catch(() => {
-      // Connecteur injoignable : on annonce la transcription comme indisponible
-      // plutôt que d'ouvrir le microphone pour rien.
-      sendResponse({ ok: false, transcription: false });
-    });
-
-    return true;
-  }
-
   if (message.type === "xtension-warmup-bridge") {
     warmupBridge().then(() => {
       sendResponse({ ok: true });
@@ -718,76 +687,6 @@ async function warmupBridge() {
   }).catch(() => {});
 }
 
-/**
- * Interroge le connecteur pour savoir ce qu'il sait faire, avant d'engager une
- * opération coûteuse ou intrusive côté page. Utilisé par la dictée pour ne
- * jamais demander l'accès au microphone quand la transcription est hors service.
- */
-async function getBridgeCapabilities() {
-  const config = await getReplyAiConfig();
-  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
-  if (!bridgeUrl || config?.enabled === false) {
-    return { transcription: false, reachable: false };
-  }
-
-  const response = await fetchBridgeRequest(`${bridgeUrl}/health`, {
-    method: "GET",
-    headers: buildBridgeAuthHeaders(config)
-  }, {
-    operation: "capabilities"
-  });
-
-  if (!response.ok) {
-    return { transcription: false, reachable: false };
-  }
-
-  const status = await response.json();
-  return {
-    reachable: true,
-    transcription: status?.transcription?.available === true,
-    transcriptionCode: cleanText(status?.transcription?.code || "")
-  };
-}
-
-async function transcribeDictationAudio(message) {
-  const config = await getReplyAiConfig();
-  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
-  if (!bridgeUrl) {
-    const error = new Error("AI bridge URL is invalid.");
-    error.code = "not_configured";
-    throw error;
-  }
-
-  const response = await fetchBridgeRequest(`${bridgeUrl}/transcribe`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...buildBridgeAuthHeaders(config)
-    },
-    body: JSON.stringify({
-      audioBase64: cleanText(message?.audioBase64 || ""),
-      durationMs: Math.max(0, Number(message?.durationMs || 0)),
-      language: cleanText(message?.language || ""),
-      // Indice non contraignant pour Codex ; la langue transcrite reste auto-détectée.
-      hintLanguage: cleanText(message?.hintLanguage || ""),
-      mode: cleanText(message?.mode || ""),
-      mimeType: cleanText(message?.mimeType || "audio/webm")
-    })
-  }, {
-    operation: "dictation_transcribe"
-  });
-
-  if (!response.ok) {
-    throw await createBridgeHttpError(response);
-  }
-
-  const data = await response.json();
-  return {
-    text: sanitizeGeneratedReplyText(data?.text || data?.transcript || ""),
-    language: cleanText(data?.language || "")
-  };
-}
-
 async function getReplyPromptProfilesForUi() {
   const config = await getReplyAiConfig();
   return normalizeReplyPromptProfiles(config.replyPromptProfiles).map((profile, index) => ({
@@ -1127,9 +1026,9 @@ async function createBridgeHttpError(response) {
     || response.statusText
     || "HTTP error";
   const error = new Error(`${response.status} ${message}`);
-  // Un bridge trop ancien (sans endpoint /transcribe) répond 404 sans code JSON :
-  // on synthétise "not_found" pour que l'appelant affiche « mettez à jour le
-  // bridge » plutôt que le brut « 404 Not found. ».
+  // Un connecteur trop ancien répond 404 sans code JSON : on synthétise
+  // "not_found" pour que l'appelant affiche « mettez à jour le connecteur »
+  // plutôt que le brut « 404 Not found. ».
   error.code = cleanText(parsed?.code || "") || (response.status === 404 ? "not_found" : "");
   error.status = response.status;
   return error;

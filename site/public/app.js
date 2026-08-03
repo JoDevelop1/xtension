@@ -25,7 +25,7 @@ const FR = {
   badgeNoKey: "Aucune clé d'API OpenAI",
   badgeNoServer: 'Aucun serveur du développeur',
   badgeSigned: 'Installateur Windows signé',
-  badgeAuditable: 'Code source auditable',
+  badgeAuditable: 'Open source Apache-2.0',
 
   featuresTitle: 'Tout ce que fait Xtension',
   featuresLead:
@@ -152,12 +152,12 @@ const FR = {
   checksumRaw: 'Fichier brut des empreintes',
   versionJson: 'version.json',
 
-  srcTitle: 'Le code source est public',
+  srcTitle: 'Libre et open source',
   srcLead:
-    "Une extension qui lit ce que vous écrivez et un programme qui tourne sur votre machine devraient être inspectables. L'intégralité du code est publiée sur GitHub : chacun peut lire exactement ce que fait Xtension, examiner les appels réseau et vérifier que les affirmations de cette page tiennent.",
+    "Une extension qui lit ce que vous écrivez et un programme qui tourne sur votre machine devraient être inspectables. L'intégralité du code est publiée sur GitHub sous licence Apache 2.0 : chacun peut lire exactement ce que fait Xtension, examiner les appels réseau, vérifier que les affirmations de cette page tiennent — et utiliser, modifier ou redistribuer le code.",
   srcBtnSub: 'Parcourir le code, ouvrir un ticket',
   srcLicense:
-    'Publié à des fins de transparence et de relecture. La redistribution et la republication modifiée nécessitent une autorisation écrite — voir le fichier LICENSE.',
+    "Sous <a href=\"https://github.com/JoDevelop1/xtension/blob/main/LICENSE\" rel=\"noopener\">licence Apache 2.0</a> — libre d'utilisation, de modification et de redistribution, y compris commerciale, avec concession de brevet explicite. L'attribution et une copie de la licence sont requises.",
 
   footerBy: 'un projet indépendant de JoDevelop',
   footerSupport: 'Assistance',

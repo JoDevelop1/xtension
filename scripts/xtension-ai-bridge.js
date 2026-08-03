@@ -17,7 +17,6 @@ const hostname = "127.0.0.1";
 const port = Number(process.env.XTENSION_BRIDGE_PORT || 47623);
 const maxBodyBytes = 128 * 1024;
 const maxTransformBodyBytes = 6 * 1024 * 1024;
-const maxTranscriptionBodyBytes = 18 * 1024 * 1024;
 const maxImageGenerationBodyBytes = 10 * 1024 * 1024;
 const bridgeToken = cleanText(process.env.XTENSION_BRIDGE_TOKEN || "");
 const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefaultBridgeLogFile());
@@ -27,7 +26,7 @@ const CODEX_MODEL = "gpt-5.6-luna";
 const CODEX_REASONING_EFFORT = "max";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
-const CODEX_CLIENT_VERSION = "0.6.5";
+const CODEX_CLIENT_VERSION = "0.6.7";
 const CODEX_TURN_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_TIMEOUT_MS || 180000);
 const CODEX_IMAGE_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_IMAGE_TIMEOUT_MS || 300000);
 const CODEX_START_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_START_TIMEOUT_MS || 20000);
@@ -745,23 +744,6 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && pathname === "/transcribe") {
-      const payload = await readJsonBody(request, maxTranscriptionBodyBytes);
-      const startedAt = Date.now();
-      const result = await runTranscription(payload);
-      logBridgeEvent("request_done", { operation: "transcribe", durationMs: Date.now() - startedAt, outputLength: result.length });
-      sendJson(response, 200, {
-        ok: true,
-        provider: "openai-codex",
-        model: CODEX_MODEL,
-        reasoningEffort: CODEX_REASONING_EFFORT,
-        text: result,
-        transcript: result,
-        language: ""
-      });
-      return;
-    }
-
     sendJson(response, 404, { ok: false, error: "Not found." });
   } catch (error) {
     const code = cleanText(error?.code || "");
@@ -919,14 +901,6 @@ function normalizeCodexReasoningEffort(value) {
   return CODEX_REASONING_EFFORTS.has(effort) ? effort : CODEX_REASONING_EFFORT;
 }
 
-async function runTranscription(payload) {
-  void payload;
-  throw createBridgeError(
-    "Voice transcription is not exposed by the ChatGPT-managed Codex App Server. Text requests are ready; audio transcription requires a separate OpenAI transcription entitlement or API-key path, which Xtension does not enable.",
-    { code: "codex_audio_unsupported", statusCode: 501 }
-  );
-}
-
 function buildDraftTransformPrompt(operation, text, targetLanguage, context, generatePrompt) {
   const shared = [
     `Target language: ${targetLanguage}.`,
@@ -1001,10 +975,6 @@ async function getHealthStatus() {
       installed: false,
       usable: false
     }],
-    transcription: {
-      available: false,
-      code: "codex_audio_unsupported"
-    }
   };
 
   try {
@@ -1021,9 +991,6 @@ async function getHealthStatus() {
     };
     base.providers[0].installed = true;
     base.providers[0].usable = base.auth.authenticated;
-    // The ChatGPT-managed Codex account can run text turns, but the current
-    // app-server account mode does not expose an OpenAI transcription model.
-    base.transcription.available = false;
   } catch (error) {
     base.errorCode = cleanText(error?.code || "codex_unavailable");
     base.error = truncateText(error?.message || "Codex is unavailable.", 240);
@@ -1349,9 +1316,9 @@ function sanitizeModelText(value) {
 
   const parsed = tryParseJson(text);
   if (parsed && typeof parsed === "object") {
-    text = String(parsed.text || parsed.result || parsed.transcript || parsed.correctedText || parsed.generatedText || "").trim();
+    text = String(parsed.text || parsed.result || parsed.correctedText || parsed.generatedText || "").trim();
   }
-  text = text.replace(/^(?:text|result|transcript)\s*:\s*/i, "").trim();
+  text = text.replace(/^(?:text|result)\s*:\s*/i, "").trim();
   return text.replace(/—/g, ",");
 }
 

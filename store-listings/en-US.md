@@ -35,8 +35,6 @@ When you enable the draft tools, a compact toolbar appears in the X/Twitter comp
 
 These AI features require the **Xtension Codex Connector**, a small program you install separately on Windows. It listens only on `127.0.0.1:47623`, is reachable only from your own machine, and starts the official Codex App Server using the ChatGPT sign-in that already exists on your computer. Xtension never asks for an OpenAI API key and never sends your data to a server owned by the developer. The connector is a separate download: https://xtension.jodevelop.com
 
-Voice dictation is deliberately unavailable in this mode: ChatGPT-managed Codex does not expose a transcription model, and Xtension does not silently fall back to another speech service.
-
 The extension interface is available in English, French, German, Spanish and Japanese.
 
 Permissions:
@@ -46,7 +44,7 @@ Permissions:
 - `localhost:47623` / `127.0.0.1:47623`: connect the optional AI tools to the Codex Connector running on your own computer. The extension itself cannot execute local commands.
 - `storage`: save your settings in the browser.
 
-Xtension does not collect personal data, does not send content to a developer-owned server, contains no analytics or tracking, and does not modify your X/Twitter account. The full source code is published at https://github.com/JoDevelop1/xtension
+Xtension does not collect personal data, does not send content to a developer-owned server, contains no analytics or tracking, and does not modify your X/Twitter account. It contains no microphone or audio-capture code. The full source code is published under the Apache License 2.0 at https://github.com/JoDevelop1/xtension
 
 Xtension is an independent project. It is not affiliated with X Corp., OpenAI, Microsoft, Google, Mozilla or Apple.
 
