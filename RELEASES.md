@@ -1,6 +1,19 @@
-# Install From GitHub Releases
+# Install From a Release Archive
 
-Until Xtension is published in browser stores, users can install it manually from GitHub release archives.
+Until Xtension is published in browser stores, users can install it manually from a release archive.
+
+The simplest source is the project website, which always serves the current build with its checksum:
+
+```text
+https://xtension.jodevelop.com/dl/xtension-chrome.zip
+https://xtension.jodevelop.com/dl/xtension-edge.zip
+https://xtension.jodevelop.com/dl/xtension-firefox.zip
+https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe
+https://xtension.jodevelop.com/dl/SHA256SUMS.txt
+```
+
+`https://xtension.jodevelop.com/version.json` returns the current version and these URLs as JSON.
+The same archives are attached to each GitHub release.
 
 ## Which File Should I Download?
 

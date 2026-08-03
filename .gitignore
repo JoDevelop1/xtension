@@ -38,3 +38,11 @@ web-ext-artifacts/
 .env
 .env.*
 !.env.example
+
+# Le connecteur Windows (82 Mo) est publie comme asset de release GitHub,
+# plus versionne : voir releases/README.md
+releases/windows/*.exe
+
+# Rapports d audit de securite : locaux, non publies (ils decrivent des failles
+# encore presentes dans les versions deja installees chez les utilisateurs).
+audit-securite/

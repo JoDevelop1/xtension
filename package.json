@@ -1,6 +1,6 @@
 {
   "name": "xtension",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "Browser extension for X/Twitter draft tools powered by the user's OpenAI Codex account.",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
@@ -10,7 +10,7 @@
     "build:full": "npm run build:assets && npm run build",
     "check": "node --check src/content.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/xtension-ai-bridge.js",
     "bridge": "node scripts/xtension-ai-bridge.js",
-    "bridge:build": "npx --yes @yao-pkg/pkg scripts/xtension-ai-bridge.js --targets node22-win-x64 --output dist/bridge/XtensionBridge.exe",
+    "bridge:build": "npx --yes @yao-pkg/pkg@6.22.0 scripts/xtension-ai-bridge.js --targets node22-win-x64 --output dist/bridge/XtensionBridge.exe",
     "bridge:host:build": "dotnet publish bridge-service/Xtension.Bridge.Service.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o dist/bridge-service",
     "bridge:service:build": "npm run bridge:host:build",
     "bridge:installer:build": "powershell -ExecutionPolicy Bypass -File scripts/build-bridge-installer.ps1",

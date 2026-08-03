@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.2.zip
+dist/xtension-chrome-v0.6.5.zip
 ```
 
 Assets to provide:
@@ -32,13 +32,24 @@ Use public HTTPS URLs. The dashboard rejects local files, private repository pag
 
 ```text
 Home page URL:
-https://github.com/JoDevelop1/xtension
+https://xtension.jodevelop.com
 
 Support URL:
 https://github.com/JoDevelop1/xtension/issues
 
 Privacy policy URL:
-https://github.com/JoDevelop1/xtension/blob/main/PRIVACY.md
+https://xtension.jodevelop.com/#privacy
+```
+
+The dedicated site also hosts the signed Windows connector and the SHA-256 checksums of every published artifact:
+
+```text
+Connector download:
+https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe
+
+Checksums:
+https://xtension.jodevelop.com/dl/SHA256SUMS.txt
+https://xtension.jodevelop.com/dl/XtensionBridgeSetup.SHA256.txt
 ```
 
 ### Chrome Web Store Privacy Practices
@@ -91,7 +102,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.2.zip
+dist/xtension-edge-v0.6.5.zip
 ```
 
 Assets to provide:
@@ -112,7 +123,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.2.zip
+dist/xtension-firefox-v0.6.5.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:
@@ -122,7 +133,7 @@ npx web-ext build --source-dir browsers/firefox --artifacts-dir dist
 npx web-ext sign --source-dir browsers/firefox --channel=listed --amo-metadata store-listings/firefox-amo-metadata.json --api-key=$env:AMO_JWT_ISSUER --api-secret=$env:AMO_JWT_SECRET
 ```
 
-Firefox requires `browser_specific_settings.gecko.id` for updates and MV3 signing. It is already set in the generated Firefox manifest.
+Firefox requires `browser_specific_settings.gecko.id` for updates and MV3 signing. It is already set in the generated Firefox manifest to `xtension@jodevelop.com`. This identifier is permanent once the add-on is listed on AMO: never change it after the first publication, or existing installs stop receiving updates.
 
 ## Safari App Store
 
@@ -159,7 +170,7 @@ See:
 - Generate a real PDF from a thread and verify that it stops before replies from other accounts.
 - Verify that the generated PDF downloads successfully.
 - Verify that images appear in the PDF.
-- Verify that the extension popup opens the dedicated Xtension settings page.
+- Verify that clicking the toolbar icon opens the dedicated Xtension settings page directly (the intermediate popup was removed in 0.6.3).
 - Verify that AI tools fail clearly when Xtension Bridge is not running.
 - Verify that the Codex Connector detects the installed Codex CLI and the connected ChatGPT account.
 - Verify that `XtensionBridge.exe`, `XtensionBridgeHost.exe`, and `XtensionBridgeSetup.exe` are signed before publishing the Windows installer.

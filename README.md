@@ -1,5 +1,7 @@
 # Xtension
 
+**Website: [xtension.jodevelop.com](https://xtension.jodevelop.com)** — feature overview, downloads and published checksums.
+
 Xtension is a browser extension built to improve the X/Twitter experience with practical tools. The current AI feature set includes optional OpenAI Codex-assisted correction, translation, reformulation, and reply generation inside the X/Twitter composer.
 
 The former voice-dictation control is kept guarded but reports unavailable in the ChatGPT-managed Codex mode, because this no-key integration does not expose an OpenAI transcription model.
@@ -35,10 +37,12 @@ The extension package does not include a model, API key, or OpenAI credential. C
 The browser extension cannot spawn a desktop CLI or safely own its OAuth refresh token. The connector is the local boundary between the extension and Codex; it contains no Gemma, llama.cpp, Whisper, or other local model. The user downloads and runs the Windows installer from:
 
 ```text
-https://github.com/JoDevelop1/xtension/raw/main/releases/windows/XtensionBridgeSetup.exe
+https://xtension.jodevelop.com/dl/XtensionBridgeSetup.exe
 ```
 
-The installer is mirrored in this repository under `releases/windows/` so GitHub and GitLab both contain the current Windows build. Maintainers can also run the connector from source:
+The installer is served from Cloudflare R2 behind that domain, and its SHA-256 is published at
+`https://xtension.jodevelop.com/dl/XtensionBridgeSetup.SHA256.txt`. A copy is mirrored in this
+repository under `releases/windows/`. Maintainers can also run the connector from source:
 
 ```powershell
 npm run bridge
@@ -82,11 +86,11 @@ npm run check
 
 ## Localization
 
-Xtension uses the standard WebExtension `_locales` system. The generated browser packages include the same locale coverage used by the PapaClip browser extension:
+Xtension uses the standard WebExtension `_locales` system. The generated browser packages ship five locales:
 
-`ar`, `cs`, `da`, `de`, `en`, `es`, `fi`, `fr`, `hi`, `it`, `ja`, `ko`, `nl`, `no`, `pl`, `pt_BR`, `pt_PT`, `ro`, `sv`, `tr`, `zh_CN`.
+`de`, `en`, `es`, `fr`, `ja`.
 
-The browser automatically selects the best matching locale from the user's UI language.
+The browser automatically selects the best matching locale from the user's UI language and falls back to `en`.
 
 ## Local Installation
 

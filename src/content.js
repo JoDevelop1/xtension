@@ -20,6 +20,10 @@
   const DRAFT_ACTIONS_HOST_VERSION = "composer-submit-cleanup-v3";
   const CONTENT_BUILD_ATTRIBUTE = "data-xtension-content-build";
   const DRAFT_ACTION_BUTTON_ATTRIBUTE = "data-xtension-draft-action-button";
+  // Boutons réellement créés par l'extension -> identifiant d'action. Sert de
+  // source de vérité face à un élément que la page x.com aurait forgé en
+  // recopiant simplement l'attribut ci-dessus.
+  const draftActionButtonRegistry = new WeakMap();
   const DRAFT_GENERATION_LANGUAGE_STORAGE_KEY = "draftGenerationLanguage";
   const DRAFT_ACTION_TIMINGS_STORAGE_KEY = "draftActionTimings";
   const DRAFT_DICTATION_MIME_TYPE_CANDIDATES = [
@@ -1128,9 +1132,16 @@
         button.setAttribute("aria-pressed", "false");
       }
       button.append(createDraftActionIcon(action.id));
+      // Mémorise le bouton comme authentiquement créé par l'extension : les
+      // gestionnaires globaux s'y réfèrent au lieu de faire confiance à
+      // l'attribut DOM, que la page peut poser sur un élément qu'elle forge.
+      draftActionButtonRegistry.set(button, action.id);
       button.addEventListener("pointerdown", stopDraftActionButtonEvent, true);
       button.addEventListener("mousedown", stopDraftActionButtonEvent, true);
       button.addEventListener("click", async (event) => {
+        if (!event.isTrusted) {
+          return;
+        }
         stopDraftActionButtonEvent(event);
         await activateDraftActionButton(button, editor, action.id);
       });
@@ -1169,8 +1180,23 @@
   }
 
   function handleDraftActionPointerUp(event) {
+    // Un script s'exécutant dans l'origine x.com peut forger un bouton portant
+    // notre attribut et lui envoyer un PointerEvent synthétique : sans ce test,
+    // la page déclencherait seule les actions IA (lecture du brouillon, envoi au
+    // connecteur, consommation du quota ChatGPT).
+    if (!event.isTrusted) {
+      return;
+    }
+
     const button = event.target?.closest?.(`[${DRAFT_ACTION_BUTTON_ATTRIBUTE}]`);
     if (!button || button.disabled || !button.isConnected) {
+      return;
+    }
+
+    // Le registre des boutons réellement créés par l'extension fait autorité :
+    // l'attribut DOM seul est falsifiable par la page.
+    const action = draftActionButtonRegistry.get(button);
+    if (!action) {
       return;
     }
 
@@ -1179,7 +1205,7 @@
     }
 
     stopDraftActionButtonEvent(event);
-    activateDraftActionButton(button, null, button.getAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE)).catch(() => {});
+    activateDraftActionButton(button, null, action).catch(() => {});
   }
 
   async function activateDraftActionButton(button, fallbackEditor, action) {
@@ -4581,7 +4607,7 @@
     }
 
     if (actionId === "dictate") {
-      toggleDraftDictation(button, target);
+      await toggleDraftDictation(button, target);
       return;
     }
 
@@ -4727,7 +4753,30 @@
   // réactiverait l'aperçu (au prix d'écritures plus fréquentes dans l'éditeur).
   const DICTATION_INTERIM_ENABLED = false;
 
-  function toggleDraftDictation(button, editor) {
+  // Résultat de la sonde de capacité, mémorisé brièvement pour ne pas interroger
+  // le connecteur à chaque clic tout en restant réactif à une reconfiguration.
+  let dictationAvailabilityCache = { checkedAt: 0, available: false };
+  const DICTATION_AVAILABILITY_TTL = 60 * 1000;
+
+  async function isDictationAvailable() {
+    const now = Date.now();
+    if (now - dictationAvailabilityCache.checkedAt < DICTATION_AVAILABILITY_TTL) {
+      return dictationAvailabilityCache.available;
+    }
+
+    let available = false;
+    try {
+      const response = await sendRuntimeMessage({ type: "xtension-get-bridge-capabilities" });
+      available = response?.ok === true && response?.transcription === true;
+    } catch (error) {
+      available = false;
+    }
+
+    dictationAvailabilityCache = { checkedAt: now, available };
+    return available;
+  }
+
+  async function toggleDraftDictation(button, editor) {
     const target = findEditableReplyEditor(editor);
     if (!target) {
       showToast(localizedText("toastDictationEditorMissing", "Unable to find the reply editor."));
@@ -4744,6 +4793,19 @@
 
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       showToast(localizedText("toastDictationUnsupported", "Dictation is not available in this browser."));
+      return;
+    }
+
+    // Sonde de capacité AVANT toute demande d'accès au microphone : le mode
+    // Codex géré par ChatGPT n'expose pas de modèle de transcription. Sans ce
+    // test, le navigateur afficherait une invite d'autorisation micro sur
+    // x.com, enregistrerait la voix, puis n'échouerait qu'au retour du
+    // connecteur — une capture inutile et non annoncée à l'utilisateur.
+    if (!(await isDictationAvailable())) {
+      showToast(localizedText(
+        "toastDictationUnavailable",
+        "Voice dictation is unavailable: the connected Codex account does not provide transcription."
+      ));
       return;
     }
 

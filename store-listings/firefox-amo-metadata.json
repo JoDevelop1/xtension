@@ -1,12 +1,18 @@
 {
   "summary": {
-    "fr": "Télécharge les articles, tweets et threads X/Twitter en PDF avec leurs images.",
-    "en-US": "Download X/Twitter articles, tweets and threads as PDF files with images."
+    "fr": "Exportez vos publications X/Twitter en PDF et écrivez mieux avec votre propre compte ChatGPT.",
+    "en-US": "Export X/Twitter posts as PDF, and write better with your own ChatGPT account."
   },
   "categories": {
     "firefox": [
       "productivity"
     ]
+  },
+  "homepage": {
+    "en-US": "https://xtension.jodevelop.com"
+  },
+  "support_url": {
+    "en-US": "https://github.com/JoDevelop1/xtension/issues"
   },
   "version": {
     "license": "all-rights-reserved"

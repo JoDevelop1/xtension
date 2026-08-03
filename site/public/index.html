@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Xtension — AI writing tools and PDF export for X/Twitter</title>
+    <meta
+      name="description"
+      content="Xtension is a browser extension for X/Twitter: PDF export of articles and threads, plus draft correction, translation, reformulation, reply suggestions and image generation through your own ChatGPT/Codex account. No API key, no developer server."
+    />
+    <link rel="icon" href="/icon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icon-128.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:title" content="Xtension — AI writing tools and PDF export for X/Twitter" />
+    <meta
+      property="og:description"
+      content="PDF export, correction, translation, reformulation, reply suggestions and image generation on X/Twitter — powered by your own ChatGPT/Codex account."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://xtension.jodevelop.com/" />
+    <meta property="og:image" content="https://xtension.jodevelop.com/icon-128.png" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="/">
+          <img src="/icon-32.png" alt="" width="28" height="28" />
+          <span>Xtension</span>
+        </a>
+        <nav class="nav" aria-label="Main">
+          <a href="#features" data-i18n="navFeatures">Features</a>
+          <a href="#how" data-i18n="navHow">How it works</a>
+          <a href="#privacy" data-i18n="navPrivacy">Privacy</a>
+          <a href="#download" data-i18n="navDownload">Download</a>
+          <a href="https://github.com/JoDevelop1/xtension" rel="noopener">GitHub</a>
+        </nav>
+        <button
+          type="button"
+          id="lang-toggle"
+          class="lang-toggle"
+          aria-label="Changer de langue / Switch language"
+        >
+          <span id="lang-label">FR</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ── HERO ───────────────────────────────────────────────── -->
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">
+            <span class="dot"></span>
+            <span data-i18n="heroEyebrow">Version 0.6.5 · Chrome · Edge · Firefox</span>
+          </p>
+          <h1 data-i18n="heroTitle">
+            Write better on X/Twitter,<br />with your own ChatGPT account.
+          </h1>
+          <p class="lead" data-i18n="heroLead">
+            Xtension adds a compact toolbar to the X/Twitter composer: correct, translate,
+            reformulate, generate replies and create images — plus a clean PDF export for any
+            article, tweet or thread. Requests go through your own authenticated ChatGPT/Codex
+            session. No API key. No developer server. No account to create.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#download" data-i18n="heroCtaDownload">
+              Download Xtension
+            </a>
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/JoDevelop1/xtension"
+              rel="noopener"
+              data-i18n="heroCtaSource"
+            >
+              Read the source code
+            </a>
+          </div>
+          <ul class="badges">
+            <li data-i18n="badgeNoKey">No OpenAI API key</li>
+            <li data-i18n="badgeNoServer">No developer server</li>
+            <li data-i18n="badgeSigned">Signed Windows installer</li>
+            <li data-i18n="badgeAuditable">Auditable source</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── FEATURES ───────────────────────────────────────────── -->
+      <section id="features" class="section">
+        <div class="wrap">
+          <h2 data-i18n="featuresTitle">Everything Xtension does</h2>
+          <p class="section-lead" data-i18n="featuresLead">
+            Two independent halves: a PDF exporter that runs entirely in your browser, and a set of
+            AI writing tools that run through your own ChatGPT/Codex account. Each one can be used
+            without the other.
+          </p>
+
+          <h3 class="group-title" data-i18n="groupPdf">PDF export — fully local</h3>
+          <div class="grid">
+            <article class="card">
+              <h4 data-i18n="f1Title">Export from the ··· menu</h4>
+              <p data-i18n="f1Body">
+                A <strong>Download as PDF</strong> entry is added to the X/Twitter <code>···</code>
+                menu of any article, tweet or thread.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f2Title">Structure preserved</h4>
+              <p data-i18n="f2Body">
+                Headings, paragraphs, lists and quotes keep their formatting. Long threads are
+                paginated so a post is never cut in half.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f3Title">Smart thread detection</h4>
+              <p data-i18n="f3Body">
+                Contiguous posts from the same author are grouped together, and the export stops
+                before replies from other accounts.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f4Title">Images and quoted posts</h4>
+              <p data-i18n="f4Body">
+                Media images, avatars, card images and video preview thumbnails are embedded.
+                Quoted tweets are included with their available content.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f5Title">Generated in your browser</h4>
+              <p data-i18n="f5Body">
+                The PDF is built locally and saved through your browser's normal
+                <strong>Save as</strong> dialog. Nothing is uploaded anywhere.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f6Title">Clickable links preserved</h4>
+              <p data-i18n="f6Body">
+                Links stay clickable in the PDF, the source URL is added, and the exported account
+                profile is linked at the end.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="group-title" data-i18n="groupAi">
+            AI writing tools — through your ChatGPT account
+          </h3>
+          <div class="grid">
+            <article class="card">
+              <h4 data-i18n="f7Title">Correction</h4>
+              <p data-i18n="f7Body">
+                Fixes grammar, spelling and syntax in your draft while keeping your voice. One click
+                to undo.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f8Title">Translation</h4>
+              <p data-i18n="f8Body">
+                Translates your draft into the output language you choose, preserving tone and
+                meaning.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f9Title">Reformulation</h4>
+              <p data-i18n="f9Body">
+                Rewrites your draft to be clearer or more impactful, within the character limit of a
+                post.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f10Title">Generate</h4>
+              <p data-i18n="f10Body">
+                Turn an instruction into a finished post. On an empty draft under a tweet, it writes
+                a contextual reply instead. The writing style is driven by a prompt you control.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f11Title">Reply suggestions</h4>
+              <p data-i18n="f11Body">
+                A panel proposes ready-to-post replies in several angles: human reaction, short
+                impact, concrete argument, positive agreement, contextual humour, sharp angle,
+                useful context, question — plus three prompts you can customize.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f12Title">Image generation</h4>
+              <p data-i18n="f12Body">
+                Describe an image and attach it to your post. Square, landscape and portrait formats
+                (1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3), style presets (photorealistic, illustration,
+                infographic, 3D), framing and mood. The first image of the post can be used as a
+                visual reference.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f13Title">Undo / Redo</h4>
+              <p data-i18n="f13Body">
+                Every AI edit is reversible. Undo and redo arrows sit directly in the composer
+                toolbar, so nothing is ever lost.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f14Title">Model and reasoning control</h4>
+              <p data-i18n="f14Body">
+                Pick any Codex model available to your ChatGPT account and set the reasoning effort
+                per request. Defaults: <code>gpt-5.6-luna</code> at maximum reasoning.
+              </p>
+            </article>
+            <article class="card">
+              <h4 data-i18n="f15Title">Five interface languages</h4>
+              <p data-i18n="f15Body">
+                The extension interface is available in English, French, German, Spanish and
+                Japanese, selected automatically from your browser language.
+              </p>
+            </article>
+          </div>
+
+          <p class="note" data-i18n="dictationNote">
+            <strong>Note on voice dictation:</strong> the dictation button is still present but
+            reports as unavailable. ChatGPT-managed Codex does not expose a transcription model, and
+            Xtension deliberately does not fall back to a separate speech service without telling
+            you.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── HOW IT WORKS ───────────────────────────────────────── -->
+      <section id="how" class="section alt">
+        <div class="wrap">
+          <h2 data-i18n="howTitle">How it works</h2>
+          <p class="section-lead" data-i18n="howLead">
+            A browser extension cannot spawn a desktop process, and it cannot safely hold an OAuth
+            refresh token. So the AI features go through a small local connector that you install
+            once on Windows.
+          </p>
+
+          <ol class="steps">
+            <li>
+              <span class="step-num">1</span>
+              <h3 data-i18n="step1Title">The extension</h3>
+              <p data-i18n="step1Body">
+                Runs only on <code>x.com</code> and <code>twitter.com</code>. It reads the post you
+                selected or the draft you typed, and nothing else.
+              </p>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <h3 data-i18n="step2Title">The local connector</h3>
+              <p data-i18n="step2Body">
+                A small signed program listening on <code>127.0.0.1:47623</code>, reachable only
+                from your own machine. It starts the official Codex App Server in your Windows
+                session, denies tool approvals and uses read-only ephemeral threads.
+              </p>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <h3 data-i18n="step3Title">Your ChatGPT account</h3>
+              <p data-i18n="step3Body">
+                Codex reuses the ChatGPT sign-in that already exists on your computer. The request
+                is sent to OpenAI under your own account, with the model and reasoning effort you
+                selected. Xtension never asks for an API key.
+              </p>
+            </li>
+          </ol>
+
+          <div class="flow" aria-hidden="true">
+            <span class="flow-node" data-i18n="flowBrowser">Browser</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node" data-i18n="flowConnector">Local connector<br />127.0.0.1</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node" data-i18n="flowCodex">Codex App Server</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node" data-i18n="flowOpenAI">OpenAI<br />(your account)</span>
+          </div>
+
+          <p class="note" data-i18n="howNote">
+            The PDF export needs none of this — it works on its own, offline, as soon as the
+            extension is installed.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── PRIVACY ────────────────────────────────────────────── -->
+      <section id="privacy" class="section">
+        <div class="wrap">
+          <h2 data-i18n="privacyTitle">Privacy &amp; security</h2>
+
+          <div class="two-col">
+            <div>
+              <h3 data-i18n="privacyDoesTitle">What Xtension does</h3>
+              <ul class="check">
+                <li data-i18n="pd1">
+                  Reads the visible text of the post, article, thread or draft you act on.
+                </li>
+                <li data-i18n="pd2">
+                  Fetches the public images of that content from <code>pbs.twimg.com</code>.
+                </li>
+                <li data-i18n="pd3">
+                  Sends that content to the local connector only when you click an AI action.
+                </li>
+                <li data-i18n="pd4">
+                  Stores your settings in the browser's extension storage, on your machine.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 data-i18n="privacyNotTitle">What Xtension never does</h3>
+              <ul class="cross">
+                <li data-i18n="pn1">No data sent to a server owned by the developer.</li>
+                <li data-i18n="pn2">No X/Twitter password, cookie or authentication token read.</li>
+                <li data-i18n="pn3">No access to your private messages.</li>
+                <li data-i18n="pn4">No browsing history, no analytics, no tracking, no ads.</li>
+                <li data-i18n="pn5">No OpenAI API key requested or stored.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="security-facts">
+            <h3 data-i18n="secTitle">Verifiable security properties</h3>
+            <ul>
+              <li data-i18n="sec1">
+                <strong>Loopback only.</strong> The connector binds to <code>127.0.0.1</code>. It is
+                not reachable from your local network or from the internet.
+              </li>
+              <li data-i18n="sec2">
+                <strong>Origin-restricted.</strong> Only browser-extension origins are accepted by
+                the connector's CORS policy, and an optional shared token can be required.
+              </li>
+              <li data-i18n="sec3">
+                <strong>No admin rights.</strong> The connector installs under your own user profile
+                in <code>%LOCALAPPDATA%</code>. It never runs as SYSTEM.
+              </li>
+              <li data-i18n="sec4">
+                <strong>Code-signed and timestamped.</strong> The installer is signed via Microsoft
+                Trusted Signing. Verify it in Windows: right-click →
+                <em>Properties</em> → <em>Digital Signatures</em>.
+              </li>
+              <li data-i18n="sec5">
+                <strong>Checksums published.</strong> Every download below has its SHA-256 listed so
+                you can verify the file you received.
+              </li>
+              <li data-i18n="sec6">
+                <strong>No remote code.</strong> The extension ships all of its code in the package.
+                It never downloads or evaluates code fetched at runtime.
+              </li>
+            </ul>
+          </div>
+
+          <p class="note">
+            <a href="https://github.com/JoDevelop1/xtension/blob/main/PRIVACY.md" rel="noopener" data-i18n="privacyLink">
+              Read the full privacy policy →
+            </a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ── DOWNLOAD ───────────────────────────────────────────── -->
+      <section id="download" class="section alt">
+        <div class="wrap">
+          <h2 data-i18n="dlTitle">Download</h2>
+          <p class="section-lead" data-i18n="dlLead">
+            Install the extension in your browser. Then, only if you want the AI features, install
+            the connector on Windows.
+          </p>
+
+          <h3 class="group-title" data-i18n="dlStep1">1 · The browser extension</h3>
+          <div class="dl-grid">
+            <a class="dl-card" href="/dl/xtension-chrome.zip">
+              <span class="dl-name">Chrome</span>
+              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.5</span>
+              <span class="dl-action" data-i18n="dlZip">Download .zip</span>
+            </a>
+            <a class="dl-card" href="/dl/xtension-edge.zip">
+              <span class="dl-name">Edge</span>
+              <span class="dl-meta">v0.6.5</span>
+              <span class="dl-action" data-i18n="dlZip2">Download .zip</span>
+            </a>
+            <a class="dl-card" href="/dl/xtension-firefox.zip">
+              <span class="dl-name">Firefox</span>
+              <span class="dl-meta">v0.6.5</span>
+              <span class="dl-action" data-i18n="dlZip3">Download .zip</span>
+            </a>
+          </div>
+
+          <details class="howto">
+            <summary data-i18n="dlHowSummary">How to install a .zip package</summary>
+            <div class="howto-body">
+              <p><strong>Chrome, Edge, Brave, Vivaldi, Opera</strong></p>
+              <ol>
+                <li data-i18n="dlHow1">Unzip the archive into a folder you keep.</li>
+                <li data-i18n="dlHow2">
+                  Open <code>chrome://extensions</code> (or <code>edge://extensions</code>).
+                </li>
+                <li data-i18n="dlHow3">Enable <strong>Developer mode</strong>.</li>
+                <li data-i18n="dlHow4">
+                  Click <strong>Load unpacked</strong> and select the unzipped folder.
+                </li>
+              </ol>
+              <p><strong>Firefox</strong></p>
+              <ol>
+                <li data-i18n="dlHow5">Open <code>about:debugging#/runtime/this-firefox</code>.</li>
+                <li data-i18n="dlHow6">
+                  Click <strong>Load Temporary Add-on</strong> and select the
+                  <code>manifest.json</code> inside the unzipped folder.
+                </li>
+              </ol>
+            </div>
+          </details>
+
+          <h3 class="group-title" data-i18n="dlStep2">2 · The Codex connector (optional, Windows)</h3>
+          <p class="section-lead" data-i18n="dlConnectorLead">
+            Only needed for the AI features. The PDF export works without it. Installs for the
+            current user, no administrator rights required, and starts automatically when you sign
+            in.
+          </p>
+          <a class="btn btn-primary btn-lg" href="/dl/XtensionBridgeSetup.exe">
+            <span data-i18n="dlConnectorBtn">Download XtensionBridgeSetup.exe</span>
+            <span class="btn-sub">Windows · 82 MB · v0.6.5</span>
+          </a>
+
+          <div class="checksums">
+            <h3 data-i18n="checksumTitle">Verify what you downloaded</h3>
+            <p data-i18n="checksumLead">
+              On Windows, run <code>Get-FileHash &lt;file&gt; -Algorithm SHA256</code> in PowerShell
+              and compare with the value below.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="thFile">File</th>
+                  <th>SHA-256</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>XtensionBridgeSetup.exe</td>
+                  <td><code>2d76fedfe04da1abb847129e91c3aa6c2b49c0db8c1f7350170e5f37237328cd</code></td>
+                </tr>
+                <tr>
+                  <td>xtension-chrome-v0.6.5.zip</td>
+                  <td><code>399090fe91d5acefd9c3645f1752a2d37da1777cf27a276acc080933a0af149b</code></td>
+                </tr>
+                <tr>
+                  <td>xtension-edge-v0.6.5.zip</td>
+                  <td><code>399090fe91d5acefd9c3645f1752a2d37da1777cf27a276acc080933a0af149b</code></td>
+                </tr>
+                <tr>
+                  <td>xtension-firefox-v0.6.5.zip</td>
+                  <td><code>0793e0ca2aa1804bc9064ac07ebcdc342b05311053f0c0bef6a4fbf2b9ecd627</code></td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="fineprint">
+              <a href="/dl/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
+              ·
+              <a href="/version.json" data-i18n="versionJson">version.json</a>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SOURCE ─────────────────────────────────────────────── -->
+      <section id="source" class="section">
+        <div class="wrap narrow center">
+          <h2 data-i18n="srcTitle">The source code is public</h2>
+          <p class="section-lead" data-i18n="srcLead">
+            An extension that reads what you write and a program that runs on your machine should be
+            inspectable. The entire codebase is published on GitHub so anyone can read exactly what
+            Xtension does, review the network calls, and check that the claims on this page hold.
+          </p>
+          <a class="btn btn-primary btn-lg" href="https://github.com/JoDevelop1/xtension" rel="noopener">
+            <span>github.com/JoDevelop1/xtension</span>
+            <span class="btn-sub" data-i18n="srcBtnSub">Browse the code, open an issue</span>
+          </a>
+          <p class="fineprint" data-i18n="srcLicense">
+            Published for transparency and review. Redistribution and modified republication require
+            written permission — see the LICENSE file.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <p>
+          <strong>Xtension</strong> ·
+          <span data-i18n="footerBy">an independent project by JoDevelop</span>
+        </p>
+        <nav class="footer-nav" aria-label="Footer">
+          <a href="https://github.com/JoDevelop1/xtension" rel="noopener">GitHub</a>
+          <a href="https://github.com/JoDevelop1/xtension/issues" rel="noopener" data-i18n="footerSupport">Support</a>
+          <a href="https://github.com/JoDevelop1/xtension/blob/main/PRIVACY.md" rel="noopener" data-i18n="footerPrivacy">Privacy</a>
+          <a href="https://github.com/JoDevelop1/xtension/blob/main/SECURITY.md" rel="noopener" data-i18n="footerSecurity">Security</a>
+        </nav>
+        <p class="disclaimer" data-i18n="footerDisclaimer">
+          Not affiliated with X Corp., OpenAI, Microsoft, Google, Mozilla or Apple. X and Twitter are
+          trademarks of their respective owners.
+        </p>
+      </div>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

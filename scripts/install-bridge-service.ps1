@@ -30,6 +30,11 @@ if ($process.ExitCode -ne 0) {
   throw "Connector installer failed with exit code $($process.ExitCode)."
 }
 
-$health = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:47623/providers" -TimeoutSec 10
-$providers = @($health.providers | Where-Object { $_.installed } | ForEach-Object { $_.id }) -join ", "
-Write-Host "[OK] Per-user connector installed and running. Provider: $providers"
+# /ping est la seule route joignable sans origine d'extension : elle confirme que
+# le connecteur repond sans exposer le compte ChatGPT a un appelant local.
+$ping = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:47623/ping" -TimeoutSec 10
+if (-not $ping.ok) {
+  throw "The connector answered on the loopback port but reported an unexpected state."
+}
+Write-Host "[OK] Per-user connector installed and answering on http://127.0.0.1:47623."
+Write-Host "     Open the Xtension options page to check the Codex and ChatGPT account status."

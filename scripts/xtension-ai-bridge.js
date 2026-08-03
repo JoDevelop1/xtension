@@ -587,7 +587,14 @@ class CodexAppServerClient {
 const codex = new CodexAppServerClient();
 
 const server = http.createServer(async (request, response) => {
-  if (!setCorsHeaders(request, response)) {
+  const pathname = getPathname(request.url);
+
+  if (!isAllowedHost(request)) {
+    sendJson(response, 403, { ok: false, error: "Host is not allowed." });
+    return;
+  }
+
+  if (!setCorsHeaders(request, response, pathname)) {
     sendJson(response, 403, { ok: false, error: "Origin is not allowed." });
     return;
   }
@@ -603,9 +610,14 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  const pathname = getPathname(request.url);
-
   try {
+    // Vitalite seule : aucune donnee de compte, joignable par les scripts
+    // d'installation qui n'ont pas d'origine d'extension a presenter.
+    if (request.method === "GET" && pathname === "/ping") {
+      sendJson(response, 200, { ok: true, service: "xtension-bridge" });
+      return;
+    }
+
     if (request.method === "GET" && ["/health", "/status", "/providers"].includes(pathname)) {
       sendJson(response, 200, await getHealthStatus());
       return;
@@ -1021,24 +1033,49 @@ async function getHealthStatus() {
   return base;
 }
 
-function setCorsHeaders(request, response) {
+// Seuls ces noms d'hote sont acceptes dans l'en-tete Host. Un navigateur qui
+// resout un domaine attaquant vers 127.0.0.1 (DNS rebinding) presente le nom de
+// ce domaine : la requete est alors traitee comme same-origin par le navigateur,
+// donc sans en-tete Origin sur les GET simples. Verifier Host ferme ce vecteur.
+const allowedHosts = new Set([
+  `127.0.0.1:${port}`,
+  `localhost:${port}`,
+  `[::1]:${port}`
+]);
+
+function isAllowedHost(request) {
+  return allowedHosts.has(cleanText(request.headers.host || "").toLowerCase());
+}
+
+// Route de vitalite : ne divulgue rien (ni compte, ni e-mail, ni modele) et sert
+// uniquement aux scripts d'installation a verifier que le connecteur repond.
+// C'est la seule route joignable sans en-tete Origin d'extension.
+const livenessPathnames = new Set(["/ping"]);
+
+function setCorsHeaders(request, response, pathname) {
   const origin = cleanText(request.headers.origin || "");
-  if (origin && !isAllowedBrowserExtensionOrigin(origin)) {
+
+  // Origin est obligatoire : sans cette exigence, tout processus local (curl,
+  // binaire tiers, autre session Windows du meme poste) piloterait le
+  // connecteur et consommerait le quota ChatGPT de l'utilisateur.
+  if (!origin) {
+    return livenessPathnames.has(pathname);
+  }
+  if (!isAllowedBrowserExtensionOrigin(origin)) {
     return false;
   }
-  if (origin) {
-    response.setHeader("access-control-allow-origin", origin);
-    response.setHeader("vary", "Origin");
-  }
+
+  response.setHeader("access-control-allow-origin", origin);
+  response.setHeader("vary", "Origin");
   response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
   response.setHeader("access-control-allow-headers", "content-type,x-xtension-bridge-token");
   return true;
 }
 
 function isAllowedBrowserExtensionOrigin(origin) {
-  return /^chrome-extension:\/\/[a-z]{32}$/i.test(origin)
-    || /^moz-extension:\/\/[^/]+$/i.test(origin)
-    || /^safari-web-extension:\/\/[^/]+$/i.test(origin);
+  return /^chrome-extension:\/\/[a-p]{32}$/i.test(origin)
+    || /^moz-extension:\/\/[0-9a-f-]{36}$/i.test(origin)
+    || /^safari-web-extension:\/\/[0-9A-F-]{36}$/i.test(origin);
 }
 
 function isAuthorizedRequest(request) {

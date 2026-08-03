@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xtension-site",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-01",
+  "account_id": "5b67e58567a01e9825b8a43eeb50c1df",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+  "r2_buckets": [
+    {
+      "binding": "DOWNLOADS",
+      "bucket_name": "xtension-downloads"
+    }
+  ],
+  "vars": {
+    "CURRENT_VERSION": "0.6.5"
+  },
+  "routes": [
+    {
+      "pattern": "xtension.jodevelop.com",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

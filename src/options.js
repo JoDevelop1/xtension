@@ -365,6 +365,13 @@
         throw new Error(localizedText("optionsCodexConnectionFailed", "Codex did not provide a sign-in page."));
       }
 
+      // L'URL vient du connecteur local. Si un autre programme squattait le port
+      // 47623 avant lui, il pourrait renvoyer une page de phishing ou une URL
+      // javascript:. On n'ouvre donc que des pages de connexion OpenAI en HTTPS.
+      if (!isTrustedSignInUrl(authUrl)) {
+        throw new Error(localizedText("optionsCodexConnectionFailed", "The sign-in page returned by the connector is not a trusted OpenAI address."));
+      }
+
       if (loginWindow && !loginWindow.closed) {
         loginWindow.location.href = authUrl;
       } else {
@@ -779,6 +786,30 @@
 
   function cleanText(value) {
     return String(value || "").replace(/\u0000/g, "").trim();
+  }
+
+  // Domaines de connexion OpenAI/ChatGPT acceptés pour le flux OAuth de Codex.
+  const TRUSTED_SIGN_IN_HOSTS = new Set([
+    "auth.openai.com",
+    "auth0.openai.com",
+    "platform.openai.com",
+    "chatgpt.com",
+    "chat.openai.com",
+    "openai.com"
+  ]);
+
+  function isTrustedSignInUrl(value) {
+    let parsed;
+    try {
+      parsed = new URL(value);
+    } catch (error) {
+      return false;
+    }
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    return TRUSTED_SIGN_IN_HOSTS.has(host) || host.endsWith(".openai.com");
   }
 
   function delay(ms) {

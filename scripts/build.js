@@ -8,7 +8,7 @@ const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.6.5";
+const version = "0.6.6";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",
@@ -94,8 +94,18 @@ const targets = {
     },
     browser_specific_settings: {
       gecko: {
-        id: "xtension@example.invalid",
-        strict_min_version: "109.0"
+        id: "xtension@jodevelop.com",
+        strict_min_version: "109.0",
+        // AMO impose une declaration explicite depuis 2025. Xtension lit le
+        // contenu visible de la page X/Twitter et le brouillon de l'utilisateur,
+        // puis les transmet au connecteur local et a OpenAI via le compte ChatGPT
+        // de l'utilisateur : c'est du contenu de site web. Aucune donnee n'est
+        // envoyee a un serveur du developpeur, d'ou l'absence de collecte
+        // optionnelle.
+        data_collection_permissions: {
+          required: ["websiteContent"],
+          optional: []
+        }
       }
     }
   }

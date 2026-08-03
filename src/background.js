@@ -181,6 +181,18 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "xtension-get-bridge-capabilities") {
+    getBridgeCapabilities().then((capabilities) => {
+      sendResponse({ ok: true, ...capabilities });
+    }).catch(() => {
+      // Connecteur injoignable : on annonce la transcription comme indisponible
+      // plutôt que d'ouvrir le microphone pour rien.
+      sendResponse({ ok: false, transcription: false });
+    });
+
+    return true;
+  }
+
   if (message.type === "xtension-warmup-bridge") {
     warmupBridge().then(() => {
       sendResponse({ ok: true });
@@ -519,7 +531,30 @@ function logAiRoute(config, operation, details = {}) {
   }).catch(() => {});
 }
 
+// Hôtes d'images autorisés. L'URL vient du DOM de x.com, donc d'une source que
+// la page contrôle : sans cette liste, la page ferait émettre au service worker
+// des requêtes arbitraires depuis l'origine privilégiée de l'extension.
+const ALLOWED_IMAGE_HOSTS = new Set([
+  "pbs.twimg.com",
+  "abs.twimg.com",
+  "video.twimg.com"
+]);
+
+function isAllowedImageUrl(value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch (error) {
+    return false;
+  }
+  return parsed.protocol === "https:" && ALLOWED_IMAGE_HOSTS.has(parsed.hostname.toLowerCase());
+}
+
 async function fetchImageAsDataUrl(url) {
+  if (!isAllowedImageUrl(url)) {
+    throw new Error("Image host is not allowed.");
+  }
+
   const response = await fetch(url, {
     cache: "force-cache",
     credentials: "omit"
@@ -681,6 +716,37 @@ async function warmupBridge() {
   }, {
     operation: "warmup"
   }).catch(() => {});
+}
+
+/**
+ * Interroge le connecteur pour savoir ce qu'il sait faire, avant d'engager une
+ * opération coûteuse ou intrusive côté page. Utilisé par la dictée pour ne
+ * jamais demander l'accès au microphone quand la transcription est hors service.
+ */
+async function getBridgeCapabilities() {
+  const config = await getReplyAiConfig();
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl || config?.enabled === false) {
+    return { transcription: false, reachable: false };
+  }
+
+  const response = await fetchBridgeRequest(`${bridgeUrl}/health`, {
+    method: "GET",
+    headers: buildBridgeAuthHeaders(config)
+  }, {
+    operation: "capabilities"
+  });
+
+  if (!response.ok) {
+    return { transcription: false, reachable: false };
+  }
+
+  const status = await response.json();
+  return {
+    reachable: true,
+    transcription: status?.transcription?.available === true,
+    transcriptionCode: cleanText(status?.transcription?.code || "")
+  };
 }
 
 async function transcribeDictationAudio(message) {

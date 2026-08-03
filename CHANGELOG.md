@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.6.6
+
+Security and store-readiness release. No feature change.
+
+- The dictation button now asks the connector whether transcription exists **before** requesting microphone access, instead of recording first and failing afterwards. With the ChatGPT-managed Codex account it reports unavailable without ever opening the microphone.
+- The connector rejects requests that do not present a browser-extension origin, and validates the `Host` header, closing DNS rebinding and blocking any other local process from reading the ChatGPT account or spending its quota. A new `/ping` route exposes liveness only, with no account data, for install-time checks.
+- Composer actions ignore synthetic events and only trust buttons the extension actually created, so a script running inside x.com can no longer trigger AI actions on the user's behalf.
+- Image fetches by the service worker are restricted to the public X/Twitter media hosts, and the Codex sign-in page is only opened when it is an OpenAI HTTPS address.
+- The installer runs `sc.exe` and `schtasks.exe` from their absolute `System32` paths, preventing a same-named binary earlier in `PATH` from being executed instead.
+- Firefox: real add-on id `xtension@jodevelop.com` in place of the `example.invalid` placeholder, and the `data_collection_permissions` declaration AMO now requires.
+- `PRIVACY.md` documents the dictation preflight, the microphone case, the sanitized local diagnostic log, and the files the separately installed connector writes.
+- Store listings, manifest descriptions and the README describe the actual 0.6.x feature set instead of the 0.4 PDF-only wording.
+- The build pins `@yao-pkg/pkg` to 6.22.0 so the signed connector is reproducible.
+- Downloads move to GitHub Releases, mirrored at https://xtension.jodevelop.com.
+
 ## v0.6.5
 
 - Adds three compact ImageGen presets for visual style, framing, and mood without overcrowding the generation dialog.

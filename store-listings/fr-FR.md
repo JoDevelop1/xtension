@@ -2,32 +2,54 @@
 
 ## Résumé court
 
-Télécharge les articles, tweets et threads X/Twitter en PDF avec leurs images.
+Exportez vos publications X/Twitter en PDF et écrivez mieux avec votre propre compte ChatGPT.
 
 ## Description
 
-Xtension ajoute une action simple dans le menu `...` de X/Twitter : **Télécharger en PDF**.
+Xtension ajoute deux ensembles d'outils indépendants à X/Twitter. Chacun fonctionne sans l'autre.
 
-Quand vous ouvrez le menu `...` d'un article, d'un tweet ou d'un thread X, l'extension détecte le contenu pertinent, extrait le texte, la structure, les tweets inclus et les images, puis génère un PDF localement dans le navigateur. Pour les threads, Xtension regroupe les messages contigus du même auteur et s'arrête avant les réponses des autres comptes. Le fichier est enregistré via la boîte **Enregistrer sous**, ce qui vous laisse choisir le nom du fichier et le dossier de destination.
+**1. Export PDF — entièrement local**
 
-Fonctionnalités principales :
+Ouvrez le menu `...` d'un article, d'un tweet ou d'un fil X et choisissez **Télécharger en PDF**. L'extension détecte le contenu pertinent, extrait le texte, la structure, les tweets cités et les images, puis génère le PDF dans votre navigateur. Pour les fils, Xtension regroupe les messages successifs du même auteur et s'arrête avant les réponses des autres comptes. Votre navigateur ouvre sa boîte de dialogue **Enregistrer sous** habituelle : vous choisissez le nom du fichier et le dossier. Aucun service externe n'intervient.
 
-- Export PDF direct depuis le menu d'un article, tweet ou thread X/Twitter.
+- Export PDF direct depuis le menu d'un article, tweet ou fil X/Twitter.
 - Conservation de la structure des articles : titres, paragraphes, listes et citations.
-- Détection des threads du même auteur sans capturer toutes les réponses.
+- Détection des fils du même auteur sans capturer toutes les réponses.
 - Inclusion des tweets cités avec leur contenu disponible.
-- Intégration des images média dans le PDF.
-- Génération locale, sans service externe.
-- Fonctionne uniquement dans le cadre X/Twitter et les domaines média associés.
-- Compatible Edge, Chrome, Brave, Vivaldi, Opera et Firefox avec le package adapté.
+- Intégration des images des médias, avatars, images de carte et vignettes vidéo.
+- Liens conservés cliquables et URL source ajoutée.
+- Génération locale, hors ligne, sans service externe.
+
+**2. Outils de rédaction IA — via votre propre compte ChatGPT**
+
+Lorsque vous activez les outils de brouillon, une barre d'outils compacte apparaît dans la zone de rédaction de X/Twitter :
+
+- **Correction** — corrige la grammaire, l'orthographe et la syntaxe en gardant votre voix.
+- **Traduction** — traduit votre brouillon dans la langue de sortie que vous choisissez.
+- **Reformulation** — réécrit votre brouillon pour le rendre plus clair ou plus percutant.
+- **Générer** — transforme une consigne en message fini ; sur un brouillon vide sous un tweet, l'outil rédige plutôt une réponse contextuelle.
+- **Suggestions de réponses** — des réponses prêtes à publier sous plusieurs angles (réaction humaine, impact court, argument concret, accord positif, humour contextuel, angle incisif, contexte utile, question), plus trois consignes personnalisables.
+- **Génération d'images** — décrivez une image et joignez-la à votre message, avec formats carré, paysage et portrait, préréglages de style, cadrage et ambiance.
+- **Annuler / Rétablir** — chaque modification par l'IA est réversible depuis la barre d'outils.
+- **Choix du modèle** — sélectionnez n'importe quel modèle Codex disponible sur votre compte ChatGPT et réglez l'effort de raisonnement par requête.
+
+Ces fonctions IA nécessitent le **connecteur Codex Xtension**, un petit programme que vous installez séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, n'est joignable que depuis votre propre machine, et démarre le Codex App Server officiel en réutilisant la connexion ChatGPT déjà présente sur votre ordinateur. Xtension ne demande jamais de clé d'API OpenAI et n'envoie jamais vos données à un serveur appartenant au développeur. Le connecteur se télécharge séparément : https://xtension.jodevelop.com
+
+La dictée vocale est délibérément indisponible dans ce mode : Codex géré par ChatGPT n'expose pas de modèle de transcription, et Xtension refuse de basculer silencieusement vers un autre service vocal.
+
+L'interface de l'extension est disponible en anglais, français, allemand, espagnol et japonais.
 
 Permissions utilisées :
 
-- `x.com` / `twitter.com` : ajouter l'action dans le menu X/Twitter.
-- `pbs.twimg.com` : récupérer les images, avatars, cartes média et vignettes vidéo publiques X/Twitter liées au contenu sélectionné.
+- `x.com` / `twitter.com` : ajouter les actions Xtension dans le menu et la zone de rédaction de X/Twitter, et lire uniquement le contenu visible que vous avez sélectionné.
+- `pbs.twimg.com` : récupérer les images, avatars, images de carte et vignettes vidéo publiques de X/Twitter liées au contenu sélectionné.
+- `localhost:47623` / `127.0.0.1:47623` : connecter les outils IA optionnels au connecteur Codex qui tourne sur votre propre ordinateur. L'extension elle-même ne peut pas exécuter de commandes locales.
+- `storage` : enregistrer vos réglages dans le navigateur.
 
-L'extension ne collecte aucune donnée personnelle, n'envoie rien à un serveur tiers et ne modifie pas votre compte X/Twitter.
+Xtension ne collecte aucune donnée personnelle, n'envoie rien à un serveur appartenant au développeur, ne contient ni analyse d'audience ni pistage, et ne modifie pas votre compte X/Twitter. L'intégralité du code source est publiée sur https://github.com/JoDevelop1/xtension
+
+Xtension est un projet indépendant. Il n'est affilié ni à X Corp., ni à OpenAI, Microsoft, Google, Mozilla ou Apple.
 
 ## Mots-clés
 
-X, Twitter, article, tweet, thread, PDF, export, sauvegarde, impression, longform
+X, Twitter, PDF, export, fil, article, IA, ChatGPT, Codex, rédaction, correction, traduction, réponse

@@ -237,8 +237,8 @@ internal static class Program
             return;
         }
 
-        RunProcess("sc.exe", $"stop {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1062 });
-        RunProcess("sc.exe", $"delete {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1072 });
+        RunProcess(SystemTool("sc.exe"), $"stop {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1062 });
+        RunProcess(SystemTool("sc.exe"), $"delete {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1072 });
     }
 
     private static void CleanupLegacyStartupTask()
@@ -246,7 +246,7 @@ internal static class Program
         try
         {
             RunProcess(
-                "schtasks.exe",
+                SystemTool("schtasks.exe"),
                 $"/Delete /TN {Quote(LegacyServiceName)} /F",
                 TimeSpan.FromSeconds(20),
                 new[] { 0, 1 });
@@ -320,7 +320,7 @@ internal static class Program
         {
             using var process = Process.Start(new ProcessStartInfo
             {
-                FileName = "sc.exe",
+                FileName = SystemTool("sc.exe"),
                 Arguments = $"query {LegacyServiceName}",
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -379,17 +379,18 @@ internal static class Program
         {
             try
             {
-                using var response = await client.GetAsync($"http://127.0.0.1:{DefaultPort}/providers");
+                // /ping est la seule route joignable sans origine d'extension. Les routes
+                // de statut exposeraient le compte ChatGPT a tout appelant local, elles
+                // exigent donc desormais un en-tete Origin d'extension.
+                using var response = await client.GetAsync($"http://127.0.0.1:{DefaultPort}/ping");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
                 using var document = JsonDocument.Parse(json);
-                var providers = document.RootElement.GetProperty("providers")
-                    .EnumerateArray()
-                    .Where(item => item.TryGetProperty("installed", out var installed) && installed.GetBoolean())
-                    .Select(item => item.TryGetProperty("id", out var id) ? id.GetString() : "")
-                    .Where(value => !string.IsNullOrWhiteSpace(value))
-                    .ToArray();
-                return providers.Length > 0 ? string.Join(", ", providers!) : "none";
+                if (document.RootElement.TryGetProperty("ok", out var ok) && ok.GetBoolean())
+                {
+                    return "ready";
+                }
+                throw new InvalidOperationException("The connector answered with an unexpected state.");
             }
             catch (Exception error)
             {
@@ -442,6 +443,17 @@ internal static class Program
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Chemin absolu d'un utilitaire systeme sous %SystemRoot%\System32.
+    /// Lancer "sc.exe" ou "schtasks.exe" par nom seul laisse Windows parcourir le
+    /// PATH : un binaire homonyme place dans un repertoire inscriptible et situe
+    /// plus tot dans le PATH serait execute a la place du binaire systeme.
+    /// </summary>
+    private static string SystemTool(string executableName)
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), executableName);
     }
 
     private static void RunProcess(string fileName, string arguments, TimeSpan timeout, IReadOnlyCollection<int> allowExitCodes)
