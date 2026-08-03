@@ -1,8 +1,8 @@
 # Privacy Policy
 
-Xtension does not collect, sell, or store personal data on a developer server.
+Xtension does not collect, sell, or store personal data on a developer-owned server.
 
-The extension runs in the browser on X/Twitter pages. PDF export is processed locally. The draft tools (correction, translation, reformulation) and voice dictation are optional and run entirely on the user's own computer through the local Xtension Bridge, which the user installs and runs on Windows. No text or audio is sent to any server.
+The extension runs in the browser on X/Twitter pages. PDF export is processed locally. The optional draft tools (correction, translation, reformulation, and reply generation) use the local Xtension Codex Connector, which the user installs and runs on Windows, and the user's authenticated OpenAI Codex/ChatGPT account. Request data is sent to OpenAI by Codex when an AI operation is requested. Xtension does not request or store an OpenAI API key. Voice dictation is explicitly unavailable in this no-key Codex mode.
 
 ## Data Processed Locally
 
@@ -10,16 +10,15 @@ The extension runs in the browser on X/Twitter pages. PDF export is processed lo
 - Source URL of the selected content.
 - Public images, avatars, card images, and video preview thumbnails displayed in the selected content.
 - User draft text when the user asks Xtension to correct, translate, or reformulate a draft.
-- Voice recordings captured for dictation, transcribed locally and then discarded.
-- Extension settings stored in browser extension storage, including the local engine URL and an optional engine token.
+- Extension settings stored in browser extension storage, including the loopback connector URL and an optional local connector token. ChatGPT OAuth tokens are managed by Codex, not stored by Xtension.
 
-## Local AI Processing
+## AI Request Processing
 
-When the draft tools or dictation are enabled, Xtension sends the visible X/Twitter context, user draft text, or voice recording to the Xtension Bridge running on the user's own computer:
+When the draft tools are enabled, Xtension sends the visible X/Twitter context, user draft text, or image data needed for generation to the Xtension Codex Connector running on the user's own computer:
 
-- The bridge is bound to `127.0.0.1` and is only reachable from the local machine.
-- The bridge runs a small AI model locally (via llama.cpp) for text tasks and a local speech-to-text engine (whisper) for dictation. The model is downloaded once from a public model host, then runs offline.
-- Nothing is sent to Xtension, to the developer, or to any third-party AI server. There is no API key and no cloud provider.
+- The connector is bound to `127.0.0.1` and is only reachable from the local machine.
+- The connector starts the official Codex App Server using ChatGPT-managed OAuth authentication.
+- Codex sends the request to OpenAI using the model and reasoning effort selected by the user; the defaults are `gpt-5.6-luna` and maximum reasoning. Xtension does not send data to an Xtension developer server.
 - The extension itself cannot execute local commands.
 
 ## Data Not Collected by Xtension
@@ -29,7 +28,7 @@ When the draft tools or dictation are enabled, Xtension sends the visible X/Twit
 - No X/Twitter authentication token.
 - No browsing history.
 - No private message access.
-- No upload to a developer-owned server.
+- No upload to an Xtension developer-owned server.
 
 ## Storage
 

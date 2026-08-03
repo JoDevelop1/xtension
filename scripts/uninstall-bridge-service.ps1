@@ -1,38 +1,32 @@
-param(
-  [string]$ServiceName = "XtensionBridge",
-  [string]$InstallDir = "",
-  [switch]$RemoveFiles
-)
-
 $ErrorActionPreference = "Stop"
 
-function Test-IsAdmin {
-  $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-  $principal = [Security.Principal.WindowsPrincipal]::new($identity)
-  return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$installDir = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Programs\Xtension\Bridge"
+$installer = Join-Path $installDir "XtensionBridgeSetup.exe"
+if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+  Write-Host "[OK] Xtension Codex Connector is not installed for this Windows account."
+  exit 0
 }
 
-if (-not (Test-IsAdmin)) {
-  throw "Run this uninstaller from an elevated PowerShell session so it can remove the Windows service."
+$resolvedInstallDir = [IO.Path]::GetFullPath($installDir).TrimEnd("\")
+$expectedInstallDir = [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Programs\Xtension\Bridge")).TrimEnd("\")
+if (-not $resolvedInstallDir.Equals($expectedInstallDir, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "Refusing to uninstall from an unexpected directory: $resolvedInstallDir"
 }
 
-if (-not $InstallDir) {
-  $InstallDir = Join-Path $env:ProgramFiles "Xtension\Bridge"
+$tempInstaller = Join-Path ([IO.Path]::GetTempPath()) ("XtensionBridgeUninstall-" + [Guid]::NewGuid().ToString("N") + ".exe")
+Copy-Item -LiteralPath $installer -Destination $tempInstaller -Force
+$startInfo = [Diagnostics.ProcessStartInfo]::new()
+$startInfo.FileName = $tempInstaller
+$startInfo.Arguments = "--uninstall --from-temp --quiet"
+$startInfo.UseShellExecute = $false
+$startInfo.CreateNoWindow = $true
+$process = [Diagnostics.Process]::Start($startInfo)
+if (-not $process) {
+  throw "Could not start the connector uninstaller."
 }
-
-$service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-if ($service) {
-  if ($service.Status -ne "Stopped") {
-    Stop-Service -Name $ServiceName -Force
-    $service.WaitForStatus("Stopped", [TimeSpan]::FromSeconds(20))
-  }
-  & sc.exe delete $ServiceName | Out-Null
-  Write-Host "[OK] Removed service: $ServiceName"
-} else {
-  Write-Host "[OK] Service was not installed: $ServiceName"
+$process.WaitForExit()
+if ($process.ExitCode -ne 0) {
+  throw "Connector uninstaller failed with exit code $($process.ExitCode)."
 }
-
-if ($RemoveFiles -and (Test-Path -LiteralPath $InstallDir)) {
-  Remove-Item -LiteralPath $InstallDir -Recurse -Force
-  Write-Host "[OK] Removed files: $InstallDir"
-}
+Remove-Item -LiteralPath $tempInstaller -Force -ErrorAction SilentlyContinue
+Write-Host "[OK] Per-user connector uninstalled."

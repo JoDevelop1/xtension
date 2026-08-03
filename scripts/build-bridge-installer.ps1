@@ -1,9 +1,5 @@
 param(
-  [string]$OutputDir = "",
-  # Dossier source des modèles à distribuer À CÔTÉ du setup pour une install
-  # HORS-LIGNE (arborescence reflétant %ProgramData%\Xtension\Bridge :
-  # llm\models\*.gguf, llm\llama\*, llm\llama-cuda\*, speech\*). Optionnel.
-  [string]$ModelsSource = ""
+  [string]$OutputDir = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $distDir = Join-Path $repoRoot "dist"
 $bridgeExe = Join-Path $distDir "bridge\XtensionBridge.exe"
-$serviceExe = Join-Path $distDir "bridge-service\XtensionBridgeService.exe"
+$hostExe = Join-Path $distDir "bridge-service\XtensionBridgeHost.exe"
 $payloadRoot = Join-Path $distDir "bridge-installer-payload"
 $payloadDir = Join-Path $payloadRoot "payload"
 $payloadZip = Join-Path $payloadRoot "XtensionBridgePayload.zip"
@@ -21,7 +17,7 @@ if (-not $OutputDir) {
   $OutputDir = Join-Path $distDir "bridge-installer"
 }
 
-foreach ($file in @($bridgeExe, $serviceExe, $installerProject)) {
+foreach ($file in @($bridgeExe, $hostExe, $installerProject)) {
   if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
     throw "Required installer input not found: $file"
   }
@@ -32,7 +28,7 @@ if (-not (Test-Path -LiteralPath $signtool -PathType Leaf)) {
   throw "SignTool not found: $signtool"
 }
 
-foreach ($file in @($bridgeExe, $serviceExe)) {
+foreach ($file in @($bridgeExe, $hostExe)) {
   & $signtool verify /pa /q $file
   if ($LASTEXITCODE -ne 0) {
     throw "Installer payload must be signed before packaging: $file"
@@ -42,7 +38,7 @@ foreach ($file in @($bridgeExe, $serviceExe)) {
 Remove-Item -LiteralPath $payloadRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $payloadDir | Out-Null
 Copy-Item -LiteralPath $bridgeExe -Destination (Join-Path $payloadDir "XtensionBridge.exe") -Force
-Copy-Item -LiteralPath $serviceExe -Destination (Join-Path $payloadDir "XtensionBridgeService.exe") -Force
+Copy-Item -LiteralPath $hostExe -Destination (Join-Path $payloadDir "XtensionBridgeHost.exe") -Force
 Compress-Archive -Path (Join-Path $payloadDir "*") -DestinationPath $payloadZip -Force
 
 dotnet publish $installerProject -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=false -o $OutputDir
@@ -56,17 +52,3 @@ if (-not (Test-Path -LiteralPath $installerExe -PathType Leaf)) {
 }
 
 Write-Host "[OK] Built unsigned installer: $installerExe"
-
-# Payload de modèles pour install HORS-LIGNE (optionnel). Copié à côté du setup :
-# l'installeur le posera dans le dossier de données du service, sans téléchargement.
-if ($ModelsSource) {
-  if (-not (Test-Path -LiteralPath $ModelsSource -PathType Container)) {
-    throw "ModelsSource introuvable: $ModelsSource"
-  }
-  $modelsOut = Join-Path $OutputDir "XtensionBridgeModels"
-  Write-Host "[..] Assemblage du payload de modèles (offline) depuis $ModelsSource"
-  Remove-Item -LiteralPath $modelsOut -Recurse -Force -ErrorAction SilentlyContinue
-  Copy-Item -LiteralPath $ModelsSource -Destination $modelsOut -Recurse -Force
-  Write-Host "[OK] Payload modèles: $modelsOut"
-  Write-Host "     -> Distribue le DOSSIER $OutputDir en entier (setup + XtensionBridgeModels) pour une install sans téléchargement."
-}

@@ -6,9 +6,9 @@ This folder mirrors the current distributable artifacts so GitHub and GitLab bot
 
 The browser packages live in `releases/browser/`:
 
-- `xtension-chrome-v0.4.15.zip`
-- `xtension-edge-v0.4.15.zip`
-- `xtension-firefox-v0.4.15.zip`
+- `xtension-chrome-v0.6.2.zip`
+- `xtension-edge-v0.6.2.zip`
+- `xtension-firefox-v0.6.2.zip`
 - `SHA256SUMS.txt`
 
 ## Windows Bridge
@@ -18,4 +18,4 @@ The signed Windows bridge installer lives in `releases/windows/`:
 - `XtensionBridgeSetup.exe`
 - `XtensionBridgeSetup.SHA256.txt`
 
-Chrome Web Store and Edge Add-ons cannot install the Windows service automatically. Users install the browser extension from the store, then download and run this installer only if they want optional AI features through Codex, Grok, Gemini, or Claude.
+Chrome Web Store and Edge Add-ons cannot install the per-user Windows connector automatically. Users install the browser extension from the store, then download and run this no-admin installer only if they want AI features through their authenticated OpenAI Codex/ChatGPT account.

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.6.2
+
+- Replaces the system-level Windows service with a silent per-user connector host so Codex uses the same Windows profile and ChatGPT OAuth session as the signed-in user.
+- Installs without administrator rights under the current user's local application data and starts automatically at sign-in.
+- Restores a contextual connector-install action only when the connector is unavailable.
+- Keeps the live Codex model picker and per-model reasoning-effort choice for every AI request, with Luna and maximum reasoning as defaults.
+- Removes the misleading "local Codex host" wording: only the small loopback connector is local; model inference runs through OpenAI Codex.
+
+## v0.6.1
+
+- Fixes the Codex connection test so it reads the authenticated account from both current and legacy bridge responses.
+- Adds a live OpenAI Codex model picker with per-model reasoning-effort compatibility, while keeping Luna/maximum as the default.
+- Replaces the multi-panel options layout with one compact ChatGPT/Codex connection page; the connected state is shown by a badge and only the relevant connect/disconnect action is visible.
+- Keeps Correction, Translation, Reformulation, Dictation, Suggestions, Undo, and Redo visible in an open X composer even when X changes focus or markup around the composer.
+- Hides the connector-install action while the connector is available.
+
+## v0.6.0
+
+- Replaces the local model bridge with the official Codex App Server and ChatGPT-managed OAuth authentication; no OpenAI API key is requested or stored.
+- Routes every text operation through `gpt-5.6-luna` with maximum reasoning and read-only ephemeral threads.
+- Removes the old local model, speech-model provisioning, provider selection, GPU controls, and obsolete local benchmark.
+- Adds ChatGPT connect/disconnect/status controls to the options page and migrates the Windows service/installer to the Codex connector.
+- The legacy voice-dictation route now reports clearly that transcription is unavailable in this no-key ChatGPT/Codex mode instead of silently falling back to a local model.
+
 ## v0.5.0
 
 - Moves all AI features to a fully local engine: the Xtension Bridge now runs a compact model (Gemma 3 4B via llama.cpp) on the user's own computer for correction, translation, and post reformulation, plus local speech-to-text for voice dictation. No cloud, no API key, no data leaves the machine.

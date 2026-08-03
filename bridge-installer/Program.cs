@@ -3,18 +3,19 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
 using System.Security.Principal;
-using System.ServiceProcess;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Win32;
 
 namespace Xtension.Bridge.Installer;
 
 internal static class Program
 {
-    private const string ServiceName = "XtensionBridge";
+    private const string ProductName = "Xtension Codex Connector";
+    private const string RunValueName = "XtensionCodexConnector";
+    private const string LegacyServiceName = "XtensionBridge";
     private const int DefaultPort = 47623;
-    private const string UninstallRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\XtensionBridge";
+    private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string UninstallRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\XtensionBridge";
 
     private static int Main(string[] args)
     {
@@ -26,7 +27,7 @@ internal static class Program
             return 0;
         }
 
-        Console.Title = uninstallMode ? "Xtension Bridge Uninstall" : "Xtension Bridge Setup";
+        Console.Title = uninstallMode ? "Xtension Codex Connector Uninstall" : "Xtension Codex Connector Setup";
         try
         {
             if (uninstallMode)
@@ -53,67 +54,40 @@ internal static class Program
         }
     }
 
-    private static bool HasArg(IEnumerable<string> args, string expected)
-    {
-        return args.Any(arg => string.Equals(arg, expected, StringComparison.OrdinalIgnoreCase));
-    }
-
     private static void Install()
     {
-        if (!IsAdministrator())
-        {
-            throw new InvalidOperationException("Run this installer as administrator.");
-        }
-
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Xtension", "Bridge");
-        var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Xtension", "Bridge");
-        var logDir = Path.Combine(dataDir, "logs");
-        var serviceTempDir = Path.Combine(dataDir, "temp");
+        var installDir = GetInstallDirectory();
         var tempDir = Path.Combine(Path.GetTempPath(), "XtensionBridgeSetup-" + Guid.NewGuid().ToString("N"));
 
         try
         {
-            Step("Preparing installer payload.");
+            Step("Preparing the Codex connector.");
             Directory.CreateDirectory(tempDir);
             ExtractPayload(tempDir);
 
-            Step("Stopping previous Xtension Bridge service if needed.");
-            StopAndDeleteServiceIfExists();
-            StopExistingBridgeProcesses();
-            DeleteLegacyStartupTaskIfExists();
+            Step("Stopping the previous connector.");
+            RemoveRunEntry();
+            CleanupLegacyServiceIfPossible();
+            StopInstalledProcesses(installDir);
+            CleanupLegacyStartupTask();
+            CleanupLegacyArtifacts();
 
-            Step("Copying signed bridge files.");
+            Step("Installing for the current Windows account.");
             Directory.CreateDirectory(installDir);
-            Directory.CreateDirectory(logDir);
-            Directory.CreateDirectory(serviceTempDir);
-            GrantBuiltInUsersModify(dataDir);
             File.Copy(Path.Combine(tempDir, "XtensionBridge.exe"), Path.Combine(installDir, "XtensionBridge.exe"), true);
-            File.Copy(Path.Combine(tempDir, "XtensionBridgeService.exe"), Path.Combine(installDir, "XtensionBridgeService.exe"), true);
+            File.Copy(Path.Combine(tempDir, "XtensionBridgeHost.exe"), Path.Combine(installDir, "XtensionBridgeHost.exe"), true);
             var installedSetup = CopyInstallerToInstallDir(installDir);
 
-            // Installation HORS-LIGNE des modèles : si un payload de modèles est
-            // distribué à côté du setup (dossier "XtensionBridgeModels" ou archive
-            // "XtensionBridgeModels.zip"), on le pose dans le dossier de données du
-            // service -> aucun téléchargement au premier usage. Sinon, le service
-            // provisionne les modèles tout seul (repli).
-            ProvisionBundledModels(dataDir);
-
-            Step("Writing service configuration.");
-            WriteServiceConfig(installDir, logDir, serviceTempDir, userProfile);
-
-            Step("Creating Windows service.");
-            CreateService(installDir);
-
-            Step("Starting Windows service.");
-            StartService();
-
-            Step("Checking local bridge endpoint.");
-            var providers = WaitForProvidersAsync().GetAwaiter().GetResult();
-            Log("Detected providers: " + providers);
-
-            Step("Registering Windows uninstall entry.");
+            Step("Enabling automatic startup in this Windows session.");
+            RegisterRunEntry(installDir);
             RegisterUninstallEntry(installDir, installedSetup);
+
+            Step("Starting the connector.");
+            StartHost(installDir);
+
+            Step("Checking Codex availability.");
+            var providers = WaitForProvidersAsync().GetAwaiter().GetResult();
+            Log("Detected provider: " + providers);
         }
         finally
         {
@@ -123,30 +97,31 @@ internal static class Program
 
     private static void Uninstall()
     {
-        if (!IsAdministrator())
-        {
-            throw new InvalidOperationException("Run this uninstaller as administrator.");
-        }
+        var installDir = GetInstallDirectory();
 
-        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Xtension", "Bridge");
+        Step("Disabling automatic startup.");
+        RemoveRunEntry();
 
-        Step("Stopping Xtension Bridge service.");
-        StopAndDeleteServiceIfExists();
-        StopExistingBridgeProcesses();
-        DeleteLegacyStartupTaskIfExists();
+        Step("Stopping the connector.");
+        CleanupLegacyServiceIfPossible();
+        StopInstalledProcesses(installDir);
+        CleanupLegacyStartupTask();
+        CleanupLegacyArtifacts();
 
         Step("Removing installed files.");
-        RemoveInstalledFiles(installDir);
+        DeleteValidatedInstallDirectory(installDir);
 
-        Step("Removing Windows uninstall entry.");
-        Registry.LocalMachine.DeleteSubKeyTree(UninstallRegistryKey, false);
+        Step("Removing the uninstall entry.");
+        Registry.CurrentUser.DeleteSubKeyTree(UninstallRegistryKey, false);
     }
 
-    private static bool IsAdministrator()
+    private static string GetInstallDirectory()
     {
-        using var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        return Path.GetFullPath(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            "Xtension",
+            "Bridge"));
     }
 
     private static void ExtractPayload(string destination)
@@ -160,60 +135,7 @@ internal static class Program
         {
             stream.CopyTo(file);
         }
-
         ZipFile.ExtractToDirectory(zipPath, destination, true);
-    }
-
-    // Installe les modèles depuis un payload distribué à côté du setup, s'il existe.
-    // Le contenu du payload doit refléter l'arborescence du dossier de données du
-    // service (ex. llm\models\*.gguf, llm\llama\*, llm\llama-cuda\*, speech\*).
-    private static void ProvisionBundledModels(string dataDir)
-    {
-        var installerDir = Path.GetDirectoryName(Environment.ProcessPath ?? string.Empty) ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(installerDir))
-        {
-            return;
-        }
-
-        var modelsFolder = Path.Combine(installerDir, "XtensionBridgeModels");
-        var modelsArchive = Path.Combine(installerDir, "XtensionBridgeModels.zip");
-
-        try
-        {
-            if (Directory.Exists(modelsFolder))
-            {
-                Step("Installing bundled models (offline, folder).");
-                CopyDirectory(modelsFolder, dataDir);
-            }
-            else if (File.Exists(modelsArchive))
-            {
-                Step("Installing bundled models (offline, archive).");
-                ZipFile.ExtractToDirectory(modelsArchive, dataDir, true);
-            }
-            else
-            {
-                Log("No bundled models payload found; the service will provision models on first use.");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Best-effort : un échec d'installation des modèles ne doit pas casser
-            // l'installation du service (le service retombera sur le téléchargement).
-            Log("Bundled models provisioning skipped: " + ex.Message);
-        }
-    }
-
-    private static void CopyDirectory(string source, string destination)
-    {
-        Directory.CreateDirectory(destination);
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(dir.Replace(source, destination));
-        }
-        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-        {
-            File.Copy(file, file.Replace(source, destination), true);
-        }
     }
 
     private static string CopyInstallerToInstallDir(string installDir)
@@ -224,218 +146,217 @@ internal static class Program
         {
             File.Copy(currentInstaller, installedSetup, true);
         }
-
         return installedSetup;
     }
 
-    private static void StopAndDeleteServiceIfExists()
+    private static void RegisterRunEntry(string installDir)
     {
-        if (!ServiceExists(ServiceName))
+        var hostExe = Path.Combine(installDir, "XtensionBridgeHost.exe");
+        using var key = Registry.CurrentUser.CreateSubKey(RunRegistryKey, true)
+            ?? throw new InvalidOperationException("Unable to create the per-user startup entry.");
+        key.SetValue(RunValueName, Quote(hostExe));
+    }
+
+    private static void RemoveRunEntry()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
+        key?.DeleteValue(RunValueName, false);
+    }
+
+    private static void StartHost(string installDir)
+    {
+        var hostExe = Path.Combine(installDir, "XtensionBridgeHost.exe");
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = hostExe,
+            WorkingDirectory = installDir,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        });
+        if (process is null)
+        {
+            throw new InvalidOperationException("The per-user connector host did not start.");
+        }
+        process.Dispose();
+    }
+
+    private static void StopInstalledProcesses(string installDir)
+    {
+        var allowedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Path.GetFullPath(Path.Combine(installDir, "XtensionBridgeHost.exe")),
+            Path.GetFullPath(Path.Combine(installDir, "XtensionBridge.exe"))
+        };
+
+        var legacyDir = Path.GetFullPath(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "Xtension",
+            "Bridge"));
+        allowedPaths.Add(Path.Combine(legacyDir, "XtensionBridgeService.exe"));
+        allowedPaths.Add(Path.Combine(legacyDir, "XtensionBridge.exe"));
+
+        foreach (var processName in new[] { "XtensionBridgeHost", "XtensionBridge", "XtensionBridgeService" })
+        {
+            foreach (var process in Process.GetProcessesByName(processName))
+            {
+                try
+                {
+                    var executablePath = process.MainModule?.FileName;
+                    if (string.IsNullOrWhiteSpace(executablePath) || !allowedPaths.Contains(Path.GetFullPath(executablePath)))
+                    {
+                        continue;
+                    }
+
+                    Log($"Stopping installed connector process {process.Id}.");
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(7000);
+                }
+                catch (Exception error)
+                {
+                    Log($"Could not stop connector process {process.Id}: {error.Message}");
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+        }
+    }
+
+    private static void CleanupLegacyServiceIfPossible()
+    {
+        if (!LegacyServiceExists())
         {
             return;
         }
 
-        using var service = new ServiceController(ServiceName);
-        if (service.Status != ServiceControllerStatus.Stopped && service.Status != ServiceControllerStatus.StopPending)
+        if (!IsAdministrator())
         {
-            service.Stop();
+            Log("A legacy Windows service still exists. Run this installer once as administrator if it prevents the connector from starting.");
+            return;
         }
 
-        service.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
-        RunProcess("sc.exe", $"delete {ServiceName}", TimeSpan.FromSeconds(20));
-
-        var deadline = DateTimeOffset.Now.AddSeconds(20);
-        while (ServiceExists(ServiceName) && DateTimeOffset.Now < deadline)
-        {
-            Thread.Sleep(500);
-        }
+        RunProcess("sc.exe", $"stop {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1062 });
+        RunProcess("sc.exe", $"delete {LegacyServiceName}", TimeSpan.FromSeconds(20), new[] { 0, 1060, 1072 });
     }
 
-    private static bool ServiceExists(string serviceName)
-    {
-        return ServiceController.GetServices().Any(service => string.Equals(service.ServiceName, serviceName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static void StopExistingBridgeProcesses()
-    {
-        foreach (var process in Process.GetProcessesByName("XtensionBridge"))
-        {
-            try
-            {
-                Log($"Stopping existing bridge process {process.Id}.");
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(5000);
-            }
-            catch (Exception error)
-            {
-                Log($"Could not stop process {process.Id}: {error.Message}");
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-    }
-
-    private static void DeleteLegacyStartupTaskIfExists()
-    {
-        try
-        {
-            RunProcess("schtasks.exe", $"/Delete /TN {Quote(ServiceName)} /F", TimeSpan.FromSeconds(20), allowExitCodes: new[] { 0, 1 });
-        }
-        catch (Exception error)
-        {
-            Log($"Could not remove legacy startup task: {error.Message}");
-        }
-    }
-
-    private static void GrantBuiltInUsersModify(string directory)
+    private static void CleanupLegacyStartupTask()
     {
         try
         {
             RunProcess(
-                "icacls.exe",
-                $"{Quote(directory)} /grant *S-1-5-32-545:(OI)(CI)M /T /C",
-                TimeSpan.FromSeconds(30),
-                allowExitCodes: new[] { 0 });
+                "schtasks.exe",
+                $"/Delete /TN {Quote(LegacyServiceName)} /F",
+                TimeSpan.FromSeconds(20),
+                new[] { 0, 1 });
         }
         catch (Exception error)
         {
-            Log($"Could not update data directory ACL: {error.Message}");
+            Log("Could not remove the legacy startup task: " + error.Message);
         }
     }
 
-    private static void RemoveInstalledFiles(string installDir)
+    private static void CleanupLegacyArtifacts()
     {
-        if (!Directory.Exists(installDir))
+        if (LegacyServiceExists())
         {
             return;
         }
 
-        var currentPath = Environment.ProcessPath ?? "";
-        foreach (var file in Directory.EnumerateFiles(installDir, "*", SearchOption.AllDirectories))
+        var legacyProgramData = Path.GetFullPath(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "Xtension",
+            "Bridge"));
+        try
         {
-            if (SamePath(file, currentPath))
+            if (Directory.Exists(legacyProgramData))
             {
-                continue;
-            }
-
-            File.SetAttributes(file, FileAttributes.Normal);
-            File.Delete(file);
-        }
-
-        foreach (var directory in Directory.EnumerateDirectories(installDir, "*", SearchOption.AllDirectories).OrderByDescending(path => path.Length))
-        {
-            if (!Directory.EnumerateFileSystemEntries(directory).Any())
-            {
-                Directory.Delete(directory);
+                Directory.Delete(legacyProgramData, recursive: true);
             }
         }
-
-        if (!Directory.EnumerateFileSystemEntries(installDir).Any())
+        catch (Exception error)
         {
-            Directory.Delete(installDir);
+            Log("Could not remove the legacy system data: " + error.Message);
+        }
+
+        var currentData = Path.GetFullPath(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Xtension",
+            "Bridge"));
+        if (!Directory.Exists(currentData))
+        {
+            return;
+        }
+
+        var staleFiles = new[]
+        {
+            Path.Combine(currentData, "XtensionBridge.exe"),
+            Path.Combine(currentData, "bridge.log")
+        }
+        .Concat(Directory.EnumerateFiles(currentData, "service-*.log", SearchOption.TopDirectoryOnly))
+        .Concat(Directory.EnumerateFiles(currentData, "system-codex-*.log", SearchOption.TopDirectoryOnly))
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var staleFile in staleFiles)
+        {
+            try
+            {
+                if (File.Exists(staleFile) && IsPathInside(staleFile, currentData))
+                {
+                    File.Delete(staleFile);
+                }
+            }
+            catch (Exception error)
+            {
+                Log($"Could not remove legacy file {Path.GetFileName(staleFile)}: {error.Message}");
+            }
         }
     }
 
-    private static void WriteServiceConfig(string installDir, string logDir, string serviceTempDir, string userProfile)
+    private static bool LegacyServiceExists()
     {
-        var environment = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        try
         {
-            ["XTENSION_BRIDGE_PORT"] = DefaultPort.ToString(),
-            ["XTENSION_BRIDGE_LOG_FILE"] = Path.Combine(logDir, "bridge.log"),
-            ["USERPROFILE"] = userProfile,
-            ["HOME"] = userProfile,
-            ["APPDATA"] = Path.Combine(userProfile, "AppData", "Roaming"),
-            ["LOCALAPPDATA"] = Path.Combine(userProfile, "AppData", "Local"),
-            ["XTENSION_BRIDGE_USER_HOME"] = userProfile,
-            ["TEMP"] = serviceTempDir,
-            ["TMP"] = serviceTempDir
-        };
-
-        AddIfFound(environment, "HOMEDRIVE", GetHomeDrive(userProfile));
-        AddIfFound(environment, "HOMEPATH", GetHomePath(userProfile));
-        AddIfFound(environment, "USERNAME", GetUserNameFromProfile(userProfile));
-        AddIfFound(environment, "USERDOMAIN", Environment.UserDomainName);
-
-        var config = new BridgeServiceConfig
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = $"query {LegacyServiceName}",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+            if (process is null)
+            {
+                return false;
+            }
+            process.WaitForExit(5000);
+            return process.ExitCode == 0;
+        }
+        catch
         {
-            BridgeExe = Path.Combine(installDir, "XtensionBridge.exe"),
-            WorkingDirectory = installDir,
-            UserProfile = userProfile,
-            LogDirectory = logDir,
-            RestartDelayMs = 2000,
-            RunBridgeInUserSession = true,
-            Environment = environment
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
-        File.WriteAllText(Path.Combine(installDir, "bridge-service.json"), JsonSerializer.Serialize(config, options));
-    }
-
-    private static void AddIfFound(IDictionary<string, string> target, string key, string value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            target[key] = value;
+            return false;
         }
     }
 
-    private static string GetHomeDrive(string userProfile)
+    private static bool IsAdministrator()
     {
-        var root = Path.GetPathRoot(userProfile);
-        return string.IsNullOrWhiteSpace(root)
-            ? ""
-            : root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-    }
-
-    private static string GetHomePath(string userProfile)
-    {
-        var root = Path.GetPathRoot(userProfile);
-        if (string.IsNullOrWhiteSpace(root) || !userProfile.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-        {
-            return userProfile;
-        }
-
-        var rootWithoutSlash = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return userProfile[rootWithoutSlash.Length..];
-    }
-
-    private static string GetUserNameFromProfile(string userProfile)
-    {
-        return Path.GetFileName(userProfile.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-    }
-
-    private static void CreateService(string installDir)
-    {
-        var serviceExe = Path.Combine(installDir, "XtensionBridgeService.exe");
-        RunProcess("sc.exe", $"create {ServiceName} binPath= {Quote(serviceExe)} start= auto DisplayName= {Quote("Xtension Bridge")}", TimeSpan.FromSeconds(20));
-        RunProcess("sc.exe", $"description {ServiceName} {Quote("Runs the local Xtension AI bridge for browser extension reply tools.")}", TimeSpan.FromSeconds(20));
-        RunProcess("sc.exe", $"failure {ServiceName} reset= 86400 actions= restart/5000/restart/30000/restart/60000", TimeSpan.FromSeconds(20));
-    }
-
-    private static void StartService()
-    {
-        RunProcess("sc.exe", $"start {ServiceName}", TimeSpan.FromSeconds(20), allowExitCodes: new[] { 0, 1056 });
-        using var service = new ServiceController(ServiceName);
-        service.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(25));
+        using var identity = WindowsIdentity.GetCurrent();
+        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     private static void RegisterUninstallEntry(string installDir, string installedSetup)
     {
-        using var key = Registry.LocalMachine.CreateSubKey(UninstallRegistryKey, true)
-            ?? throw new InvalidOperationException("Unable to create uninstall registry entry.");
-
-        key.SetValue("DisplayName", "Xtension Bridge");
-        key.SetValue("DisplayVersion", "0.4.16");
+        using var key = Registry.CurrentUser.CreateSubKey(UninstallRegistryKey, true)
+            ?? throw new InvalidOperationException("Unable to create the uninstall entry.");
+        key.SetValue("DisplayName", ProductName);
+        key.SetValue("DisplayVersion", "0.6.2");
         key.SetValue("Publisher", "NOVA2G");
         key.SetValue("InstallLocation", installDir);
         key.SetValue("DisplayIcon", installedSetup);
         key.SetValue("UninstallString", $"{Quote(installedSetup)} --uninstall");
-        key.SetValue("QuietUninstallString", $"{Quote(installedSetup)} --uninstall");
+        key.SetValue("QuietUninstallString", $"{Quote(installedSetup)} --uninstall --quiet");
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         key.SetValue("EstimatedSize", EstimateInstallSizeKb(installDir), RegistryValueKind.DWord);
@@ -443,26 +364,17 @@ internal static class Program
 
     private static int EstimateInstallSizeKb(string installDir)
     {
-        if (!Directory.Exists(installDir))
-        {
-            return 0;
-        }
-
-        var bytes = Directory.EnumerateFiles(installDir, "*", SearchOption.AllDirectories)
-            .Select(file => new FileInfo(file).Length)
-            .Sum();
+        var bytes = Directory.Exists(installDir)
+            ? Directory.EnumerateFiles(installDir, "*", SearchOption.AllDirectories).Select(file => new FileInfo(file).Length).Sum()
+            : 0;
         return (int)Math.Min(int.MaxValue, Math.Max(1, bytes / 1024));
     }
 
     private static async Task<string> WaitForProvidersAsync()
     {
-        using var client = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(4)
-        };
-
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
         Exception? lastError = null;
-        var deadline = DateTimeOffset.Now.AddSeconds(25);
+        var deadline = DateTimeOffset.Now.AddSeconds(30);
         while (DateTimeOffset.Now < deadline)
         {
             try
@@ -471,17 +383,13 @@ internal static class Program
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
                 using var document = JsonDocument.Parse(json);
-                if (document.RootElement.TryGetProperty("providers", out var providers) && providers.ValueKind == JsonValueKind.Array)
-                {
-                    var installed = providers.EnumerateArray()
-                        .Where(item => item.TryGetProperty("installed", out var installedValue) && installedValue.GetBoolean())
-                        .Select(item => item.TryGetProperty("id", out var id) ? id.GetString() : "")
-                        .Where(value => !string.IsNullOrWhiteSpace(value))
-                        .ToArray();
-                    return installed.Length > 0 ? string.Join(", ", installed) : "none";
-                }
-
-                return "unknown";
+                var providers = document.RootElement.GetProperty("providers")
+                    .EnumerateArray()
+                    .Where(item => item.TryGetProperty("installed", out var installed) && installed.GetBoolean())
+                    .Select(item => item.TryGetProperty("id", out var id) ? id.GetString() : "")
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .ToArray();
+                return providers.Length > 0 ? string.Join(", ", providers!) : "none";
             }
             catch (Exception error)
             {
@@ -489,41 +397,19 @@ internal static class Program
                 await Task.Delay(700);
             }
         }
-
-        throw new InvalidOperationException("The service was installed, but the local bridge endpoint did not answer: " + lastError?.Message);
+        throw new InvalidOperationException("The connector was installed, but its local endpoint did not answer: " + lastError?.Message);
     }
 
-    private static void RunProcess(string fileName, string arguments, TimeSpan timeout, IReadOnlyCollection<int>? allowExitCodes = null)
+    private static void DeleteValidatedInstallDirectory(string installDir)
     {
-        allowExitCodes ??= new[] { 0 };
-        using var process = new Process
+        var expected = GetInstallDirectory();
+        if (!SamePath(installDir, expected))
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            }
-        };
-
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit((int)timeout.TotalMilliseconds))
-        {
-            process.Kill(entireProcessTree: true);
-            throw new InvalidOperationException($"{fileName} timed out.");
+            throw new InvalidOperationException("Refusing to remove an unexpected install directory.");
         }
-
-        var output = outputTask.GetAwaiter().GetResult().Trim();
-        var error = errorTask.GetAwaiter().GetResult().Trim();
-        if (!allowExitCodes.Contains(process.ExitCode))
+        if (Directory.Exists(expected))
         {
-            var details = string.Join(Environment.NewLine, new[] { output, error }.Where(value => !string.IsNullOrWhiteSpace(value)));
-            throw new InvalidOperationException($"{fileName} failed with exit code {process.ExitCode}.{Environment.NewLine}{details}");
+            Directory.Delete(expected, recursive: true);
         }
     }
 
@@ -534,9 +420,7 @@ internal static class Program
         {
             return false;
         }
-
-        var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Xtension", "Bridge");
-        if (!Path.GetFullPath(currentPath).StartsWith(Path.GetFullPath(installDir), StringComparison.OrdinalIgnoreCase))
+        if (!IsPathInside(currentPath, GetInstallDirectory()))
         {
             return false;
         }
@@ -549,7 +433,8 @@ internal static class Program
             {
                 FileName = tempPath,
                 Arguments = "--uninstall --from-temp",
-                UseShellExecute = false
+                UseShellExecute = false,
+                CreateNoWindow = true
             });
             return true;
         }
@@ -559,15 +444,48 @@ internal static class Program
         }
     }
 
-    private static string Quote(string value)
+    private static void RunProcess(string fileName, string arguments, TimeSpan timeout, IReadOnlyCollection<int> allowExitCodes)
     {
-        return "\"" + value.Replace("\"", "\\\"") + "\"";
+        using var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        }) ?? throw new InvalidOperationException($"Unable to start {fileName}.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit((int)timeout.TotalMilliseconds))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new InvalidOperationException($"{fileName} timed out.");
+        }
+        if (!allowExitCodes.Contains(process.ExitCode))
+        {
+            var details = string.Join(Environment.NewLine, new[] { output.GetAwaiter().GetResult(), error.GetAwaiter().GetResult() }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            throw new InvalidOperationException($"{fileName} failed with exit code {process.ExitCode}. {details}");
+        }
     }
 
-    private static bool SamePath(string left, string right)
+    private static bool HasArg(IEnumerable<string> args, string expected) =>
+        args.Any(arg => string.Equals(arg, expected, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsPathInside(string path, string directory)
     {
-        return string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+        var candidate = Path.GetFullPath(path);
+        var root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool SamePath(string left, string right) =>
+        string.Equals(
+            Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
+            Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string Quote(string value) => "\"" + value.Replace("\"", "\\\"") + "\"";
 
     private static void TryDeleteDirectory(string directory)
     {
@@ -580,7 +498,7 @@ internal static class Program
         }
         catch
         {
-            // Temporary cleanup must not hide the install result.
+            // Temporary cleanup must not hide the installation result.
         }
     }
 
@@ -590,10 +508,7 @@ internal static class Program
         Log(message);
     }
 
-    private static void Log(string message)
-    {
-        Console.WriteLine(message);
-    }
+    private static void Log(string message) => Console.WriteLine(message);
 
     private static void PauseIfInteractive(bool quietMode)
     {
@@ -601,33 +516,8 @@ internal static class Program
         {
             return;
         }
-
         Console.WriteLine("");
         Console.WriteLine("Press Enter to close.");
         Console.ReadLine();
     }
-}
-
-internal sealed class BridgeServiceConfig
-{
-    [JsonPropertyName("bridgeExe")]
-    public string BridgeExe { get; set; } = "";
-
-    [JsonPropertyName("workingDirectory")]
-    public string WorkingDirectory { get; set; } = "";
-
-    [JsonPropertyName("userProfile")]
-    public string UserProfile { get; set; } = "";
-
-    [JsonPropertyName("logDirectory")]
-    public string LogDirectory { get; set; } = "";
-
-    [JsonPropertyName("restartDelayMs")]
-    public int RestartDelayMs { get; set; }
-
-    [JsonPropertyName("runBridgeInUserSession")]
-    public bool RunBridgeInUserSession { get; set; }
-
-    [JsonPropertyName("environment")]
-    public SortedDictionary<string, string> Environment { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

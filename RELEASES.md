@@ -45,11 +45,11 @@ For temporary testing:
 
 For permanent Firefox installation, the extension must be signed through Mozilla Add-ons.
 
-## Optional AI Bridge for Windows
+## Optional OpenAI Codex Connector for Windows
 
-The browser extension cannot install desktop executables by itself. To use Codex, Grok, Gemini, or Claude from Xtension, download and run `XtensionBridgeSetup.exe`.
+The browser extension cannot install desktop executables by itself. To use OpenAI Codex from Xtension, download and run `XtensionBridgeSetup.exe`, then connect the ChatGPT account from Xtension options.
 
-The installer requests administrator rights, copies the signed bridge files, creates the automatic `XtensionBridge` Windows service, starts it, and verifies the local bridge endpoint.
+The installer needs no administrator rights. It copies the connector into the current user's local application data, starts a silent host in the same Windows session as Codex, enables current-user startup, and verifies the loopback endpoint. This lets it reuse that user's existing ChatGPT OAuth session.
 
 ## Verify Checksums
 

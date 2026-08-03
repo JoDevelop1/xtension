@@ -315,7 +315,7 @@
         return;
       }
 
-      if (!isDraftActionComposerActive(editor, composer)) {
+      if (!isDraftActionComposerActive(editor, composer) && !isVisibleDraftComposer(editor, composer)) {
         return;
       }
 
@@ -380,7 +380,8 @@
     }
 
     const existingHost = findExistingDraftActionHost(editor, composer);
-    const placement = findDraftActionHostPlacement(editor, composer);
+    const placement = findDraftActionHostPlacement(editor, composer)
+      || findFallbackDraftActionPlacement(editor, composer);
     if (!placement) {
       return null;
     }
@@ -455,7 +456,11 @@
         return;
       }
 
-      if (!host._xtensionDraftActionBusy && !isDraftActionComposerActive(editor, composer)) {
+      if (
+        !host._xtensionDraftActionBusy
+        && !isDraftActionComposerActive(editor, composer)
+        && !isVisibleDraftComposer(editor, composer)
+      ) {
         removeDraftActionHost(host);
       }
     });
@@ -552,6 +557,40 @@
         kind: "dedicated",
         parent: actionRow.parentElement,
         before: actionRow
+      };
+    }
+
+    return null;
+  }
+
+  function findFallbackDraftActionPlacement(editor, composer) {
+    if (!editor?.isConnected || !composer?.isConnected || !composer.contains(editor)) {
+      return null;
+    }
+
+    const editorRoot = editor.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    const actionRow = findComposerActionRow(composer);
+    const candidates = [
+      actionRow?.parentElement,
+      editorRoot?.parentElement,
+      composer
+    ];
+
+    for (const parent of candidates) {
+      if (!parent || (parent !== composer && !composer.contains(parent))) {
+        continue;
+      }
+      if (parent === editor || editor.contains(parent)) {
+        continue;
+      }
+      if (!isVisibleElement(parent)) {
+        continue;
+      }
+
+      return {
+        kind: "dedicated",
+        parent,
+        before: actionRow?.parentElement === parent ? actionRow : null
       };
     }
 
@@ -689,6 +728,13 @@
       return true;
     }
 
+    // X can move focus to a native control, a popover, or the page itself
+    // while the composer remains open. A visible composer with its native
+    // controls is still an active target for Xtension actions.
+    if (isVisibleDraftComposer(editor, composer)) {
+      return true;
+    }
+
     // Une modale de réponse/composition ouverte est un contexte délibéré :
     // on garde la barre tant que la modale est ouverte, même éditeur vide et
     // sans focus. Sinon un simple clic sur un de NOS contrôles (ex. sélecteur
@@ -723,6 +769,32 @@
     }
 
     return false;
+  }
+
+  function isVisibleDraftComposer(editor, composer) {
+    if (!editor?.isConnected || !composer?.isConnected) {
+      return false;
+    }
+
+    if (!isVisibleElement(editor) || !isVisibleElement(composer)) {
+      return false;
+    }
+
+    const dialog = editor.closest?.('[role="dialog"]');
+    if (dialog && isVisibleElement(dialog)) {
+      return true;
+    }
+
+    const editorRoot = editor.closest?.('[data-testid^="tweetTextarea_"]');
+    if (editorRoot && composer.contains(editorRoot)) {
+      return true;
+    }
+
+    return Boolean(
+      findComposerToolbar(composer)
+      || findComposerSubmitButton(composer)
+      || composer.querySelector?.('form, [data-testid*="composer"], button[type="submit"]')
+    );
   }
 
   function isDraftLanguageMenuActive(host, activeElement) {
@@ -816,7 +888,27 @@
       current = current.parentElement;
     }
 
-    return fallback;
+    if (fallback) {
+      return fallback;
+    }
+
+    const dialog = editor?.closest?.('[role="dialog"]');
+    if (dialog && isVisibleElement(dialog)) {
+      return dialog;
+    }
+
+    const semanticComposer = editor?.closest?.('form, [data-testid*="composer"], [data-testid*="Composer"]');
+    if (semanticComposer && isVisibleElement(semanticComposer)) {
+      return semanticComposer;
+    }
+
+    const editorRoot = editor?.closest?.('[data-testid^="tweetTextarea_"]') || editor;
+    const parent = editorRoot?.parentElement;
+    if (parent && isVisibleElement(parent)) {
+      return parent;
+    }
+
+    return null;
   }
 
   function findReplyComposerContainerFromSubmitButton(button) {
@@ -890,11 +982,11 @@
   }
 
   function findComposerToolbar(scope) {
-    return findVisibleDescendant(scope, '[data-testid="toolBar"], [role="toolbar"]');
+    return findVisibleDescendant(scope, '[data-testid="toolBar"], [data-testid*="toolbar"], [role="toolbar"]');
   }
 
   function findComposerSubmitButton(scope) {
-    return findVisibleDescendant(scope, '[data-testid="tweetButton"], [data-testid="tweetButtonInline"]');
+    return findVisibleDescendant(scope, '[data-testid="tweetButton"], [data-testid="tweetButtonInline"], [data-testid*="tweetButton"], button[type="submit"]');
   }
 
   function isNativeComposerMediaControl(element) {
@@ -3380,13 +3472,13 @@
 
   function getReplyAiSetupErrorMessage(code) {
     if (code === "provider_login_required") {
-      return localizedText("replyAiProviderLoginRequired", "The AI provider is signed out. Click Reconnect to open a sign-in window on your computer, then request the suggestions again.");
+      return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then request the suggestions again.");
     }
     if (code === "bridge_unreachable") {
-      return localizedText("replyAiBridgeUnavailable", "Xtension Bridge is not running. Open Xtension options to install or start it, then try again.");
+      return localizedText("replyAiBridgeUnavailable", "The Xtension Codex connector is not reachable. Open Xtension options, install or restart it, then try again.");
     }
 
-    return localizedText("replyAiNotConfigured", "Configure the local AI bridge in Xtension options first.");
+    return localizedText("replyAiNotConfigured", "Configure the OpenAI Codex connector in Xtension options first.");
   }
 
   function normalizeReplyPromptProfilesForUi(profiles) {
@@ -4277,10 +4369,9 @@
   const DICTATION_MAX_PHRASE_MS = 12000;
   const DICTATION_SILENCE_THRESHOLD = 0.012;
   // Aperçu quasi temps réel : pendant une phrase LONGUE et ininterrompue, la
-  // phrase en cours est re-transcrite périodiquement et affichée. Les phrases
-  // courtes (qui se terminent avant le seuil ci-dessous) n'en font pas : leur
-  // transcription finale à la pause suffit, ce qui évite de re-transcrire tout
-  // le clip audio (Parakeet recharge son modèle à chaque appel) trop souvent.
+  // phrase en cours peut être re-transcrite périodiquement et affichée. Les
+  // phrases courtes utilisent directement leur transcription finale, ce qui
+  // évite d'envoyer trop souvent le même clip audio à Codex.
   const DICTATION_INTERIM_INTERVAL_MS = 1500;
   // L'aperçu ne démarre qu'une fois la phrase en cours au-delà de cette durée
   // (sinon la segmentation par pause de 800 ms fournit déjà le retour, ~1 s).
@@ -4376,7 +4467,7 @@
 
   function getDraftDictationLanguage() {
     // La dictée transcrit TOUJOURS la langue PARLÉE, jamais une traduction. On
-    // renvoie une langue vide -> whisper auto-détecte la langue depuis l'audio,
+    // renvoie une langue vide -> Codex auto-détecte la langue depuis l'audio,
     // donc le texte apparaît dans la langue de l'utilisateur quelle que soit la
     // langue du tweet d'origine, de l'UI du navigateur ou du sélecteur. Le
     // sélecteur de langue de la barre d'outils ne concerne QUE Traduire/Générer :
@@ -4978,6 +5069,7 @@
       not_found: "toastDictationBridgeOutdated",
       ffmpeg_missing: "toastDictationFfmpegMissing",
       transcription_unavailable: "toastDictationTranscriptionUnavailable",
+      codex_audio_unsupported: "toastDictationTranscriptionUnavailable",
       transcription_timeout: "toastDictationTranscriptionTimeout",
       transcription_failed: "toastDictationTranscriptionFailed",
       "transcription-failed": "toastDictationTranscriptionFailed",
@@ -4990,9 +5082,9 @@
       toastDictationNoSpeech: "No speech was detected.",
       toastDictationUnsupported: "Dictation is not available in this browser.",
       toastDictationStartFailed: "Unable to start dictation.",
-      toastDictationTranscriptionUnavailable: "Local transcription is not installed in Xtension Bridge.",
-      toastDictationTranscriptionTimeout: "Local transcription timed out.",
-      toastDictationTranscriptionFailed: "Local transcription failed.",
+      toastDictationTranscriptionUnavailable: "Voice transcription is not available through the connected ChatGPT/Codex session.",
+      toastDictationTranscriptionTimeout: "OpenAI Codex transcription timed out.",
+      toastDictationTranscriptionFailed: "OpenAI Codex transcription failed.",
       toastDictationAudioTooLarge: "The recording is too long.",
       toastDictationBridgeOutdated: "Xtension Bridge is out of date and does not support dictation. Update it from Xtension options.",
       toastDictationFfmpegMissing: "Dictation needs ffmpeg, which was not found. Install ffmpeg and try again.",

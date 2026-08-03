@@ -137,6 +137,92 @@ body {
   padding: 0 8px;
 }
 
+.connection-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-left: 4px solid #94a3b8;
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.connection-card[data-state="connected"] {
+  background: #f0fdf4;
+  border-color: #86efac;
+  border-left-color: var(--success);
+}
+
+.connection-card[data-state="signed-out"] {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  border-left-color: #d97706;
+}
+
+.connection-card[data-state="unavailable"] {
+  background: #fff1f2;
+  border-color: #fda4af;
+  border-left-color: var(--danger);
+}
+
+.connection-card[data-state="checking"] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  border-left-color: var(--accent);
+}
+
+.connection-card-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.connection-card-title {
+  color: var(--text);
+  font-weight: 800;
+  min-width: 0;
+}
+
+.connection-badge {
+  background: #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 18px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.connection-badge[data-state="connected"] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.connection-badge[data-state="signed-out"] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.connection-badge[data-state="unavailable"] {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.connection-badge[data-state="checking"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.connection-actions {
+  margin-top: 4px;
+}
+
 .setting-row {
   display: grid;
   gap: 8px;
@@ -193,6 +279,10 @@ body {
 
 .download-button:hover {
   background: var(--accent-strong);
+}
+
+.download-button[hidden] {
+  display: none;
 }
 
 .field-title {

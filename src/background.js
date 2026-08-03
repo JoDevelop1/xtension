@@ -2,8 +2,11 @@ const extensionApi = globalThis.chrome || globalThis.browser;
 const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
 
-const REPLY_AI_CONFIG_VERSION = 16;
+const REPLY_AI_CONFIG_VERSION = 18;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
+const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
+const DEFAULT_CODEX_REASONING_EFFORT = "max";
+const CODEX_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
 const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
 const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
 
@@ -14,6 +17,8 @@ const DEFAULT_REPLY_AI_CONFIG = {
   enabled: true,
   codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
   bridgeToken: "",
+  codexModel: DEFAULT_CODEX_MODEL,
+  codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
   replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
   generatePrompt: DEFAULT_GENERATE_PROMPT
 };
@@ -237,6 +242,8 @@ async function streamGenerateReplyDraft(port, message) {
       context,
       text: draftText,
       generatePrompt: config?.generatePrompt || "",
+      model: config?.codexModel || DEFAULT_CODEX_MODEL,
+      reasoningEffort: config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
       ...(image ? { image } : {})
     }, (delta, full) => {
       postToPort(port, { type: "delta", delta, text: full });
@@ -444,7 +451,7 @@ function logAiRoute(config, operation, details = {}) {
     area: "ai",
     event: "route_selected",
     operation,
-    route: "local-bridge",
+    route: "codex-app-server",
     bridgeConfigured: Boolean(normalizeCodexBridgeUrl(config?.codexBridgeUrl)),
     bridgeTokenPresent: Boolean(config?.bridgeToken),
     replyLanguageMode: normalizeReplyLanguageMode(config?.replyLanguageMode),
@@ -603,8 +610,7 @@ async function warmupBridge() {
   if (!bridgeUrl) {
     return;
   }
-  // Démarre le moteur local et amorce le cache du prompt (côté bridge, /warmup
-  // lance le serveur LLM qui se préchauffe tout seul). Best-effort, court timeout.
+  // Démarre le connecteur Codex et vérifie l'authentification ChatGPT. Best-effort.
   await fetchBridgeRequest(`${bridgeUrl}/warmup`, {
     method: "POST",
     headers: {
@@ -636,8 +642,7 @@ async function transcribeDictationAudio(message) {
       audioBase64: cleanText(message?.audioBase64 || ""),
       durationMs: Math.max(0, Number(message?.durationMs || 0)),
       language: cleanText(message?.language || ""),
-      // Indice non contraignant (locale du navigateur) pour le choix du moteur
-      // côté bridge ; la langue transcrite reste auto-détectée.
+      // Indice non contraignant pour Codex ; la langue transcrite reste auto-détectée.
       hintLanguage: cleanText(message?.hintLanguage || ""),
       mode: cleanText(message?.mode || ""),
       mimeType: cleanText(message?.mimeType || "audio/webm")
@@ -677,14 +682,17 @@ function normalizeReplyAiConfig(config) {
   };
 
   normalized.configVersion = REPLY_AI_CONFIG_VERSION;
-  normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
+  // The compact Codex settings page no longer exposes a separate enable
+  // switch; keep the draft actions available for migrated configurations.
+  normalized.enabled = true;
   normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
+  normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
+  normalized.codexReasoningEffort = normalizeCodexReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
   normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
   normalized.generatePrompt = cleanDraftText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
 
   delete normalized.provider;
-  delete normalized.codexModel;
   delete normalized.codexModelPreset;
   delete normalized.prompt;
   delete normalized.replyPromptProfiles;
@@ -693,8 +701,19 @@ function normalizeReplyAiConfig(config) {
   delete normalized.baseUrl;
   delete normalized.model;
   delete normalized.apiKey;
+  delete normalized.gpu;
 
   return normalized;
+}
+
+function normalizeCodexModel(value) {
+  const model = cleanText(value);
+  return /^[a-z0-9][a-z0-9._:-]{0,127}$/i.test(model) ? model : DEFAULT_CODEX_MODEL;
+}
+
+function normalizeCodexReasoningEffort(value) {
+  const effort = cleanText(value).toLowerCase();
+  return CODEX_REASONING_EFFORTS.includes(effort) ? effort : DEFAULT_CODEX_REASONING_EFFORT;
 }
 
 function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
@@ -726,6 +745,8 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
       context,
       text,
       generatePrompt: config?.generatePrompt || "",
+      model: config?.codexModel || DEFAULT_CODEX_MODEL,
+      reasoningEffort: config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
       ...(image ? { image } : {})
     })
   }, {

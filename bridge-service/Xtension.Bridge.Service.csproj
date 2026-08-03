@@ -1,13 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>XtensionBridgeService</AssemblyName>
-    <RootNamespace>Xtension.Bridge.Service</RootNamespace>
+    <AssemblyName>XtensionBridgeHost</AssemblyName>
+    <RootNamespace>Xtension.Bridge.Host</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.0" />
-  </ItemGroup>
 </Project>
