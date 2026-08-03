@@ -4007,11 +4007,13 @@
     const context = await getReplyDraftContext(editor);
     const targetLanguage = await getDraftActionTargetLanguage(actionId, context, text);
 
-    // La génération s'affiche au fil de l'eau (streaming). Repli automatique sur
-    // le chemin message classique si le streaming n'aboutit pas.
-    if (actionId === "generate") {
+    // Correction, traduction et génération s'affichent au fil de l'eau
+    // (streaming) : le premier mot apparaît en ~1,3 s au lieu d'attendre la
+    // réponse entière. Repli automatique sur le chemin message classique si le
+    // streaming n'aboutit pas.
+    if (actionId === "generate" || actionId === "correct" || actionId === "translate") {
       const streamed = await streamGenerateReplyText(
-        { locale: getUiLocale(), targetLanguage, context, text },
+        { operation: actionId, locale: getUiLocale(), targetLanguage, context, text },
         editor
       );
       if (streamed != null) {

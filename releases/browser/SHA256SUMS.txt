@@ -1,3 +1,3 @@
-ce941ef09d7e3cce715ea03405818f49ee5876050e1a09de1130ac6ab6932899  xtension-chrome-v0.6.7.zip
-ce941ef09d7e3cce715ea03405818f49ee5876050e1a09de1130ac6ab6932899  xtension-edge-v0.6.7.zip
-cdae1525e8034fa3bdba0cd50ea30614c4b8a0ea2f5af6001b496b70d8d6a7f9  xtension-firefox-v0.6.7.zip
+0c9cfe5e6b9eda9aaee9ac3fd5812d70dff687d400119248d0982f4785db3d42  xtension-chrome-v0.6.8.zip
+0c9cfe5e6b9eda9aaee9ac3fd5812d70dff687d400119248d0982f4785db3d42  xtension-edge-v0.6.8.zip
+a653cdfd328cac07f928a886409cab39eab0c87717e7c158e5f3109c1f113875  xtension-firefox-v0.6.8.zip

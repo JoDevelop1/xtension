@@ -23,13 +23,20 @@ const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefau
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
 
 const CODEX_MODEL = "gpt-5.6-luna";
-const CODEX_REASONING_EFFORT = "max";
+// Défaut aligné sur l'extension : "medium" suffit pour corriger ou
+// traduire un tweet et évite ~1,2 s de raisonnement par requête.
+const CODEX_REASONING_EFFORT = "medium";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
-const CODEX_CLIENT_VERSION = "0.6.7";
+const CODEX_CLIENT_VERSION = "0.6.8";
 const CODEX_TURN_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_TIMEOUT_MS || 180000);
 const CODEX_IMAGE_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_IMAGE_TIMEOUT_MS || 300000);
 const CODEX_START_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_START_TIMEOUT_MS || 20000);
+// Durée de validité du cache de compte. Assez court pour refléter une
+// déconnexion, assez long pour sortir le rafraîchissement du chemin critique.
+const CODEX_ACCOUNT_CACHE_MS = Number(process.env.XTENSION_CODEX_ACCOUNT_CACHE_MS || 10 * 60 * 1000);
+// Au-delà, le fil préparé est considéré comme périmé et recréé.
+const CODEX_SPARE_THREAD_TTL_MS = 10 * 60 * 1000;
 const CODEX_RUNTIME_DIR = path.join(getBridgeDataDir(), "codex-workspace");
 const CODEX_IMAGE_DIR = path.join(CODEX_RUNTIME_DIR, "generated-images");
 const IMAGE_FORMATS = Object.freeze({
@@ -92,6 +99,9 @@ class CodexAppServerClient {
     this.startPromise = null;
     this.ready = false;
     this.lastError = "";
+    this.accountCache = null;
+    this.spareThread = null;
+    this.spareThread = null;
   }
 
   async ensureStarted() {
@@ -191,8 +201,29 @@ class CodexAppServerClient {
     return this.requestRaw("account/read", { refreshToken }, CODEX_START_TIMEOUT_MS);
   }
 
+  /**
+   * Lecture du compte mémorisée brièvement. Rafraîchir le jeton OAuth avant
+   * chaque tour ajoutait un aller-retour réseau (~400 ms mesurés) alors que le
+   * jeton reste valide bien plus longtemps. Le cache est invalidé à la
+   * connexion, à la déconnexion et dès qu'un tour échoue en authentification.
+   */
+  async accountReadCached() {
+    const now = Date.now();
+    if (this.accountCache && now - this.accountCache.at < CODEX_ACCOUNT_CACHE_MS) {
+      return this.accountCache.value;
+    }
+    const value = await this.accountRead(this.accountCache ? false : true);
+    this.accountCache = { at: now, value };
+    return value;
+  }
+
+  invalidateAccountCache() {
+    this.accountCache = null;
+  }
+
   async login() {
     await this.ensureStarted();
+    this.invalidateAccountCache();
     return this.requestRaw("account/login/start", {
       type: "chatgpt",
       appBrand: "codex"
@@ -206,6 +237,7 @@ class CodexAppServerClient {
 
   async logout() {
     await this.ensureStarted();
+    this.invalidateAccountCache();
     return this.requestRaw("account/logout", {}, CODEX_START_TIMEOUT_MS);
   }
 
@@ -224,7 +256,7 @@ class CodexAppServerClient {
     const selectedReasoningEffort = normalizeCodexReasoningEffort(reasoningEffort);
     const imageFormat = normalizeImageFormat(aspectRatio);
     const visualPreferences = normalizeImageVisualPreferences({ visualStyle, framing, mood });
-    const accountResult = await this.accountRead(true);
+    const accountResult = await this.accountReadCached();
     if (accountResult?.account?.type !== "chatgpt") {
       throw createBridgeError("Connect a ChatGPT account to generate images in Xtension.", {
         code: "provider_login_required",
@@ -321,7 +353,9 @@ class CodexAppServerClient {
         input,
         model: selectedModel,
         effort: selectedReasoningEffort,
-        summary: "auto",
+        // "none" et non "auto" : Xtension n'affiche jamais le résumé de
+        // raisonnement, et le produire coûte ~1,8 s par requête (mesuré).
+        summary: "none",
         clientUserMessageId: createRequestId()
       }, CODEX_START_TIMEOUT_MS);
       turnId = cleanText(turnResult?.turn?.id || "");
@@ -342,20 +376,9 @@ class CodexAppServerClient {
     }
   }
 
-  async runTurn({ prompt, image, audio, operation, onDelta, model, reasoningEffort }) {
-    const selectedModel = normalizeCodexModel(model);
-    const selectedReasoningEffort = normalizeCodexReasoningEffort(reasoningEffort);
-    const accountResult = await this.accountRead(true);
-    const account = accountResult?.account;
-    if (!account || account.type !== "chatgpt") {
-      throw createBridgeError("Connect a ChatGPT account to use Codex in Xtension.", {
-        code: "provider_login_required",
-        statusCode: 401
-      });
-    }
-
+  async startThread(model) {
     const threadResult = await this.requestRaw("thread/start", {
-      model: selectedModel,
+      model,
       cwd: CODEX_RUNTIME_DIR,
       ephemeral: true,
       approvalPolicy: "never",
@@ -365,8 +388,64 @@ class CodexAppServerClient {
       developerInstructions: CODEX_DEVELOPER_INSTRUCTIONS,
       threadSource: "xtension"
     }, CODEX_START_TIMEOUT_MS);
+    return cleanText(threadResult?.thread?.id || "");
+  }
 
-    const threadId = cleanText(threadResult?.thread?.id || "");
+  /**
+   * Prépare un fil à l'avance, hors du chemin critique. Appelé par /warmup à
+   * l'ouverture du composeur : la requête suivante n'a plus à attendre la
+   * création du fil. Best-effort, un échec est sans conséquence.
+   */
+  async prewarmThread(model) {
+    const selectedModel = normalizeCodexModel(model);
+    if (this.spareThread && this.spareThread.model === selectedModel) {
+      return;
+    }
+    try {
+      const threadId = await this.startThread(selectedModel);
+      if (threadId) {
+        this.spareThread = { model: selectedModel, threadId, at: Date.now() };
+      }
+    } catch {
+      this.spareThread = null;
+    }
+  }
+
+  /**
+   * Consomme le fil préparé s'il correspond au modèle demandé et n'a pas
+   * expiré, sinon en crée un. Un fil n'est jamais réutilisé pour deux tours :
+   * il resterait porteur du tour précédent.
+   */
+  async takeThread(model) {
+    const spare = this.spareThread;
+    this.spareThread = null;
+    if (spare && spare.model === model && Date.now() - spare.at < CODEX_SPARE_THREAD_TTL_MS) {
+      return spare.threadId;
+    }
+    const threadId = await this.startThread(model);
+    if (!threadId) {
+      throw createBridgeError("Codex did not create a request thread.", {
+        code: "codex_protocol_error",
+        statusCode: 502
+      });
+    }
+    return threadId;
+  }
+
+  async runTurn({ prompt, image, audio, operation, onDelta, model, reasoningEffort }) {
+    const selectedModel = normalizeCodexModel(model);
+    const selectedReasoningEffort = normalizeCodexReasoningEffort(reasoningEffort);
+    const accountResult = await this.accountReadCached();
+    const account = accountResult?.account;
+    if (!account || account.type !== "chatgpt") {
+      this.invalidateAccountCache();
+      throw createBridgeError("Connect a ChatGPT account to use Codex in Xtension.", {
+        code: "provider_login_required",
+        statusCode: 401
+      });
+    }
+
+    const threadId = await this.takeThread(selectedModel);
     if (!threadId) {
       throw createBridgeError("Codex did not create a request thread.", {
         code: "codex_protocol_error",
@@ -440,7 +519,9 @@ class CodexAppServerClient {
         input,
         model: selectedModel,
         effort: selectedReasoningEffort,
-        summary: "auto",
+        // "none" et non "auto" : Xtension n'affiche jamais le résumé de
+        // raisonnement, et le produire coûte ~1,8 s par requête (mesuré).
+        summary: "none",
         clientUserMessageId: createRequestId()
       }, CODEX_START_TIMEOUT_MS);
       turnId = cleanText(turnResult?.turn?.id || "");
@@ -634,6 +715,12 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === "POST" && pathname === "/warmup") {
       const status = await getHealthStatus();
+      // Prépare un fil pendant que l'utilisateur rédige : la première action IA
+      // n'aura plus à payer sa création. Best-effort, hors du chemin critique.
+      if (status.auth?.authenticated) {
+        const payload = await readJsonBody(request, maxBodyBytes).catch(() => null);
+        codex.prewarmThread(payload?.model).catch(() => {});
+      }
       sendJson(response, status.codex?.installed ? 200 : 503, {
         ...status,
         ok: Boolean(status.codex?.installed),

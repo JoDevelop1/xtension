@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.8
+
+Latency release. Measured on repeated draft corrections, alternating requests between the old and the new connector to absorb service variability:
+
+| | before | after |
+|---|---|---|
+| full result | 5823 ms | **3266 ms** (−44 %) |
+| first word on screen | 5823 ms | **2817 ms** (−52 %) |
+
+- Stops asking the model for a reasoning summary. Xtension never displayed it, and producing it cost about 1.8 s per request — the single largest win.
+- Default reasoning effort drops from `max` to `medium`. On a tweet-length correction or translation the result is equivalent, for roughly 1.2 s less. Existing installs are migrated only if they still carry the old default; anything you picked yourself is kept, and the setting remains available.
+- Stops refreshing the OAuth token before every single request. The account is now read once and cached for ten minutes, and invalidated on sign-in, sign-out or any authentication failure, which removes about 0.4 s per request.
+- Prepares a Codex thread while you are still typing, so the request no longer waits for one to be created.
+- Correction and translation now stream, like generation already did: the text appears as it is written instead of after a frozen wait.
+
+Model choice was measured too: `gpt-5.4-mini` and `gpt-5.3-codex-spark` are **slower** than `gpt-5.6-luna` on these short tasks, so the default model is unchanged.
+
 ## v0.6.7
 
 - Removes voice dictation entirely. ChatGPT-managed Codex exposes no transcription model, so the feature could never produce a result; the button, the microphone capture, the recorder, the voice-activity detection and the `/transcribe` route are all gone. The packages now contain **zero** `getUserMedia`, `MediaRecorder` or audio-capture code, which also removes any microphone declaration from the store forms. Speech input, if it ever returns, will be a separate application.

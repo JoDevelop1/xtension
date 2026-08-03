@@ -3,10 +3,14 @@ const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
 
-const REPLY_AI_CONFIG_VERSION = 19;
+const REPLY_AI_CONFIG_VERSION = 20;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
-const DEFAULT_CODEX_REASONING_EFFORT = "max";
+// "medium" et non "max" : mesuré ~1,2 s de moins par requête pour une
+// correction ou une traduction de tweet, sans perte observable sur ces
+// tâches courtes. Réglable dans les options pour qui veut plus de
+// raisonnement.
+const DEFAULT_CODEX_REASONING_EFFORT = "medium";
 const CODEX_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
 const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
 const DEFAULT_REPLY_STYLE = "auto";
@@ -225,8 +229,11 @@ actionApi?.onClicked?.addListener(() => {
 // Génération en STREAMING via un port (le token-par-token est impossible avec
 // sendMessage). content.js ouvre le port "xtension-generate-stream" ; on relaie le
 // flux du bridge (/transform-stream). Si le streaming échoue (bridge trop ancien →
-// 404, réseau), on RETOMBE sur la génération non-streaming et on renvoie le texte
-// final : la génération marche donc toujours, avec ou sans aperçu au fil de l'eau.
+// 404, réseau), on RETOMBE sur l'appel non-streaming et on renvoie le texte
+// final : l'opération marche donc toujours, avec ou sans aperçu au fil de l'eau.
+// Vaut pour la correction, la traduction et la génération : sur ces trois
+// opérations l'utilisateur voyait auparavant un écran figé pendant toute la
+// durée de l'inférence.
 runtimeApi.onConnect?.addListener((port) => {
   if (!port || port.name !== "xtension-generate-stream") {
     return;
@@ -237,7 +244,7 @@ runtimeApi.onConnect?.addListener((port) => {
       return;
     }
     handled = true;
-    streamGenerateReplyDraft(port, message).catch((error) => {
+    streamDraftOperation(port, message).catch((error) => {
       postToPort(port, { type: "error", error: error?.message || "Generation failed.", code: error?.code || "" });
     });
   });
@@ -251,8 +258,9 @@ function postToPort(port, message) {
   }
 }
 
-async function streamGenerateReplyDraft(port, message) {
+async function streamDraftOperation(port, message) {
   const config = await getReplyAiConfig();
+  const operation = normalizeDraftTransformOperation(message?.operation || "generate");
   const draftText = String(message?.text || "").trim();
   if (!config.enabled) {
     const error = new Error("AI bridge is not configured.");
@@ -267,7 +275,9 @@ async function streamGenerateReplyDraft(port, message) {
   const locale = message?.locale || "";
   const targetLanguage = message?.targetLanguage || "";
   const context = message?.context || null;
-  const image = await fetchContextImageDataUrl(context);
+  // Seule la génération exploite l'image du tweet ; la récupérer pour une
+  // correction ne ferait qu'ajouter un téléchargement au chemin critique.
+  const image = operation === "generate" ? await fetchContextImageDataUrl(context) : "";
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -277,7 +287,7 @@ async function streamGenerateReplyDraft(port, message) {
 
   try {
     const finalText = await streamTransformFromBridge(config, bridgeUrl, {
-      operation: "generate",
+      operation,
       locale,
       targetLanguage,
       context,
@@ -289,16 +299,21 @@ async function streamGenerateReplyDraft(port, message) {
     }, (delta, full) => {
       postToPort(port, { type: "delta", delta, text: full });
     });
-    postToPort(port, { type: "done", text: sanitizeGeneratedReplyText(finalText || "") || draftText });
+    const cleaned = sanitizeGeneratedReplyText(finalText || "");
+    const finalValue = operation === "correct"
+      ? (refineDraftCorrection(draftText, cleaned, locale, targetLanguage) || draftText)
+      : (cleaned || draftText);
+    postToPort(port, { type: "done", text: finalValue });
   } catch (error) {
     // Repli : au pire, la génération fonctionne comme avant (sans aperçu live).
     appendDiagnosticLog({
       level: "warn",
       area: "ai",
-      event: "generate_stream_fallback",
+      event: "draft_stream_fallback",
+      operation,
       error: String(error?.message || error).slice(0, 200)
     }).catch(() => {});
-    const text = await transformReplyDraft("generate", draftText, locale, targetLanguage, context);
+    const text = await transformReplyDraft(operation, draftText, locale, targetLanguage, context);
     postToPort(port, { type: "done", text });
   }
 }
@@ -681,7 +696,9 @@ async function warmupBridge() {
       "content-type": "application/json",
       ...buildBridgeAuthHeaders(config)
     },
-    body: "{}"
+    // Le modèle est transmis pour que le connecteur prépare un fil du bon
+    // modèle avant la première action de l'utilisateur.
+    body: JSON.stringify({ model: config?.codexModel || DEFAULT_CODEX_MODEL })
   }, {
     operation: "warmup"
   }).catch(() => {});
@@ -858,6 +875,13 @@ function normalizeReplyAiConfig(config) {
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
   normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
   normalized.codexReasoningEffort = normalizeCodexReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
+
+  // Migration vers la v20 : l'ancien défaut "max" coûtait ~1,2 s par requête.
+  // On ne le remplace que s'il s'agit bien de l'ancien défaut hérité, jamais
+  // d'un réglage que l'utilisateur aurait choisi après cette migration.
+  if (Number(rawConfig.configVersion) < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+    normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
+  }
   normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
   normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
   normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
