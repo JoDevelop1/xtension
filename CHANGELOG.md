@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.4
+
+- Adds selectable 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, and 2:3 formats to Codex image generation and sends exact compatible canvas dimensions to ImageGen.
+- Closes the image-generation window automatically after the generated image is successfully added to the X post, while keeping it open when X rejects the attachment.
+
 ## v0.6.3
 
 - Restores the writing settings, output language, reply style, generation prompt, three customizable suggested-reply prompts, and diagnostic logs without bringing back local models or alternate providers.

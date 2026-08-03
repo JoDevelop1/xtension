@@ -4170,6 +4170,40 @@
     prompt.maxLength = 5000;
     prompt.value = getReplyEditorText(editor);
 
+    const formatFieldset = document.createElement("fieldset");
+    formatFieldset.className = "xtension-imagegen-format";
+    const formatLegend = document.createElement("legend");
+    formatLegend.textContent = localizedText("imageGenerationFormatLabel", "Image format");
+    const formatGrid = document.createElement("div");
+    formatGrid.className = "xtension-imagegen-format-grid";
+    const formatOptions = [
+      ["1:1", "imageGenerationFormatSquare", "Square"],
+      ["16:9", "imageGenerationFormatLandscape", "Landscape"],
+      ["9:16", "imageGenerationFormatPortrait", "Portrait"],
+      ["4:3", "imageGenerationFormatLandscape", "Landscape"],
+      ["3:4", "imageGenerationFormatPortrait", "Portrait"],
+      ["3:2", "imageGenerationFormatLandscape", "Landscape"],
+      ["2:3", "imageGenerationFormatPortrait", "Portrait"]
+    ];
+    for (const [ratio, descriptionKey, descriptionFallback] of formatOptions) {
+      const option = document.createElement("label");
+      option.className = "xtension-imagegen-format-option";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "xtension-imagegen-format";
+      input.value = ratio;
+      input.checked = ratio === "1:1";
+      const card = document.createElement("span");
+      const ratioText = document.createElement("strong");
+      ratioText.textContent = ratio;
+      const description = document.createElement("small");
+      description.textContent = localizedText(descriptionKey, descriptionFallback);
+      card.append(ratioText, description);
+      option.append(input, card);
+      formatGrid.append(option);
+    }
+    formatFieldset.append(formatLegend, formatGrid);
+
     const referenceLabel = document.createElement("label");
     referenceLabel.className = "xtension-imagegen-reference";
     const referenceInput = document.createElement("input");
@@ -4204,7 +4238,7 @@
     download.hidden = true;
     actions.append(generate, attach, download);
 
-    dialog.append(header, prompt, referenceLabel, status, preview, actions);
+    dialog.append(header, prompt, formatFieldset, referenceLabel, status, preview, actions);
     overlay.append(dialog);
     document.body.append(overlay);
 
@@ -4233,10 +4267,12 @@
       status.textContent = localizedText("imageGenerationLoading", "Codex is generating the image. This may take a minute...");
       try {
         const referenceImage = referenceInput.checked ? await getImageGenerationReference(editor) : "";
+        const aspectRatio = dialog.querySelector('input[name="xtension-imagegen-format"]:checked')?.value || "1:1";
         const response = await sendRuntimeMessage({
           type: "xtension-generate-image",
           prompt: requestPrompt,
-          referenceImage
+          referenceImage,
+          aspectRatio
         });
         if (!response?.ok || !response?.image?.dataUrl) {
           const error = new Error(response?.error || localizedText("imageGenerationFailed", "Unable to generate this image."));
@@ -4260,7 +4296,14 @@
 
     attach.addEventListener("click", async () => {
       const image = overlay._xtensionGeneratedImage;
+      attach.disabled = true;
       const attached = image?.dataUrl ? await attachGeneratedImageToComposer(editor, image) : false;
+      if (attached) {
+        showToast(localizedText("imageGenerationAttached", "Image added to the post."));
+        closeDialog();
+        return;
+      }
+      attach.disabled = false;
       status.dataset.tone = attached ? "success" : "error";
       status.textContent = attached
         ? localizedText("imageGenerationAttached", "Image added to the post.")

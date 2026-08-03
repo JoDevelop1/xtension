@@ -809,6 +809,8 @@ async function generateImageWithBridge(message) {
     throw error;
   }
 
+  const aspectRatio = normalizeImageAspectRatio(message?.aspectRatio);
+
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   const response = await fetchBridgeRequest(`${bridgeUrl}/generate-image`, {
     method: "POST",
@@ -819,6 +821,7 @@ async function generateImageWithBridge(message) {
     body: JSON.stringify({
       prompt,
       referenceImage: cleanText(message?.referenceImage || ""),
+      aspectRatio,
       model: config.codexModel,
       reasoningEffort: config.codexReasoningEffort
     })
@@ -838,8 +841,17 @@ async function generateImageWithBridge(message) {
   return {
     dataUrl: data.dataUrl,
     mimeType: cleanText(data.mimeType || "image/png"),
-    revisedPrompt: cleanDraftText(data.revisedPrompt || "")
+    revisedPrompt: cleanDraftText(data.revisedPrompt || ""),
+    aspectRatio: normalizeImageAspectRatio(data.aspectRatio || aspectRatio),
+    requestedSize: cleanText(data.requestedSize || ""),
+    width: Number(data.width) || 0,
+    height: Number(data.height) || 0
   };
+}
+
+function normalizeImageAspectRatio(value) {
+  const ratio = cleanText(value || "").replace(/\s+/g, "");
+  return ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"].includes(ratio) ? ratio : "1:1";
 }
 
 async function getReplyAiConfig() {

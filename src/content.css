@@ -941,6 +941,70 @@
   width: 100%;
 }
 
+.xtension-imagegen-format {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.xtension-imagegen-format legend {
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.xtension-imagegen-format-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+
+.xtension-imagegen-format-option {
+  cursor: pointer;
+  display: block;
+  min-width: 0;
+  position: relative;
+}
+
+.xtension-imagegen-format-option input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.xtension-imagegen-format-option span {
+  align-items: center;
+  border: 1px solid rgb(207, 217, 222);
+  border-radius: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 58px;
+  padding: 8px;
+}
+
+.xtension-imagegen-format-option strong {
+  font-size: 15px;
+}
+
+.xtension-imagegen-format-option small {
+  color: rgb(83, 100, 113);
+  font-size: 11px;
+}
+
+.xtension-imagegen-format-option input:checked + span {
+  background: rgba(29, 155, 240, 0.12);
+  border-color: rgb(29, 155, 240);
+  box-shadow: inset 0 0 0 1px rgb(29, 155, 240);
+}
+
+.xtension-imagegen-format-option input:focus-visible + span {
+  outline: 2px solid rgb(29, 155, 240);
+  outline-offset: 2px;
+}
+
 .xtension-imagegen-reference {
   align-items: center;
   cursor: pointer;
@@ -1009,6 +1073,12 @@
     background: rgb(0, 0, 0);
     border-color: rgb(47, 51, 54);
     color: rgb(231, 233, 234);
+  }
+  .xtension-imagegen-format-option span {
+    border-color: rgb(47, 51, 54);
+  }
+  .xtension-imagegen-format-option input:checked + span {
+    background: rgba(29, 155, 240, 0.2);
   }
   .xtension-imagegen-close:hover,
   .xtension-imagegen-actions button {
