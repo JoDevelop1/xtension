@@ -1005,6 +1005,53 @@
   outline-offset: 2px;
 }
 
+.xtension-imagegen-visual-options {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.xtension-imagegen-visual-options legend {
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.xtension-imagegen-visual-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.xtension-imagegen-visual-field {
+  display: grid;
+  gap: 5px;
+}
+
+.xtension-imagegen-visual-field span {
+  color: rgb(83, 100, 113);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.xtension-imagegen-visual-field select {
+  appearance: auto;
+  background: #fff;
+  border: 1px solid rgb(207, 217, 222);
+  border-radius: 9px;
+  color: rgb(15, 20, 25);
+  font: 500 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 40px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.xtension-imagegen-visual-field select:focus-visible {
+  border-color: rgb(29, 155, 240);
+  outline: 2px solid rgba(29, 155, 240, 0.25);
+}
+
 .xtension-imagegen-reference {
   align-items: center;
   cursor: pointer;
@@ -1069,7 +1116,8 @@
 
 @media (prefers-color-scheme: dark) {
   .xtension-imagegen-dialog,
-  .xtension-imagegen-prompt {
+  .xtension-imagegen-prompt,
+  .xtension-imagegen-visual-field select {
     background: rgb(0, 0, 0);
     border-color: rgb(47, 51, 54);
     color: rgb(231, 233, 234);

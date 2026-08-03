@@ -27,7 +27,7 @@ const CODEX_MODEL = "gpt-5.6-luna";
 const CODEX_REASONING_EFFORT = "max";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
-const CODEX_CLIENT_VERSION = "0.6.4";
+const CODEX_CLIENT_VERSION = "0.6.5";
 const CODEX_TURN_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_TIMEOUT_MS || 180000);
 const CODEX_IMAGE_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_IMAGE_TIMEOUT_MS || 300000);
 const CODEX_START_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_START_TIMEOUT_MS || 20000);
@@ -41,6 +41,26 @@ const IMAGE_FORMATS = Object.freeze({
   "3:4": Object.freeze({ aspectRatio: "3:4", width: 864, height: 1152, description: "portrait" }),
   "3:2": Object.freeze({ aspectRatio: "3:2", width: 1536, height: 1024, description: "landscape" }),
   "2:3": Object.freeze({ aspectRatio: "2:3", width: 1024, height: 1536, description: "portrait" })
+});
+const IMAGE_VISUAL_STYLES = Object.freeze({
+  auto: "",
+  photorealistic: "Visual medium: photorealistic professional photography with natural materials, believable lighting, and realistic detail.",
+  illustration: "Visual medium: polished editorial drawing and illustration, clearly illustrated rather than photographic, with intentional linework and color.",
+  infographic: "Intended use: a clear, polished infographic with strong visual hierarchy, readable organization, and concise visual storytelling.",
+  "3d": "Visual medium: a polished 3D render with coherent materials, lighting, depth, and physically believable forms."
+});
+const IMAGE_FRAMINGS = Object.freeze({
+  auto: "",
+  close_up: "Composition: close-up framing focused tightly on the main subject.",
+  wide: "Composition: wide shot showing the subject clearly within its environment.",
+  top_down: "Composition: top-down viewpoint with a clear, deliberate layout."
+});
+const IMAGE_MOODS = Object.freeze({
+  auto: "",
+  bright: "Lighting and mood: bright, clean, optimistic, with soft diffuse light.",
+  warm: "Lighting and mood: warm, welcoming, with gentle golden tones.",
+  cinematic: "Lighting and mood: cinematic, atmospheric, with deliberate contrast and depth.",
+  minimal: "Mood and art direction: minimal, restrained palette, uncluttered composition, and ample negative space."
 });
 
 const CODEX_DEVELOPER_INSTRUCTIONS = [
@@ -200,10 +220,11 @@ class CodexAppServerClient {
     return this.requestRaw("modelProvider/capabilities/read", {}, CODEX_START_TIMEOUT_MS);
   }
 
-  async generateImage({ prompt, referenceImage, model, reasoningEffort, aspectRatio }) {
+  async generateImage({ prompt, referenceImage, model, reasoningEffort, aspectRatio, visualStyle, framing, mood }) {
     const selectedModel = normalizeCodexModel(model);
     const selectedReasoningEffort = normalizeCodexReasoningEffort(reasoningEffort);
     const imageFormat = normalizeImageFormat(aspectRatio);
+    const visualPreferences = normalizeImageVisualPreferences({ visualStyle, framing, mood });
     const accountResult = await this.accountRead(true);
     if (accountResult?.account?.type !== "chatgpt") {
       throw createBridgeError("Connect a ChatGPT account to generate images in Xtension.", {
@@ -256,9 +277,12 @@ class CodexAppServerClient {
         "$imagegen",
         "Generate exactly one image from this request:",
         cleanDraftText(prompt),
+        visualPreferences.styleInstruction,
+        visualPreferences.framingInstruction,
+        visualPreferences.moodInstruction,
         `Use an exact ${imageFormat.aspectRatio} ${imageFormat.description} canvas of ${imageFormat.width}x${imageFormat.height} pixels.`,
         "Compose the scene specifically for this canvas and do not add borders or letterboxing."
-      ].join("\n")
+      ].filter(Boolean).join("\n")
     }];
     if (referenceImage) input.push({ type: "image", url: referenceImage });
 
@@ -313,7 +337,7 @@ class CodexAppServerClient {
           statusCode: 502
         });
       }
-      return normalizeImageGenerationResult(item, imageFormat);
+      return normalizeImageGenerationResult(item, imageFormat, visualPreferences);
     } finally {
       this.listeners.delete(listener);
     }
@@ -676,6 +700,9 @@ const server = http.createServer(async (request, response) => {
         prompt,
         referenceImage: normalizeImageDataUrl(payload?.referenceImage),
         aspectRatio: payload?.aspectRatio,
+        visualStyle: payload?.visualStyle,
+        framing: payload?.framing,
+        mood: payload?.mood,
         model: payload?.model,
         reasoningEffort: payload?.reasoningEffort
       });
@@ -1185,7 +1212,26 @@ function normalizeImageFormat(value) {
   return IMAGE_FORMATS[aspectRatio] || IMAGE_FORMATS["1:1"];
 }
 
-function normalizeImageGenerationResult(item, imageFormat = IMAGE_FORMATS["1:1"]) {
+function normalizeImageVisualPreferences({ visualStyle, framing, mood } = {}) {
+  const normalizedStyle = normalizeImageVisualOption(visualStyle, IMAGE_VISUAL_STYLES);
+  const normalizedFraming = normalizeImageVisualOption(framing, IMAGE_FRAMINGS);
+  const normalizedMood = normalizeImageVisualOption(mood, IMAGE_MOODS);
+  return {
+    visualStyle: normalizedStyle,
+    framing: normalizedFraming,
+    mood: normalizedMood,
+    styleInstruction: IMAGE_VISUAL_STYLES[normalizedStyle],
+    framingInstruction: IMAGE_FRAMINGS[normalizedFraming],
+    moodInstruction: IMAGE_MOODS[normalizedMood]
+  };
+}
+
+function normalizeImageVisualOption(value, options) {
+  const option = cleanText(value || "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(options, option) ? option : "auto";
+}
+
+function normalizeImageGenerationResult(item, imageFormat = IMAGE_FORMATS["1:1"], visualPreferences = normalizeImageVisualPreferences()) {
   const status = cleanText(item?.status || "completed");
   if (status && !["completed", "succeeded", "success"].includes(status.toLowerCase())) {
     throw createBridgeError(`Codex image generation returned status ${status}.`, {
@@ -1229,6 +1275,9 @@ function normalizeImageGenerationResult(item, imageFormat = IMAGE_FORMATS["1:1"]
     revisedPrompt: cleanDraftText(item?.revisedPrompt || "").slice(0, 5000),
     status: status || "completed",
     aspectRatio: imageFormat.aspectRatio,
+    visualStyle: visualPreferences.visualStyle,
+    framing: visualPreferences.framing,
+    mood: visualPreferences.mood,
     requestedSize: `${imageFormat.width}x${imageFormat.height}`,
     width: dimensions.width,
     height: dimensions.height

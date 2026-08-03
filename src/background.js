@@ -810,6 +810,9 @@ async function generateImageWithBridge(message) {
   }
 
   const aspectRatio = normalizeImageAspectRatio(message?.aspectRatio);
+  const visualStyle = normalizeImageVisualOption(message?.visualStyle, ["auto", "photorealistic", "illustration", "infographic", "3d"]);
+  const framing = normalizeImageVisualOption(message?.framing, ["auto", "close_up", "wide", "top_down"]);
+  const mood = normalizeImageVisualOption(message?.mood, ["auto", "bright", "warm", "cinematic", "minimal"]);
 
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   const response = await fetchBridgeRequest(`${bridgeUrl}/generate-image`, {
@@ -822,6 +825,9 @@ async function generateImageWithBridge(message) {
       prompt,
       referenceImage: cleanText(message?.referenceImage || ""),
       aspectRatio,
+      visualStyle,
+      framing,
+      mood,
       model: config.codexModel,
       reasoningEffort: config.codexReasoningEffort
     })
@@ -843,6 +849,9 @@ async function generateImageWithBridge(message) {
     mimeType: cleanText(data.mimeType || "image/png"),
     revisedPrompt: cleanDraftText(data.revisedPrompt || ""),
     aspectRatio: normalizeImageAspectRatio(data.aspectRatio || aspectRatio),
+    visualStyle: normalizeImageVisualOption(data.visualStyle || visualStyle, ["auto", "photorealistic", "illustration", "infographic", "3d"]),
+    framing: normalizeImageVisualOption(data.framing || framing, ["auto", "close_up", "wide", "top_down"]),
+    mood: normalizeImageVisualOption(data.mood || mood, ["auto", "bright", "warm", "cinematic", "minimal"]),
     requestedSize: cleanText(data.requestedSize || ""),
     width: Number(data.width) || 0,
     height: Number(data.height) || 0
@@ -852,6 +861,11 @@ async function generateImageWithBridge(message) {
 function normalizeImageAspectRatio(value) {
   const ratio = cleanText(value || "").replace(/\s+/g, "");
   return ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"].includes(ratio) ? ratio : "1:1";
+}
+
+function normalizeImageVisualOption(value, allowedValues) {
+  const option = cleanText(value || "").toLowerCase();
+  return allowedValues.includes(option) ? option : "auto";
 }
 
 async function getReplyAiConfig() {

@@ -4204,6 +4204,50 @@
     }
     formatFieldset.append(formatLegend, formatGrid);
 
+    const visualFieldset = document.createElement("fieldset");
+    visualFieldset.className = "xtension-imagegen-visual-options";
+    const visualLegend = document.createElement("legend");
+    visualLegend.textContent = localizedText("imageGenerationVisualOptionsLabel", "Visual options");
+    const visualGrid = document.createElement("div");
+    visualGrid.className = "xtension-imagegen-visual-grid";
+    const createVisualSelect = (labelKey, labelFallback, options) => {
+      const field = document.createElement("label");
+      field.className = "xtension-imagegen-visual-field";
+      const label = document.createElement("span");
+      label.textContent = localizedText(labelKey, labelFallback);
+      const select = document.createElement("select");
+      for (const [value, optionKey, optionFallback] of options) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = localizedText(optionKey, optionFallback);
+        select.append(option);
+      }
+      field.append(label, select);
+      visualGrid.append(field);
+      return select;
+    };
+    const visualStyle = createVisualSelect("imageGenerationStyleLabel", "Style", [
+      ["auto", "imageGenerationOptionAuto", "Auto"],
+      ["photorealistic", "imageGenerationStylePhotorealistic", "Photorealistic"],
+      ["illustration", "imageGenerationStyleIllustration", "Drawing / illustration"],
+      ["infographic", "imageGenerationStyleInfographic", "Infographic"],
+      ["3d", "imageGenerationStyle3d", "3D render"]
+    ]);
+    const framing = createVisualSelect("imageGenerationFramingLabel", "Framing", [
+      ["auto", "imageGenerationOptionAuto", "Auto"],
+      ["close_up", "imageGenerationFramingCloseUp", "Close-up"],
+      ["wide", "imageGenerationFramingWide", "Wide shot"],
+      ["top_down", "imageGenerationFramingTopDown", "Top-down"]
+    ]);
+    const mood = createVisualSelect("imageGenerationMoodLabel", "Mood", [
+      ["auto", "imageGenerationOptionAuto", "Auto"],
+      ["bright", "imageGenerationMoodBright", "Bright"],
+      ["warm", "imageGenerationMoodWarm", "Warm"],
+      ["cinematic", "imageGenerationMoodCinematic", "Cinematic"],
+      ["minimal", "imageGenerationMoodMinimal", "Minimal"],
+    ]);
+    visualFieldset.append(visualLegend, visualGrid);
+
     const referenceLabel = document.createElement("label");
     referenceLabel.className = "xtension-imagegen-reference";
     const referenceInput = document.createElement("input");
@@ -4238,7 +4282,7 @@
     download.hidden = true;
     actions.append(generate, attach, download);
 
-    dialog.append(header, prompt, formatFieldset, referenceLabel, status, preview, actions);
+    dialog.append(header, prompt, formatFieldset, visualFieldset, referenceLabel, status, preview, actions);
     overlay.append(dialog);
     document.body.append(overlay);
 
@@ -4272,7 +4316,10 @@
           type: "xtension-generate-image",
           prompt: requestPrompt,
           referenceImage,
-          aspectRatio
+          aspectRatio,
+          visualStyle: visualStyle.value,
+          framing: framing.value,
+          mood: mood.value
         });
         if (!response?.ok || !response?.image?.dataUrl) {
           const error = new Error(response?.error || localizedText("imageGenerationFailed", "Unable to generate this image."));
@@ -4304,10 +4351,8 @@
         return;
       }
       attach.disabled = false;
-      status.dataset.tone = attached ? "success" : "error";
-      status.textContent = attached
-        ? localizedText("imageGenerationAttached", "Image added to the post.")
-        : localizedText("imageGenerationAttachFailed", "X did not accept the image. Download it, then add it manually.");
+      status.dataset.tone = "error";
+      status.textContent = localizedText("imageGenerationAttachFailed", "X did not accept the image. Download it, then add it manually.");
     });
 
     download.addEventListener("click", () => {

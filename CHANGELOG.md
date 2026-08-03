@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.5
+
+- Adds three compact ImageGen presets for visual style, framing, and mood without overcrowding the generation dialog.
+- Offers Auto, Photorealistic, Drawing/Illustration, Infographic, and 3D visual styles, plus practical framing and lighting choices.
+- Normalizes every preset in the extension and connector before translating it into focused Codex image-generation instructions.
+
 ## v0.6.4
 
 - Adds selectable 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, and 2:3 formats to Codex image generation and sends exact compatible canvas dimensions to ImageGen.

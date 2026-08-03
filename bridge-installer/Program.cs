@@ -351,7 +351,7 @@ internal static class Program
         using var key = Registry.CurrentUser.CreateSubKey(UninstallRegistryKey, true)
             ?? throw new InvalidOperationException("Unable to create the uninstall entry.");
         key.SetValue("DisplayName", ProductName);
-        key.SetValue("DisplayVersion", "0.6.4");
+        key.SetValue("DisplayVersion", "0.6.5");
         key.SetValue("Publisher", "NOVA2G");
         key.SetValue("InstallLocation", installDir);
         key.SetValue("DisplayIcon", installedSetup);

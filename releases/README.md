@@ -6,9 +6,9 @@ This folder mirrors the current distributable artifacts so GitHub and GitLab bot
 
 The browser packages live in `releases/browser/`:
 
-- `xtension-chrome-v0.6.4.zip`
-- `xtension-edge-v0.6.4.zip`
-- `xtension-firefox-v0.6.4.zip`
+- `xtension-chrome-v0.6.5.zip`
+- `xtension-edge-v0.6.5.zip`
+- `xtension-firefox-v0.6.5.zip`
 - `SHA256SUMS.txt`
 
 ## Windows Bridge
