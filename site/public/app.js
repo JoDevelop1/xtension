@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.9 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.10 · Chrome · Edge · Firefox',
   heroTitle: 'Écrivez mieux sur X/Twitter,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils compacte à la zone de rédaction de X/Twitter : corriger, traduire, reformuler, générer des réponses et créer des images — plus un export PDF soigné de n'importe quel article, tweet ou fil. Les requêtes passent par votre propre session ChatGPT/Codex authentifiée. Aucune clé d'API. Aucun serveur du développeur. Aucun compte à créer.",
@@ -126,7 +126,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.9',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.10',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -143,7 +143,7 @@ const FR = {
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · 82 Mo · v0.6.9 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · 82 Mo · v0.6.10 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',
