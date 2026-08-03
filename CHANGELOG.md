@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.9
+
+- Fixes image generation silently failing on long runs. The connector allowed up to 5 minutes to produce an image, but closed the HTTP connection after 4. A long generation was therefore completed by Codex and logged as successful, while the browser never received it and the image never appeared. The connection now outlives the longest possible operation.
+- The image dialog shows elapsed seconds while generating. Image generation legitimately takes one to three minutes, and a frozen dialog was indistinguishable from a hang. Errors now report how long they took, which separates an immediate failure from an abandoned long generation.
+
 ## v0.6.8
 
 Latency release. Measured on repeated draft corrections, alternating requests between the old and the new connector to absorb service variability:

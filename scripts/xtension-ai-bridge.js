@@ -28,7 +28,7 @@ const CODEX_MODEL = "gpt-5.6-luna";
 const CODEX_REASONING_EFFORT = "medium";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
-const CODEX_CLIENT_VERSION = "0.6.8";
+const CODEX_CLIENT_VERSION = "0.6.9";
 const CODEX_TURN_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_TIMEOUT_MS || 180000);
 const CODEX_IMAGE_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_IMAGE_TIMEOUT_MS || 300000);
 const CODEX_START_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_START_TIMEOUT_MS || 20000);
@@ -100,7 +100,6 @@ class CodexAppServerClient {
     this.ready = false;
     this.lastError = "";
     this.accountCache = null;
-    this.spareThread = null;
     this.spareThread = null;
   }
 
@@ -1449,7 +1448,12 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-server.requestTimeout = Math.max(CODEX_TURN_TIMEOUT_MS + 30000, 240000);
+// La connexion HTTP doit survivre à la plus longue opération possible. La
+// génération d'image peut durer jusqu'à CODEX_IMAGE_TIMEOUT_MS (5 min) : avec
+// l'ancien plafond de 240 s, une image longue était bel et bien produite par
+// Codex mais la réponse arrivait sur une connexion déjà fermée, et l'utilisateur
+// ne voyait jamais son image malgré un "request_done" dans le journal.
+server.requestTimeout = Math.max(CODEX_TURN_TIMEOUT_MS, CODEX_IMAGE_TIMEOUT_MS) + 30000;
 server.headersTimeout = 30000;
 server.listen(port, hostname, () => {
   console.log(`Xtension Codex connector listening on http://${hostname}:${port}`);
