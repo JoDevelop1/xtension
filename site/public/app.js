@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.5 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.6 · Chrome · Edge · Firefox',
   heroTitle: 'Écrivez mieux sur X/Twitter,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils compacte à la zone de rédaction de X/Twitter : corriger, traduire, reformuler, générer des réponses et créer des images — plus un export PDF soigné de n'importe quel article, tweet ou fil. Les requêtes passent par votre propre session ChatGPT/Codex authentifiée. Aucune clé d'API. Aucun serveur du développeur. Aucun compte à créer.",
@@ -81,7 +81,7 @@ const FR = {
     "L'interface de l'extension est disponible en anglais, français, allemand, espagnol et japonais, sélectionnée automatiquement selon la langue de votre navigateur.",
 
   dictationNote:
-    "<strong>À propos de la dictée vocale :</strong> le bouton de dictée est toujours présent mais se signale comme indisponible. Codex géré par ChatGPT n'expose pas de modèle de transcription, et Xtension refuse délibérément de basculer vers un service vocal séparé sans vous le dire.",
+    "<strong>À propos de la dictée vocale :</strong> le bouton de dictée est toujours présent, mais il interroge le connecteur avant toute action. Codex géré par ChatGPT n'expose pas de modèle de transcription : le bouton se signale donc indisponible et <strong>votre micro n'est jamais ouvert</strong> — aucune demande d'autorisation, aucun enregistrement. Xtension refuse par ailleurs de basculer silencieusement vers un service vocal séparé.",
 
   howTitle: 'Comment ça marche',
   howLead:
@@ -128,7 +128,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.5',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.6',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',

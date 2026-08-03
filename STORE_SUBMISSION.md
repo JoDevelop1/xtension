@@ -86,6 +86,14 @@ Native messaging permission:
 Xtension does not request the nativeMessaging permission. Optional AI tools communicate with the user-installed bridge through the default loopback HTTP endpoint only.
 ```
 
+Microphone / audio disclosure:
+
+```text
+Xtension ships a dictation button in the X/Twitter composer. Before requesting any microphone access, the extension asks the local connector whether it exposes a speech-transcription model. With the ChatGPT-managed Codex connector that Xtension distributes, transcription is not available: the button reports it as unavailable and no microphone permission is requested and no audio is captured. If a connector providing transcription is present, a click on the button records audio, sends it only to http://127.0.0.1:47623 on the user's own machine for transcription, inserts the resulting text into the draft, and retains nothing. Audio is never sent to a developer-owned server. Microphone access is never requested without an explicit click on that button.
+```
+
+Because the `getUserMedia` code path exists in the package, declare **Audio** in the data-collection section of the Privacy practices tab, with "processed locally / not transmitted to the developer" and the local-machine destination described above. This matches `PRIVACY.md`, which documents the same behaviour.
+
 Data usage certification:
 
 ```text
@@ -178,3 +186,6 @@ See:
 - Verify correction, translation, generation, and reply suggestions through Xtension Bridge.
 - Verify that the extension activates only in X/Twitter and related public media domains.
 - Verify that `_locales/` is present in every generated browser package.
+- Verify that clicking the dictation button with the Codex connector running reports "unavailable" **without** showing any Chrome microphone permission prompt.
+- Verify that the connector answers 403 to `curl http://127.0.0.1:47623/health` (no `Origin` header) and 200 to `curl http://127.0.0.1:47623/ping`.
+- Verify that the Firefox manifest carries `browser_specific_settings.gecko.data_collection_permissions` and the id `xtension@jodevelop.com`.

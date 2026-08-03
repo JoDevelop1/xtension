@@ -53,7 +53,7 @@
         <div class="wrap">
           <p class="eyebrow">
             <span class="dot"></span>
-            <span data-i18n="heroEyebrow">Version 0.6.5 · Chrome · Edge · Firefox</span>
+            <span data-i18n="heroEyebrow">Version 0.6.6 · Chrome · Edge · Firefox</span>
           </p>
           <h1 data-i18n="heroTitle">
             Write better on X/Twitter,<br />with your own ChatGPT account.
@@ -215,10 +215,11 @@
           </div>
 
           <p class="note" data-i18n="dictationNote">
-            <strong>Note on voice dictation:</strong> the dictation button is still present but
-            reports as unavailable. ChatGPT-managed Codex does not expose a transcription model, and
-            Xtension deliberately does not fall back to a separate speech service without telling
-            you.
+            <strong>Note on voice dictation:</strong> the dictation button is still present, but it
+            asks the connector whether transcription exists before doing anything. ChatGPT-managed
+            Codex does not expose a transcription model, so the button reports as unavailable and
+            <strong>your microphone is never opened</strong> — no permission prompt, no recording.
+            Xtension also refuses to silently fall back to a separate speech service.
           </p>
         </div>
       </section>
@@ -366,17 +367,17 @@
           <div class="dl-grid">
             <a class="dl-card" href="/dl/xtension-chrome.zip">
               <span class="dl-name">Chrome</span>
-              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.5</span>
+              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.6</span>
               <span class="dl-action" data-i18n="dlZip">Download .zip</span>
             </a>
             <a class="dl-card" href="/dl/xtension-edge.zip">
               <span class="dl-name">Edge</span>
-              <span class="dl-meta">v0.6.5</span>
+              <span class="dl-meta">v0.6.6</span>
               <span class="dl-action" data-i18n="dlZip2">Download .zip</span>
             </a>
             <a class="dl-card" href="/dl/xtension-firefox.zip">
               <span class="dl-name">Firefox</span>
-              <span class="dl-meta">v0.6.5</span>
+              <span class="dl-meta">v0.6.6</span>
               <span class="dl-action" data-i18n="dlZip3">Download .zip</span>
             </a>
           </div>
@@ -414,7 +415,7 @@
           </p>
           <a class="btn btn-primary btn-lg" href="/dl/XtensionBridgeSetup.exe">
             <span data-i18n="dlConnectorBtn">Download XtensionBridgeSetup.exe</span>
-            <span class="btn-sub">Windows · 82 MB · v0.6.5</span>
+            <span class="btn-sub">Windows · 82 MB · v0.6.6</span>
           </a>
 
           <div class="checksums">
@@ -433,19 +434,19 @@
               <tbody>
                 <tr>
                   <td>XtensionBridgeSetup.exe</td>
-                  <td><code>2d76fedfe04da1abb847129e91c3aa6c2b49c0db8c1f7350170e5f37237328cd</code></td>
+                  <td><code>ac58018943fb8d283d1b79a7f0ca0c68a15ed59eba6e938156f3a73178f9cdc2</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-chrome-v0.6.5.zip</td>
-                  <td><code>399090fe91d5acefd9c3645f1752a2d37da1777cf27a276acc080933a0af149b</code></td>
+                  <td>xtension-chrome-v0.6.6.zip</td>
+                  <td><code>e505ca48f8600f4401bb087959f36d05edb749d5bc0febaa314b48d3aa3e628a</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-edge-v0.6.5.zip</td>
-                  <td><code>399090fe91d5acefd9c3645f1752a2d37da1777cf27a276acc080933a0af149b</code></td>
+                  <td>xtension-edge-v0.6.6.zip</td>
+                  <td><code>e505ca48f8600f4401bb087959f36d05edb749d5bc0febaa314b48d3aa3e628a</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-firefox-v0.6.5.zip</td>
-                  <td><code>0793e0ca2aa1804bc9064ac07ebcdc342b05311053f0c0bef6a4fbf2b9ecd627</code></td>
+                  <td>xtension-firefox-v0.6.6.zip</td>
+                  <td><code>7bde1525ac6fb443558c2f37e3c2f96f8ba0b37fb6cf006fb427b77f07c99b53</code></td>
                 </tr>
               </tbody>
             </table>

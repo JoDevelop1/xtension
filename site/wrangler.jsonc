@@ -10,14 +10,11 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page"
   },
-  "r2_buckets": [
-    {
-      "binding": "DOWNLOADS",
-      "bucket_name": "xtension-downloads"
-    }
-  ],
+  // Aucun binding de stockage : les binaires vivent dans les GitHub Releases,
+  // le Worker ne fait que rediriger vers l'asset de la dernière release.
   "vars": {
-    "CURRENT_VERSION": "0.6.5"
+    // Utilisée uniquement si l'API GitHub est indisponible ou limitée en débit.
+    "FALLBACK_VERSION": "0.6.6"
   },
   "routes": [
     {
