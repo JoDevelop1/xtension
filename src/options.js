@@ -6,7 +6,7 @@
   const i18nApi = extensionApi?.i18n;
   const storageApi = extensionApi?.storage?.local;
 
-  const REPLY_AI_CONFIG_VERSION = 18;
+  const REPLY_AI_CONFIG_VERSION = 19;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
   const DEFAULT_CODEX_REASONING_EFFORT = "max";
@@ -17,7 +17,13 @@
     { model: "gpt-5.6-luna", displayName: "GPT-5.6 Luna", supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"] }
   ];
   const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
+  const DEFAULT_REPLY_STYLE = "auto";
   const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
+  const DEFAULT_REPLY_PROMPT_PROFILES = [
+    { label: "Short impact", prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement." },
+    { label: "Medium argument", prompt: "Write one natural X/Twitter reply in one sentence, ideally 100 to 210 characters, with one concrete reason or consequence." },
+    { label: "Longer argument", prompt: "Write one dense, specific X/Twitter reply, ideally 170 to 300 characters, with a fuller argument and no filler." }
+  ];
 
   const DEFAULT_CONFIG = {
     configVersion: REPLY_AI_CONFIG_VERSION,
@@ -27,6 +33,8 @@
     codexModel: DEFAULT_CODEX_MODEL,
     codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
     replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
+    replyStyle: DEFAULT_REPLY_STYLE,
+    replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
     generatePrompt: DEFAULT_GENERATE_PROMPT
   };
 
@@ -35,7 +43,10 @@
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
   const replyLanguageModeInput = document.querySelector("#reply-ai-language-mode");
+  const replyStyleInput = document.querySelector("#reply-ai-style");
   const generatePromptInput = document.querySelector("#reply-ai-generate-prompt");
+  const promptResetButton = document.querySelector("#reply-ai-prompt-reset");
+  const promptProfileRows = Array.from(document.querySelectorAll("[data-reply-prompt-profile]"));
   const statusElement = document.querySelector("#reply-ai-status");
   const engineStatusElement = document.querySelector("#reply-ai-engine-status");
   const accountStatusElement = document.querySelector("#reply-ai-account-status");
@@ -101,6 +112,11 @@
         showStatus(error?.message || localizedText("optionsLogsClearFailed", "Unable to clear logs."), "error");
       }
     });
+
+    promptResetButton?.addEventListener("click", () => {
+      setPromptProfileInputs(cloneDefaultReplyPromptProfiles());
+      showStatus(localizedText("optionsPromptsReset", "Default prompts restored. Save to apply them."), "");
+    });
   }
 
   function localizePage() {
@@ -141,9 +157,13 @@
     if (replyLanguageModeInput) {
       replyLanguageModeInput.value = config.replyLanguageMode || DEFAULT_REPLY_LANGUAGE_MODE;
     }
+    if (replyStyleInput) {
+      replyStyleInput.value = config.replyStyle || DEFAULT_REPLY_STYLE;
+    }
     if (generatePromptInput) {
       generatePromptInput.value = config.generatePrompt || DEFAULT_GENERATE_PROMPT;
     }
+    setPromptProfileInputs(config.replyPromptProfiles);
   }
 
   function setupTabs() {
@@ -155,7 +175,7 @@
   }
 
   function activateSettingsTab(tab) {
-    const nextTab = tab || "replies";
+    const nextTab = tab || "connection";
 
     tabButtons.forEach((button) => {
       const active = button.getAttribute("data-tab") === nextTab;
@@ -420,7 +440,7 @@
       logoutButton.disabled = Boolean(busy) || !authenticated;
     }
     if (installConnectorLink) {
-      installConnectorLink.hidden = Boolean(available);
+      installConnectorLink.hidden = false;
     }
   }
 
@@ -548,6 +568,8 @@
       codexModel: normalizeCodexModel(codexModelInput?.value || DEFAULT_CODEX_MODEL),
       codexReasoningEffort: normalizeReasoningEffort(codexReasoningInput?.value || DEFAULT_CODEX_REASONING_EFFORT),
       replyLanguageMode: normalizeReplyLanguageMode(replyLanguageModeInput?.value),
+      replyStyle: normalizeReplyStyle(replyStyleInput?.value),
+      replyPromptProfiles: getPromptProfileInputs(),
       generatePrompt: cleanText(generatePromptInput?.value || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT
     };
   }
@@ -556,23 +578,60 @@
     const rawConfig = config && typeof config === "object" ? config : {};
     const normalized = { ...DEFAULT_CONFIG, ...rawConfig };
     normalized.configVersion = REPLY_AI_CONFIG_VERSION;
-    // AI draft actions are now part of the always-on Codex surface; there is
-    // intentionally no second enable switch in the options page.
-    normalized.enabled = true;
+    normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
     normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
     normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
     normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
     normalized.codexReasoningEffort = normalizeReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
     normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
+    normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
+    normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
     normalized.generatePrompt = cleanText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
 
     // Remove settings from the former local/provider architecture, including
     // API-key fields users may have stored in an earlier development build.
     [
-      "provider", "codexModelPreset", "prompt", "replyPromptProfiles",
-      "replyCount", "replyStyle", "baseUrl", "model", "apiKey", "gpu"
+      "provider", "codexModelPreset", "prompt", "replyCount",
+      "baseUrl", "model", "apiKey", "gpu"
     ].forEach((key) => delete normalized[key]);
     return normalized;
+  }
+
+  function cloneDefaultReplyPromptProfiles() {
+    return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
+  }
+
+  function normalizeReplyPromptProfiles(value, legacyPrompt) {
+    const input = Array.isArray(value) ? value : [];
+    const legacy = cleanDraftText(legacyPrompt || "");
+    return cloneDefaultReplyPromptProfiles().map((fallback, index) => {
+      const raw = input[index] && typeof input[index] === "object" ? input[index] : {};
+      return {
+        label: cleanText(raw.label || raw.name || fallback.label).slice(0, 80) || fallback.label,
+        prompt: cleanDraftText(raw.prompt || (legacy && index === 0 ? legacy : "") || fallback.prompt).slice(0, 5000) || fallback.prompt
+      };
+    });
+  }
+
+  function getPromptProfileInputs() {
+    return normalizeReplyPromptProfiles(promptProfileRows.map((row, index) => {
+      const fallback = DEFAULT_REPLY_PROMPT_PROFILES[index] || DEFAULT_REPLY_PROMPT_PROFILES[0];
+      return {
+        label: row.querySelector("[data-reply-prompt-label]")?.value || fallback.label,
+        prompt: row.querySelector("[data-reply-prompt-text]")?.value || fallback.prompt
+      };
+    }));
+  }
+
+  function setPromptProfileInputs(profiles) {
+    const normalized = normalizeReplyPromptProfiles(profiles);
+    promptProfileRows.forEach((row, index) => {
+      const profile = normalized[index] || DEFAULT_REPLY_PROMPT_PROFILES[index];
+      const label = row.querySelector("[data-reply-prompt-label]");
+      const prompt = row.querySelector("[data-reply-prompt-text]");
+      if (label) label.value = profile.label;
+      if (prompt) prompt.value = profile.prompt;
+    });
   }
 
   function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
@@ -615,6 +674,20 @@
 
   function normalizeReplyLanguageMode(value) {
     return cleanText(value).toLowerCase() === "ui" ? "ui" : DEFAULT_REPLY_LANGUAGE_MODE;
+  }
+
+  function normalizeReplyStyle(value) {
+    const style = cleanText(value).toLowerCase();
+    return ["auto", "humor", "sharp", "useful", "question"].includes(style) ? style : DEFAULT_REPLY_STYLE;
+  }
+
+  function cleanDraftText(value) {
+    return String(value || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   function storageGet(defaults) {

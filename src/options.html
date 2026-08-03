@@ -9,75 +9,154 @@
   <body>
     <main class="options-shell">
       <header class="options-header">
-        <div class="brand-mark">
-          <img src="icons/icon-48.png" alt="" width="44" height="44">
-        </div>
+        <div class="brand-mark"><img src="icons/icon-48.png" alt="" width="44" height="44"></div>
         <div>
           <h1 data-i18n="optionsTitle">Xtension</h1>
-          <p data-i18n="optionsDescription">Configure the draft tools, dictation, and your OpenAI Codex account used on X/Twitter.</p>
+          <p data-i18n="optionsDescription">Connect ChatGPT and customize the Codex tools used on X/Twitter.</p>
         </div>
       </header>
 
       <form id="reply-ai-form" class="options-form">
-        <fieldset class="setting-section ai-settings-section">
-          <legend data-i18n="optionsSectionEngine">OpenAI / Codex</legend>
+        <nav class="options-tabs" aria-label="Settings sections">
+          <button class="options-tab is-active" type="button" data-tab="connection" aria-selected="true" data-i18n="optionsTabEngine">Connection</button>
+          <button class="options-tab" type="button" data-tab="writing" aria-selected="false" data-i18n="optionsTabReplies">Writing</button>
+          <button class="options-tab" type="button" data-tab="prompts" aria-selected="false" data-i18n="optionsTabPrompt">Prompts</button>
+          <button class="options-tab" type="button" data-tab="logs" aria-selected="false" data-i18n="optionsTabLogs">Diagnostics</button>
+        </nav>
 
-          <div id="reply-ai-connection-card" class="connection-card" data-state="unknown">
-            <div class="connection-card-header">
-              <span class="connection-card-title" data-i18n="optionsCodexAccountStatus">ChatGPT account</span>
-              <span id="reply-ai-connection-badge" class="connection-badge" data-state="unknown" data-i18n="optionsEngineStatusUnknown">Checking...</span>
+        <section class="settings-tab-panel is-active" data-tab-panel="connection">
+          <fieldset class="setting-section ai-settings-section">
+            <legend data-i18n="optionsSectionEngine">ChatGPT / Codex connection</legend>
+
+            <div id="reply-ai-connection-card" class="connection-card" data-state="unknown">
+              <div class="connection-card-header">
+                <span class="connection-card-title" data-i18n="optionsCodexAccountStatus">ChatGPT account</span>
+                <span id="reply-ai-connection-badge" class="connection-badge" data-state="unknown" data-i18n="optionsEngineStatusUnknown">Checking...</span>
+              </div>
+              <p id="reply-ai-engine-status" class="field-note" data-i18n="optionsEngineStatusUnknown">Checking Codex connectivity...</p>
+              <p id="reply-ai-account-status" class="field-note" data-i18n="optionsCodexAccountRequired">Connect your ChatGPT account to use OpenAI Codex.</p>
+              <div class="inline-actions connection-actions">
+                <button id="reply-ai-login" type="button" hidden data-i18n="optionsCodexLogin">Connect ChatGPT</button>
+                <button id="reply-ai-logout" type="button" class="secondary" hidden data-i18n="optionsCodexLogout">Disconnect</button>
+                <button id="reply-ai-test" type="button" class="secondary" data-i18n="optionsTest">Test connection</button>
+              </div>
             </div>
-            <p id="reply-ai-engine-status" class="field-note" data-i18n="optionsEngineStatusUnknown">Checking Codex connectivity...</p>
-            <p id="reply-ai-account-status" class="field-note" data-i18n="optionsCodexAccountRequired">Connect your ChatGPT account to use OpenAI Codex.</p>
-            <div class="inline-actions connection-actions">
-              <button id="reply-ai-login" type="button" hidden data-i18n="optionsCodexLogin">Connect ChatGPT</button>
-              <button id="reply-ai-logout" type="button" class="secondary" hidden data-i18n="optionsCodexLogout">Disconnect</button>
-              <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/raw/main/releases/windows/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" hidden data-i18n="optionsCodexInstallConnector">Install the Codex connector</a>
+
+            <div class="bridge-download">
+              <div>
+                <strong data-i18n="optionsCodexConnectorTitle">Xtension Codex connector</strong>
+                <p class="field-note" data-i18n="optionsCodexConnectorHint">Install it once, or use this link to update it. The status above tells you whether it is reachable and connected to Codex.</p>
+              </div>
+              <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/raw/main/releases/windows/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" data-i18n="optionsCodexInstallOrUpdate">Install or update</a>
             </div>
-          </div>
 
-          <div class="setting-row">
-            <div class="field-title">
-              <label for="reply-ai-codex-model" data-i18n="optionsCodexModelLabel">Model</label>
-              <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModel" data-help="Choose the OpenAI Codex model available for your ChatGPT account.">?</button>
+            <div class="options-grid">
+              <div class="setting-row">
+                <div class="field-title">
+                  <label for="reply-ai-codex-model" data-i18n="optionsCodexModelLabel">Model</label>
+                  <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModel" data-help="Choose the OpenAI Codex model available for your ChatGPT account.">?</button>
+                </div>
+                <select id="reply-ai-codex-model">
+                  <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
+                  <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
+                  <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+                </select>
+                <p id="reply-ai-codex-model-status" class="field-note" data-i18n="optionsCodexModelLoading">Loading available models...</p>
+              </div>
+              <div class="setting-row">
+                <div class="field-title"><label for="reply-ai-codex-reasoning" data-i18n="optionsCodexReasoningLabel">Reasoning effort</label></div>
+                <select id="reply-ai-codex-reasoning">
+                  <option value="low" data-i18n="optionsCodexReasoningLow">Low</option>
+                  <option value="medium" data-i18n="optionsCodexReasoningMedium">Medium</option>
+                  <option value="high" data-i18n="optionsCodexReasoningHigh">High</option>
+                  <option value="xhigh" data-i18n="optionsCodexReasoningXHigh">Extra high</option>
+                  <option value="max" data-i18n="optionsCodexReasoningMax">Maximum</option>
+                  <option value="ultra" data-i18n="optionsCodexReasoningUltra">Ultra</option>
+                </select>
+              </div>
             </div>
-            <select id="reply-ai-codex-model">
-              <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
-              <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
-              <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
-            </select>
-            <p id="reply-ai-codex-model-status" class="field-note" data-i18n="optionsCodexModelLoading">Loading the models available to this ChatGPT account...</p>
-          </div>
+            <p class="field-note" data-i18n="optionsCodexLoginHint">The connector reuses the official Codex sign-in for this Windows account. Xtension never requests or stores an API key.</p>
+            <input id="reply-ai-codex-bridge-url" type="hidden" value="http://127.0.0.1:47623">
+            <input id="reply-ai-bridge-token" type="hidden" value="">
+          </fieldset>
+        </section>
 
-          <div class="setting-row">
-            <div class="field-title">
-              <label for="reply-ai-codex-reasoning" data-i18n="optionsCodexReasoningLabel">Reasoning effort</label>
+        <section class="settings-tab-panel" data-tab-panel="writing" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsSectionReplies">Writing tools</legend>
+            <div class="setting-row is-toggle">
+              <label class="options-toggle" for="reply-ai-enabled">
+                <input id="reply-ai-enabled" type="checkbox">
+                <span data-i18n="optionsEnableAi">Enable AI writing tools</span>
+              </label>
             </div>
-            <select id="reply-ai-codex-reasoning">
-              <option value="low" data-i18n="optionsCodexReasoningLow">Low</option>
-              <option value="medium" data-i18n="optionsCodexReasoningMedium">Medium</option>
-              <option value="high" data-i18n="optionsCodexReasoningHigh">High</option>
-              <option value="xhigh" data-i18n="optionsCodexReasoningXHigh">Extra high</option>
-              <option value="max" data-i18n="optionsCodexReasoningMax">Maximum</option>
-              <option value="ultra" data-i18n="optionsCodexReasoningUltra">Ultra</option>
-            </select>
-          </div>
+            <div class="options-grid">
+              <div class="setting-row">
+                <div class="field-title"><label for="reply-ai-style" data-i18n="optionsReplyStyle">Suggested reply style</label></div>
+                <select id="reply-ai-style">
+                  <option value="auto" data-i18n="optionsReplyStyleAuto">Auto, varied</option>
+                  <option value="humor" data-i18n="replyStyleHumor">Contextual joke</option>
+                  <option value="sharp" data-i18n="replyStyleSharp">Sharp angle</option>
+                  <option value="useful" data-i18n="replyStyleUseful">Useful context</option>
+                  <option value="question" data-i18n="replyStyleQuestion">Question</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="field-title"><label for="reply-ai-language-mode" data-i18n="optionsReplyLanguage">Output language</label></div>
+                <select id="reply-ai-language-mode">
+                  <option value="tweet" data-i18n="optionsReplyLanguageTweet">Use the post language</option>
+                  <option value="ui" data-i18n="optionsReplyLanguageUi">Use my browser language</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-generate-prompt" data-i18n="optionsGeneratePrompt">Generation style prompt</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpGeneratePrompt" data-help="This prompt is always added when you use Generate.">?</button>
+              </div>
+              <textarea id="reply-ai-generate-prompt" spellcheck="false"></textarea>
+            </div>
+          </fieldset>
+        </section>
 
-          <p class="field-note" data-i18n="optionsCodexLoginHint">The connector reuses the official Codex sign-in for this Windows account. Xtension never requests or stores an API key.</p>
+        <section class="settings-tab-panel" data-tab-panel="prompts" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsPromptTitle">Suggested reply prompts</legend>
+            <p class="field-note" data-i18n="optionsPromptHint">Each profile generates one separate suggestion. Variables: {{uiLocale}}, {{tweetLanguage}}, {{targetLanguage}}, {{replyStyle}}, {{profileName}}.</p>
+            <div class="reply-prompt-profiles">
+              <section class="reply-prompt-profile" data-reply-prompt-profile="0">
+                <div class="setting-row"><label for="reply-ai-prompt-label-0" data-i18n="optionsPromptProfileName">Profile name</label><input id="reply-ai-prompt-label-0" type="text" data-reply-prompt-label autocomplete="off"></div>
+                <div class="setting-row"><label for="reply-ai-prompt-text-0" data-i18n="optionsPrompt">Prompt</label><textarea id="reply-ai-prompt-text-0" data-reply-prompt-text spellcheck="false"></textarea></div>
+              </section>
+              <section class="reply-prompt-profile" data-reply-prompt-profile="1">
+                <div class="setting-row"><label for="reply-ai-prompt-label-1" data-i18n="optionsPromptProfileName">Profile name</label><input id="reply-ai-prompt-label-1" type="text" data-reply-prompt-label autocomplete="off"></div>
+                <div class="setting-row"><label for="reply-ai-prompt-text-1" data-i18n="optionsPrompt">Prompt</label><textarea id="reply-ai-prompt-text-1" data-reply-prompt-text spellcheck="false"></textarea></div>
+              </section>
+              <section class="reply-prompt-profile" data-reply-prompt-profile="2">
+                <div class="setting-row"><label for="reply-ai-prompt-label-2" data-i18n="optionsPromptProfileName">Profile name</label><input id="reply-ai-prompt-label-2" type="text" data-reply-prompt-label autocomplete="off"></div>
+                <div class="setting-row"><label for="reply-ai-prompt-text-2" data-i18n="optionsPrompt">Prompt</label><textarea id="reply-ai-prompt-text-2" data-reply-prompt-text spellcheck="false"></textarea></div>
+              </section>
+            </div>
+            <div class="inline-actions"><button id="reply-ai-prompt-reset" type="button" class="secondary" data-i18n="optionsPromptReset">Reset prompts</button></div>
+          </fieldset>
+        </section>
 
-          <!-- The loopback URL is intentionally fixed and hidden from normal users. -->
-          <input id="reply-ai-codex-bridge-url" type="hidden" value="http://127.0.0.1:47623">
-          <input id="reply-ai-bridge-token" type="hidden" value="">
-        </fieldset>
+        <section class="settings-tab-panel" data-tab-panel="logs" hidden>
+          <fieldset class="setting-section">
+            <legend data-i18n="optionsLogsTitle">Diagnostic logs</legend>
+            <p class="field-note" data-i18n="optionsLogsHint">The latest AI operations are stored locally without full prompts or post text.</p>
+            <div class="inline-actions">
+              <button id="reply-ai-logs-refresh" type="button" class="secondary" data-i18n="optionsLogsRefresh">Refresh logs</button>
+              <button id="reply-ai-logs-clear" type="button" class="secondary danger" data-i18n="optionsLogsClear">Clear logs</button>
+            </div>
+            <pre id="reply-ai-logs-output" class="diagnostic-log-output" tabindex="0"></pre>
+          </fieldset>
+        </section>
 
-        <div class="options-actions">
-          <button type="submit" data-i18n="optionsSave">Save settings</button>
-        </div>
-
+        <div class="options-actions"><button type="submit" data-i18n="optionsSave">Save settings</button></div>
         <div id="reply-ai-status" class="options-status" role="status" aria-live="polite"></div>
       </form>
     </main>
-
     <script src="options.js"></script>
   </body>
 </html>

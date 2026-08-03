@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.3
+
+- Restores the writing settings, output language, reply style, generation prompt, three customizable suggested-reply prompts, and diagnostic logs without bringing back local models or alternate providers.
+- Restores contextual reply suggestions and routes each customized prompt through the authenticated OpenAI Codex App Server session.
+- Opens the full settings page directly when the browser toolbar icon is clicked, removing the intermediate popup.
+- Keeps the signed connector install/update link visible alongside separate connector, Codex, and ChatGPT account status.
+- Adds Codex image generation from the X/Twitter composer, with optional post-image reference, preview, download, and best-effort attachment to the post.
+
 ## v0.6.2
 
 - Replaces the system-level Windows service with a silent per-user connector host so Codex uses the same Windows profile and ChatGPT OAuth session as the signed-in user.

@@ -8,7 +8,7 @@ const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.6.2";
+const version = "0.6.3";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",
@@ -30,7 +30,6 @@ const shared = {
   description: "__MSG_extensionDescription__",
   action: {
     default_title: "__MSG_actionTitle__",
-    default_popup: "popup.html",
     default_icon: iconMap()
   },
   icons: iconMap(),
@@ -146,7 +145,7 @@ function copyDirectory(from, to) {
 }
 
 function copyExtensionFiles(targetDir) {
-  const files = ["background.js", "content.js", "main-world.js", "content.css", "options.html", "options.js", "options.css", "popup.html", "popup.css", "popup.js"];
+  const files = ["background.js", "content.js", "main-world.js", "content.css", "options.html", "options.js", "options.css"];
 
   for (const file of files) {
     copyFile(path.join(src, file), path.join(targetDir, file));

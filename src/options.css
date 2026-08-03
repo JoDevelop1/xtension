@@ -415,6 +415,14 @@ body {
   padding: 14px;
 }
 
+.reply-prompt-profile textarea {
+  min-height: 132px;
+}
+
+#reply-ai-generate-prompt {
+  min-height: 150px;
+}
+
 .options-actions,
 .inline-actions {
   display: flex;

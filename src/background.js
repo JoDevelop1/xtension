@@ -1,16 +1,32 @@
 const extensionApi = globalThis.chrome || globalThis.browser;
 const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
+const actionApi = extensionApi?.action || extensionApi?.browserAction;
 
-const REPLY_AI_CONFIG_VERSION = 18;
+const REPLY_AI_CONFIG_VERSION = 19;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
 const DEFAULT_CODEX_REASONING_EFFORT = "max";
 const CODEX_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
 const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
+const DEFAULT_REPLY_STYLE = "auto";
 const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
 
 const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
+const DEFAULT_REPLY_PROMPT_PROFILES = [
+  {
+    label: "Short impact",
+    prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement."
+  },
+  {
+    label: "Medium argument",
+    prompt: "Write one natural X/Twitter reply in one sentence, ideally 100 to 210 characters, with one concrete reason or consequence."
+  },
+  {
+    label: "Longer argument",
+    prompt: "Write one dense, specific X/Twitter reply, ideally 170 to 300 characters, with a fuller argument and no filler."
+  }
+];
 
 const DEFAULT_REPLY_AI_CONFIG = {
   configVersion: REPLY_AI_CONFIG_VERSION,
@@ -20,6 +36,8 @@ const DEFAULT_REPLY_AI_CONFIG = {
   codexModel: DEFAULT_CODEX_MODEL,
   codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
   replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
+  replyStyle: DEFAULT_REPLY_STYLE,
+  replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
   generatePrompt: DEFAULT_GENERATE_PROMPT
 };
 
@@ -50,9 +68,47 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "xtension-get-reply-prompt-profiles") {
+    getReplyPromptProfilesForUi().then((profiles) => {
+      sendResponse({ ok: true, profiles });
+    }).catch((error) => {
+      sendResponse({ ok: false, error: error.message, code: error.code || "generation_failed" });
+    });
+    return true;
+  }
 
+  if (message.type === "xtension-generate-reply-suggestion-profile") {
+    const profileIndex = normalizeReplyProfileIndex(message.profileIndex);
+    sendLoggedAiResponse(
+      "reply_profile",
+      "reply",
+      "generation_failed",
+      sendResponse,
+      () => generateReplySuggestionProfile(profileIndex, message.context, message.locale),
+      {
+        locale: cleanText(message.locale || ""),
+        profileIndex,
+        contextLength: getReplyContextTextLength(message.context),
+        hasContext: Boolean(message.context)
+      }
+    );
+    return true;
+  }
 
-
+  if (message.type === "xtension-generate-image") {
+    sendLoggedAiResponse(
+      "image_generate",
+      "image",
+      "image_generation_failed",
+      sendResponse,
+      () => generateImageWithBridge(message),
+      {
+        promptLength: String(message.prompt || "").length,
+        hasReferenceImage: Boolean(message.referenceImage)
+      }
+    );
+    return true;
+  }
 
   if (message.type === "xtension-correct-reply-draft") {
     sendLoggedAiResponse(
@@ -179,6 +235,10 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   return false;
+});
+
+actionApi?.onClicked?.addListener(() => {
+  openExtensionOptions().catch(() => {});
 });
 
 // Génération en STREAMING via un port (le token-par-token est impossible avec
@@ -662,6 +722,126 @@ async function transcribeDictationAudio(message) {
   };
 }
 
+async function getReplyPromptProfilesForUi() {
+  const config = await getReplyAiConfig();
+  return normalizeReplyPromptProfiles(config.replyPromptProfiles).map((profile, index) => ({
+    index,
+    label: profile.label
+  }));
+}
+
+async function generateReplySuggestionProfile(profileIndex, context, locale) {
+  const config = await getReplyAiConfig();
+  const profile = getReplyPromptProfile(config, profileIndex);
+  if (!config.enabled) {
+    const error = new Error("AI tools are disabled in Xtension settings.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  logAiRoute(config, "reply_profile", {
+    profileIndex,
+    profileLabel: profile.label,
+    hasContext: Boolean(context)
+  });
+
+  const image = await fetchContextImageDataUrl(context);
+
+  const response = await fetchBridgeRequest(`${bridgeUrl}/reply`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: JSON.stringify({
+      locale: cleanText(locale || ""),
+      targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale),
+      context: context || {},
+      systemPrompt: profile.prompt,
+      replyProfile: { index: profileIndex, label: profile.label },
+      replyStyle: normalizeReplyStyle(config.replyStyle),
+      model: config.codexModel,
+      reasoningEffort: config.codexReasoningEffort,
+      ...(image ? { image } : {})
+    })
+  }, {
+    operation: "reply_profile",
+    profileIndex
+  });
+
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+
+  const data = await response.json();
+  const text = sanitizeGeneratedReplyText(data?.text || data?.reply?.text || data?.reply || "");
+  if (!text) {
+    throw new Error("Codex did not return a reply for this prompt.");
+  }
+  return {
+    styleId: "custom",
+    style: profile.label,
+    text,
+    profileIndex,
+    profileLabel: profile.label
+  };
+}
+
+async function generateImageWithBridge(message) {
+  const config = await getReplyAiConfig();
+  if (!config.enabled) {
+    const error = new Error("AI tools are disabled in Xtension settings.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const prompt = cleanDraftText(message?.prompt || "").slice(0, 5000);
+  if (!prompt) {
+    const error = new Error("An image prompt is required.");
+    error.code = "invalid_request";
+    throw error;
+  }
+
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  const response = await fetchBridgeRequest(`${bridgeUrl}/generate-image`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: JSON.stringify({
+      prompt,
+      referenceImage: cleanText(message?.referenceImage || ""),
+      model: config.codexModel,
+      reasoningEffort: config.codexReasoningEffort
+    })
+  }, {
+    operation: "image_generate"
+  });
+
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+  const data = await response.json();
+  if (!/^data:image\/[a-z0-9.+-]+;base64,/i.test(data?.dataUrl || "")) {
+    const error = new Error("Codex completed without returning an image.");
+    error.code = "image_generation_failed";
+    throw error;
+  }
+  return {
+    dataUrl: data.dataUrl,
+    mimeType: cleanText(data.mimeType || "image/png"),
+    revisedPrompt: cleanDraftText(data.revisedPrompt || "")
+  };
+}
+
 async function getReplyAiConfig() {
   const stored = await storageGet({ replyAiConfig: null });
   const rawConfig = stored.replyAiConfig || null;
@@ -682,28 +862,56 @@ function normalizeReplyAiConfig(config) {
   };
 
   normalized.configVersion = REPLY_AI_CONFIG_VERSION;
-  // The compact Codex settings page no longer exposes a separate enable
-  // switch; keep the draft actions available for migrated configurations.
-  normalized.enabled = true;
+  normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
   normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
   normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
   normalized.codexReasoningEffort = normalizeCodexReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
   normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
+  normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
+  normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
   normalized.generatePrompt = cleanDraftText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
 
   delete normalized.provider;
   delete normalized.codexModelPreset;
   delete normalized.prompt;
-  delete normalized.replyPromptProfiles;
   delete normalized.replyCount;
-  delete normalized.replyStyle;
   delete normalized.baseUrl;
   delete normalized.model;
   delete normalized.apiKey;
   delete normalized.gpu;
 
   return normalized;
+}
+
+function cloneDefaultReplyPromptProfiles() {
+  return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
+}
+
+function normalizeReplyPromptProfiles(value, legacyPrompt) {
+  const input = Array.isArray(value) ? value : [];
+  const legacy = cleanDraftText(legacyPrompt || "");
+  return cloneDefaultReplyPromptProfiles().map((fallback, index) => {
+    const raw = input[index] && typeof input[index] === "object" ? input[index] : {};
+    return {
+      label: cleanText(raw.label || raw.name || fallback.label).slice(0, 80) || fallback.label,
+      prompt: cleanDraftText(raw.prompt || (legacy && index === 0 ? legacy : "") || fallback.prompt).slice(0, 5000) || fallback.prompt
+    };
+  });
+}
+
+function normalizeReplyProfileIndex(value) {
+  const index = Number.parseInt(value, 10);
+  return Number.isFinite(index) ? Math.min(2, Math.max(0, index)) : 0;
+}
+
+function getReplyPromptProfile(config, profileIndex) {
+  return normalizeReplyPromptProfiles(config?.replyPromptProfiles)[normalizeReplyProfileIndex(profileIndex)] || DEFAULT_REPLY_PROMPT_PROFILES[0];
+}
+
+function normalizeReplyStyle(value) {
+  const style = cleanText(value).toLowerCase();
+  return ["auto", "humor", "sharp", "useful", "question"].includes(style) ? style : DEFAULT_REPLY_STYLE;
 }
 
 function normalizeCodexModel(value) {

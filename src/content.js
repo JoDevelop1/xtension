@@ -46,6 +46,7 @@
     correct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     translate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11.5 5c-.7 2.7-2.6 5.2-5.5 7.2M6.5 8.2c1 1.4 2.2 2.5 3.8 3.4M14 19l3.2-8 3.3 8M15.1 16.4h4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     generate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 13.8 8l5.2 1.8-5.2 1.8L12 16.8l-1.8-5.2L5 9.8 10.2 8 12 2.8ZM5.5 14.5l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4ZM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7L18 15Z" fill="currentColor"/></svg>',
+    image: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="9" r="1.5" fill="currentColor"/><path d="m5.5 17 4.2-4.2 3.1 3.1 2.2-2.2 3.5 3.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     suggestions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14M5 12h10M5 17.5h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M18 15.5 19.2 18l2.3 1-2.3 1-1.2 2.5-1.2-2.5-2.3-1 2.3-1 1.2-2.5Z" fill="currentColor"/></svg>',
     // Icônes Annuler/Rétablir : retournées verticalement (miroir sur l'axe
     // horizontal, matrix 1 0 0 -1 0 24) -> la flèche pointe toujours à gauche/
@@ -1674,6 +1675,11 @@
         unchangedFallback: "The generated reply did not change the draft."
       },
       {
+        id: "image",
+        labelKey: "imageGenerationButtonLabel",
+        fallback: "Image AI"
+      },
+      {
         id: "undo",
         labelKey: "draftUndoButtonLabel",
         fallback: "Undo"
@@ -2065,18 +2071,81 @@
   }
 
   async function showReplySuggestions(editor, tweet) {
-    // Suggestions de réponses retirées.
-    return;
+    const activeEditor = resolveLiveReplyEditor(editor) || editor;
+    if (await getReplySuggestionsHidden()) {
+      updateReplySuggestionsToggleButtons(activeEditor);
+      return;
+    }
+    if (activeEditor?._xtensionReplySuggestionsPromise) {
+      await activeEditor._xtensionReplySuggestionsPromise.catch(() => false);
+      return;
+    }
+    const panel = createReplySuggestionsPanel(activeEditor);
+    const generationPromise = (async () => {
+      setReplySuggestionsPanelLoading(panel, "preparing");
+      placeReplySuggestionsPanel(activeEditor, panel);
+      try {
+        const context = await collectReplySuggestionContext(tweet);
+        await showReplySuggestionsForContext(activeEditor, context, panel);
+      } catch (error) {
+        setReplySuggestionsPanelError(panel, "generation_failed", error?.message || "");
+      }
+    })();
+    activeEditor._xtensionReplySuggestionsPromise = generationPromise;
+    try {
+      await generationPromise;
+    } finally {
+      if (activeEditor._xtensionReplySuggestionsPromise === generationPromise) {
+        activeEditor._xtensionReplySuggestionsPromise = null;
+      }
+    }
   }
 
   async function showReplySuggestionsForDraftEditor(editor, options = {}) {
-    // Suggestions de réponses retirées.
-    return false;
+    const target = findEditableReplyEditor(editor) || editor;
+    if (options.force) {
+      await setReplySuggestionsHidden(false);
+    } else if (await getReplySuggestionsHidden()) {
+      updateReplySuggestionsToggleButtons(target);
+      return false;
+    }
+    const existingPanel = getReplySuggestionsPanelForEditor(target);
+    if (existingPanel && !options.force) {
+      showReplySuggestionsPanel(existingPanel, target);
+      attachReplySuggestionsPanel(target, existingPanel);
+      positionReplySuggestionsPanel(target, existingPanel);
+      return true;
+    }
+    if (existingPanel) removeReplySuggestionsPanel(existingPanel);
+    if (target?._xtensionReplySuggestionsPromise) {
+      await target._xtensionReplySuggestionsPromise.catch(() => false);
+      return true;
+    }
+    const generationPromise = showReplySuggestionsForDraftEditorOnce(target, options);
+    if (target) target._xtensionReplySuggestionsPromise = generationPromise;
+    try {
+      return await generationPromise;
+    } finally {
+      if (target?._xtensionReplySuggestionsPromise === generationPromise) {
+        target._xtensionReplySuggestionsPromise = null;
+      }
+    }
   }
 
   async function toggleReplySuggestionsForDraftEditor(editor) {
-    // Suggestions de réponses retirées.
-    return false;
+    const target = findEditableReplyEditor(editor) || editor;
+    const panel = getReplySuggestionsPanelForEditor(target);
+    if (panel) {
+      if (panel.hidden || await getReplySuggestionsHidden()) {
+        await setReplySuggestionsHidden(false);
+        showReplySuggestionsPanel(panel, target);
+        return true;
+      }
+      await hideReplySuggestionsPanel(panel, true);
+      return false;
+    }
+    await setReplySuggestionsHidden(false);
+    return showReplySuggestionsForDraftEditor(target, { instruction: getReplyEditorText(target) });
   }
 
   async function showReplySuggestionsForDraftEditorOnce(target, options = {}) {
@@ -4064,12 +4133,191 @@
 
   function normalizeDraftAction(action) {
     const value = cleanText(action).toLowerCase();
-    return ["dictate", "correct", "translate", "generate", "suggestions"].includes(value) ? value : "correct";
+    return ["dictate", "correct", "translate", "generate", "image", "suggestions"].includes(value) ? value : "correct";
   }
 
   function getDraftActionDefinition(action) {
     const actionId = normalizeDraftAction(action);
     return getDraftActionDefinitions().find((definition) => definition.id === actionId) || getDraftActionDefinitions()[0];
+  }
+
+  function openImageGenerationDialog(editor) {
+    document.querySelector("[data-xtension-imagegen-overlay]")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "xtension-imagegen-overlay";
+    overlay.setAttribute("data-xtension-imagegen-overlay", "true");
+
+    const dialog = document.createElement("section");
+    dialog.className = "xtension-imagegen-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-label", localizedText("imageGenerationTitle", "Generate an image with Codex"));
+
+    const header = document.createElement("div");
+    header.className = "xtension-imagegen-header";
+    const title = document.createElement("strong");
+    title.textContent = localizedText("imageGenerationTitle", "Generate an image with Codex");
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "xtension-imagegen-close";
+    close.setAttribute("aria-label", localizedText("imageGenerationClose", "Close"));
+    close.textContent = "×";
+    header.append(title, close);
+
+    const prompt = document.createElement("textarea");
+    prompt.className = "xtension-imagegen-prompt";
+    prompt.placeholder = localizedText("imageGenerationPromptPlaceholder", "Describe the image you want to create...");
+    prompt.maxLength = 5000;
+    prompt.value = getReplyEditorText(editor);
+
+    const referenceLabel = document.createElement("label");
+    referenceLabel.className = "xtension-imagegen-reference";
+    const referenceInput = document.createElement("input");
+    referenceInput.type = "checkbox";
+    const referenceText = document.createElement("span");
+    referenceText.textContent = localizedText("imageGenerationUsePostImage", "Use the first image in the post as a visual reference");
+    referenceLabel.append(referenceInput, referenceText);
+
+    const status = document.createElement("p");
+    status.className = "xtension-imagegen-status";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+
+    const preview = document.createElement("img");
+    preview.className = "xtension-imagegen-preview";
+    preview.alt = localizedText("imageGenerationPreviewAlt", "Image generated by Codex");
+    preview.hidden = true;
+
+    const actions = document.createElement("div");
+    actions.className = "xtension-imagegen-actions";
+    const generate = document.createElement("button");
+    generate.type = "button";
+    generate.className = "xtension-imagegen-primary";
+    generate.textContent = localizedText("imageGenerationGenerate", "Generate image");
+    const attach = document.createElement("button");
+    attach.type = "button";
+    attach.textContent = localizedText("imageGenerationAttach", "Add to post");
+    attach.hidden = true;
+    const download = document.createElement("button");
+    download.type = "button";
+    download.textContent = localizedText("imageGenerationDownload", "Download");
+    download.hidden = true;
+    actions.append(generate, attach, download);
+
+    dialog.append(header, prompt, referenceLabel, status, preview, actions);
+    overlay.append(dialog);
+    document.body.append(overlay);
+
+    const closeDialog = () => overlay.remove();
+    close.addEventListener("click", closeDialog);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) closeDialog();
+    });
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDialog();
+    });
+
+    generate.addEventListener("click", async () => {
+      const requestPrompt = cleanMultilineText(prompt.value);
+      if (!requestPrompt) {
+        status.dataset.tone = "error";
+        status.textContent = localizedText("imageGenerationPromptRequired", "Describe the image before generating it.");
+        prompt.focus();
+        return;
+      }
+      generate.disabled = true;
+      attach.hidden = true;
+      download.hidden = true;
+      preview.hidden = true;
+      status.dataset.tone = "loading";
+      status.textContent = localizedText("imageGenerationLoading", "Codex is generating the image. This may take a minute...");
+      try {
+        const referenceImage = referenceInput.checked ? await getImageGenerationReference(editor) : "";
+        const response = await sendRuntimeMessage({
+          type: "xtension-generate-image",
+          prompt: requestPrompt,
+          referenceImage
+        });
+        if (!response?.ok || !response?.image?.dataUrl) {
+          const error = new Error(response?.error || localizedText("imageGenerationFailed", "Unable to generate this image."));
+          error.code = response?.code || "";
+          throw error;
+        }
+        overlay._xtensionGeneratedImage = response.image;
+        preview.src = response.image.dataUrl;
+        preview.hidden = false;
+        attach.hidden = false;
+        download.hidden = false;
+        status.dataset.tone = "success";
+        status.textContent = localizedText("imageGenerationDone", "Image generated by Codex.");
+      } catch (error) {
+        status.dataset.tone = "error";
+        status.textContent = error?.message || localizedText("imageGenerationFailed", "Unable to generate this image.");
+      } finally {
+        generate.disabled = false;
+      }
+    });
+
+    attach.addEventListener("click", async () => {
+      const image = overlay._xtensionGeneratedImage;
+      const attached = image?.dataUrl ? await attachGeneratedImageToComposer(editor, image) : false;
+      status.dataset.tone = attached ? "success" : "error";
+      status.textContent = attached
+        ? localizedText("imageGenerationAttached", "Image added to the post.")
+        : localizedText("imageGenerationAttachFailed", "X did not accept the image. Download it, then add it manually.");
+    });
+
+    download.addEventListener("click", () => {
+      const image = overlay._xtensionGeneratedImage;
+      if (!image?.dataUrl) return;
+      const link = document.createElement("a");
+      link.href = image.dataUrl;
+      link.download = `xtension-codex-${Date.now()}.${mimeTypeToImageExtension(image.mimeType)}`;
+      link.click();
+    });
+    window.setTimeout(() => prompt.focus(), 0);
+  }
+
+  async function getImageGenerationReference(editor) {
+    try {
+      const context = await getReplyDraftContext(editor);
+      const media = Array.isArray(context?.mediaContext) ? context.mediaContext : [];
+      const firstImage = media.find((item) => item?.type === "image" && item.imageUrl);
+      if (!firstImage) return "";
+      const response = await sendRuntimeMessage({ type: "xtension-fetch-image", url: firstImage.imageUrl });
+      return response?.ok && response?.image?.dataUrl ? response.image.dataUrl : "";
+    } catch {
+      return "";
+    }
+  }
+
+  async function attachGeneratedImageToComposer(editor, image) {
+    try {
+      const response = await fetch(image.dataUrl);
+      const blob = await response.blob();
+      const composer = findReplyComposerContainer(editor) || editor?.closest?.('[role="dialog"]') || document;
+      const input = composer.querySelector?.('input[data-testid="fileInput"][type="file"], input[type="file"][accept*="image"]')
+        || document.querySelector('input[data-testid="fileInput"][type="file"]');
+      if (!input || typeof DataTransfer !== "function") return false;
+      const file = new File([blob], `xtension-codex-${Date.now()}.${mimeTypeToImageExtension(image.mimeType || blob.type)}`, {
+        type: image.mimeType || blob.type || "image/png"
+      });
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function mimeTypeToImageExtension(value) {
+    const mime = cleanText(value).toLowerCase();
+    if (mime.includes("jpeg")) return "jpg";
+    if (mime.includes("webp")) return "webp";
+    return "png";
   }
 
   async function getDraftGenerationLanguage() {
@@ -4228,6 +4476,11 @@
     // actions IA). N'affecte jamais l'état des boutons de correction.
     if (rawAction === "undo" || rawAction === "redo") {
       await navigateDraftHistory(target, rawAction);
+      return;
+    }
+
+    if (rawAction === "image") {
+      openImageGenerationDialog(target);
       return;
     }
 
@@ -9386,7 +9639,7 @@
     }
     document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
     document.querySelectorAll(".xtension-draft-language-menu").forEach((menu) => menu.remove());
-    document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast`).forEach((node) => node.remove());
+    document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast, [data-xtension-imagegen-overlay]`).forEach((node) => node.remove());
     document.querySelectorAll(`[${XTENSION_OVERLAY_ROOT_ATTRIBUTE}]`).forEach((root) => root.remove());
   }
 
