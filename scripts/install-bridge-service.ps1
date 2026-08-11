@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$package = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "package.json") | ConvertFrom-Json
+$expectedVersion = [string]$package.version
 
 if (-not $InstallerPath) {
   $InstallerPath = Join-Path $repoRoot "dist\XtensionBridgeSetup.exe"
@@ -36,5 +38,9 @@ $ping = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:47623/ping" -Timeou
 if (-not $ping.ok) {
   throw "The connector answered on the loopback port but reported an unexpected state."
 }
+if ([string]$ping.version -ne $expectedVersion) {
+  throw "Connector version mismatch after installation. Expected $expectedVersion, received $($ping.version)."
+}
 Write-Host "[OK] Per-user connector installed and answering on http://127.0.0.1:47623."
+Write-Host "     Version: $($ping.version)"
 Write-Host "     Open the Xtension options page to check the Codex and ChatGPT account status."

@@ -2,13 +2,13 @@ const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
 const { writeLocales } = require("./locales");
+const { version } = require("./version");
 
 const root = path.resolve(__dirname, "..");
 const src = path.join(root, "src");
 const assets = path.join(root, "assets");
 const browsers = path.join(root, "browsers");
 const dist = path.join(root, "dist");
-const version = "0.6.10";
 const contentMatches = [
   "https://x.com/*",
   "https://*.x.com/*",

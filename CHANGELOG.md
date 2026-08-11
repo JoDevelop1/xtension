@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.11
+
+- Adds a one-click **Copy logs** action. Diagnostic entries now live in a read-only text area, so selecting them cannot drag the selection through Refresh, Clear, or Save button labels.
+- Detects an outdated desktop connector instead of reporting it as healthy. The options page shows the installed connector version, highlights required updates, and AI actions stop with a clear update message when a legacy connector does not report a compatible version.
+- Removes the five-minute ImageGen cliff. The bounded generation timeout is now ten minutes, Codex turn errors are preserved, and the connector recovers the final image from the authoritative completed-turn payload when an individual item notification was missed.
+- Makes every release component use the version in `package.json`. The Windows installer now records its real built version instead of always displaying 0.6.5, and installation verifies the connector version returned by `/ping`.
+- Binds settings controls before network checks and caps connection-status requests at 15 seconds, so a stopped connector cannot make Save, tabs, or diagnostics appear frozen.
+- Aligns the options page with the v20 configuration migration and the `medium` reasoning default already used by the background worker and connector.
+
 ## v0.6.10
 
 - The download links in the extension and on the website now point straight at `github.com` instead of going through a redirect on the project domain. Users see where the binary comes from before they click, rather than discovering it after. The `xtension.jodevelop.com/dl/…` aliases keep working for older installs and for scripts.

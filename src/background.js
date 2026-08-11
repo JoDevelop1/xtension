@@ -2,6 +2,7 @@ const extensionApi = globalThis.chrome || globalThis.browser;
 const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
+const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 
 const REPLY_AI_CONFIG_VERSION = 20;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
@@ -49,7 +50,9 @@ const DIAGNOSTIC_LOG_STORAGE_KEY = "xtensionDiagnosticLogs";
 const DIAGNOSTIC_LOG_LIMIT = 160;
 const DIAGNOSTIC_LOG_STRING_LIMIT = 900;
 const BRIDGE_UNREACHABLE_CODE = "bridge_unreachable";
+const BRIDGE_COMPATIBILITY_CACHE_MS = 5 * 60 * 1000;
 let diagnosticLogWriteQueue = Promise.resolve();
+let bridgeCompatibilityCache = null;
 
 runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
@@ -284,6 +287,8 @@ async function streamDraftOperation(port, message) {
     error.code = "not_configured";
     throw error;
   }
+
+  await ensureCompatibleBridge(config, bridgeUrl);
 
   try {
     const finalText = await streamTransformFromBridge(config, bridgeUrl, {
@@ -690,6 +695,7 @@ async function warmupBridge() {
     return;
   }
   // Démarre le connecteur Codex et vérifie l'authentification ChatGPT. Best-effort.
+  await ensureCompatibleBridge(config, bridgeUrl);
   await fetchBridgeRequest(`${bridgeUrl}/warmup`, {
     method: "POST",
     headers: {
@@ -701,7 +707,7 @@ async function warmupBridge() {
     body: JSON.stringify({ model: config?.codexModel || DEFAULT_CODEX_MODEL })
   }, {
     operation: "warmup"
-  }).catch(() => {});
+  });
 }
 
 async function getReplyPromptProfilesForUi() {
@@ -727,6 +733,8 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
     error.code = "not_configured";
     throw error;
   }
+
+  await ensureCompatibleBridge(config, bridgeUrl);
 
   logAiRoute(config, "reply_profile", {
     profileIndex,
@@ -797,6 +805,7 @@ async function generateImageWithBridge(message) {
   const mood = normalizeImageVisualOption(message?.mood, ["auto", "bright", "warm", "cinematic", "minimal"]);
 
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  await ensureCompatibleBridge(config, bridgeUrl);
   const response = await fetchBridgeRequest(`${bridgeUrl}/generate-image`, {
     method: "POST",
     headers: {
@@ -955,6 +964,8 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
     throw error;
   }
 
+  await ensureCompatibleBridge(config, bridgeUrl);
+
   const response = await fetchBridgeRequest(`${bridgeUrl}/transform`, {
     method: "POST",
     headers: {
@@ -982,6 +993,67 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
 
   const data = await response.json();
   return sanitizeGeneratedReplyText(data?.text || data?.correctedText || data?.translatedText || data?.generatedText || "");
+}
+
+async function ensureCompatibleBridge(config, bridgeUrl) {
+  const normalizedUrl = normalizeCodexBridgeUrl(bridgeUrl || config?.codexBridgeUrl);
+  if (!normalizedUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const now = Date.now();
+  if (bridgeCompatibilityCache
+      && bridgeCompatibilityCache.url === normalizedUrl
+      && bridgeCompatibilityCache.compatible
+      && now - bridgeCompatibilityCache.checkedAt < BRIDGE_COMPATIBILITY_CACHE_MS) {
+    return bridgeCompatibilityCache.version;
+  }
+
+  const response = await fetchBridgeRequest(`${normalizedUrl}/ping`, {
+    method: "GET",
+    headers: buildBridgeAuthHeaders(config)
+  }, {
+    operation: "connector_version_check"
+  });
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+
+  const data = await response.json().catch(() => ({}));
+  const version = cleanText(data?.version || data?.connectorVersion || "");
+  const compatible = !EXTENSION_VERSION || (version && compareVersions(version, EXTENSION_VERSION) >= 0);
+  bridgeCompatibilityCache = { url: normalizedUrl, checkedAt: now, version, compatible };
+  if (!compatible) {
+    appendDiagnosticLog({
+      level: "error",
+      area: "ai",
+      event: "connector_update_required",
+      expectedVersion: EXTENSION_VERSION,
+      installedVersion: version || "unknown"
+    }).catch(() => {});
+    throw createBridgeUpdateError(version);
+  }
+  return version;
+}
+
+function createBridgeUpdateError(version) {
+  const installed = cleanText(version || "") || "unknown";
+  const error = new Error(`Update the Xtension connector (installed: ${installed}, required: ${EXTENSION_VERSION || "latest"}).`);
+  error.code = "bridge_update_required";
+  return error;
+}
+
+function compareVersions(left, right) {
+  const parse = (value) => String(value || "").split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const difference = (a[index] || 0) - (b[index] || 0);
+    if (difference) return difference;
+  }
+  return 0;
 }
 
 async function fetchBridgeRequest(url, options, details = {}) {

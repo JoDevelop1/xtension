@@ -12,6 +12,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
+const { version: CODEX_CLIENT_VERSION } = require("./version");
 
 const hostname = "127.0.0.1";
 const port = Number(process.env.XTENSION_BRIDGE_PORT || 47623);
@@ -28,13 +29,16 @@ const CODEX_MODEL = "gpt-5.6-luna";
 const CODEX_REASONING_EFFORT = "medium";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
-const CODEX_CLIENT_VERSION = "0.6.10";
-const CODEX_TURN_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_TIMEOUT_MS || 180000);
-const CODEX_IMAGE_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_IMAGE_TIMEOUT_MS || 300000);
-const CODEX_START_TIMEOUT_MS = Number(process.env.XTENSION_CODEX_START_TIMEOUT_MS || 20000);
+const CODEX_TURN_TIMEOUT_MS = readDurationSetting("XTENSION_CODEX_TIMEOUT_MS", 180000, 10000, 30 * 60 * 1000);
+// ImageGen can legitimately remain silent for several minutes between its
+// item/started and item/completed notifications. Five minutes proved too short
+// in real use, so keep a bounded ten-minute safety net instead of interrupting
+// an otherwise healthy generation at an arbitrary five-minute boundary.
+const CODEX_IMAGE_TIMEOUT_MS = readDurationSetting("XTENSION_CODEX_IMAGE_TIMEOUT_MS", 10 * 60 * 1000, 60000, 30 * 60 * 1000);
+const CODEX_START_TIMEOUT_MS = readDurationSetting("XTENSION_CODEX_START_TIMEOUT_MS", 20000, 1000, 2 * 60 * 1000);
 // Durée de validité du cache de compte. Assez court pour refléter une
 // déconnexion, assez long pour sortir le rafraîchissement du chemin critique.
-const CODEX_ACCOUNT_CACHE_MS = Number(process.env.XTENSION_CODEX_ACCOUNT_CACHE_MS || 10 * 60 * 1000);
+const CODEX_ACCOUNT_CACHE_MS = readDurationSetting("XTENSION_CODEX_ACCOUNT_CACHE_MS", 10 * 60 * 1000, 1000, 60 * 60 * 1000);
 // Au-delà, le fil préparé est considéré comme périmé et recréé.
 const CODEX_SPARE_THREAD_TTL_MS = 10 * 60 * 1000;
 const CODEX_RUNTIME_DIR = path.join(getBridgeDataDir(), "codex-workspace");
@@ -317,6 +321,7 @@ class CodexAppServerClient {
     if (referenceImage) input.push({ type: "image", url: referenceImage });
 
     let imageItem = null;
+    let turnError = null;
     let completed = false;
     let turnId = "";
     let resolveCompletion;
@@ -331,13 +336,19 @@ class CodexAppServerClient {
         imageItem = message.params.item;
         return;
       }
+      if (message.method === "error" && (!turnId || message.params?.turnId === turnId)) {
+        turnError = message.params?.error || turnError;
+        return;
+      }
       if (message.method === "turn/completed") {
         completed = true;
-        const status = cleanText(message.params?.turn?.status || "completed");
+        const turn = message.params?.turn || {};
+        const status = cleanText(turn.status || "completed");
+        imageItem = imageItem || findImageGenerationItem(turn.items);
         if (status !== "completed") {
-          rejectCompletion(createBridgeError(`Codex image generation ended with status ${status}.`, {
-            code: "image_generation_failed",
-            statusCode: 502
+          rejectCompletion(createCodexTurnError(turn.error || turnError, {
+            fallbackMessage: `Codex image generation ended with status ${status}.`,
+            fallbackCode: "image_generation_failed"
           }));
         } else {
           resolveCompletion(imageItem);
@@ -461,6 +472,7 @@ class CodexAppServerClient {
     }
 
     let fullText = "";
+    let turnError = null;
     let completed = false;
     let turnId = "";
     let resolveCompletion;
@@ -497,13 +509,19 @@ class CodexAppServerClient {
         return;
       }
 
+      if (message.method === "error" && (!turnId || message.params?.turnId === turnId)) {
+        turnError = message.params?.error || turnError;
+        return;
+      }
+
       if (message.method === "turn/completed") {
         completed = true;
-        const status = cleanText(message.params?.turn?.status || "completed");
+        const turn = message.params?.turn || {};
+        const status = cleanText(turn.status || "completed");
         if (status !== "completed") {
-          rejectCompletion(createBridgeError(`Codex turn ended with status ${status}.`, {
-            code: "codex_turn_failed",
-            statusCode: 502
+          rejectCompletion(createCodexTurnError(turn.error || turnError, {
+            fallbackMessage: `Codex turn ended with status ${status}.`,
+            fallbackCode: "codex_turn_failed"
           }));
         } else {
           resolveCompletion(fullText);
@@ -693,7 +711,7 @@ const server = http.createServer(async (request, response) => {
     // Vitalite seule : aucune donnee de compte, joignable par les scripts
     // d'installation qui n'ont pas d'origine d'extension a presenter.
     if (request.method === "GET" && pathname === "/ping") {
-      sendJson(response, 200, { ok: true, service: "xtension-bridge" });
+      sendJson(response, 200, { ok: true, service: "xtension-bridge", version: CODEX_CLIENT_VERSION });
       return;
     }
 
@@ -793,6 +811,8 @@ const server = http.createServer(async (request, response) => {
         throw createBridgeError("An image prompt is required.", { code: "invalid_request", statusCode: 400 });
       }
       const startedAt = Date.now();
+      const requestId = createRequestId();
+      logBridgeEvent("request_started", { requestId, operation: "image_generate" });
       const result = await codex.generateImage({
         prompt,
         referenceImage: normalizeImageDataUrl(payload?.referenceImage),
@@ -1038,6 +1058,8 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
 async function getHealthStatus() {
   const base = {
     ok: true,
+    version: CODEX_CLIENT_VERSION,
+    connectorVersion: CODEX_CLIENT_VERSION,
     engine: "codex",
     defaultProvider: "openai-codex",
     provider: "openai-codex",
@@ -1374,6 +1396,41 @@ function normalizeImageGenerationResult(item, imageFormat = IMAGE_FORMATS["1:1"]
   };
 }
 
+function findImageGenerationItem(items) {
+  if (!Array.isArray(items)) return null;
+  return [...items].reverse().find((item) => item?.type === "imageGeneration") || null;
+}
+
+function createCodexTurnError(turnError, { fallbackMessage, fallbackCode }) {
+  const message = cleanText(turnError?.message || turnError?.additionalDetails || fallbackMessage)
+    || "Codex request failed.";
+  const errorInfo = turnError?.codexErrorInfo;
+  const normalizedInfo = typeof errorInfo === "string"
+    ? errorInfo
+    : cleanText(Object.keys(errorInfo || {})[0] || "");
+  const statusCode = extractCodexHttpStatus(errorInfo) || 502;
+  let code = fallbackCode || "codex_turn_failed";
+  if (/unauthorized/i.test(normalizedInfo) || statusCode === 401 || statusCode === 403) {
+    code = "provider_login_required";
+  } else if (/usageLimit|sessionBudget/i.test(normalizedInfo) || statusCode === 429) {
+    code = "codex_usage_limit";
+  } else if (/serverOverloaded|responseTooManyFailedAttempts/i.test(normalizedInfo)) {
+    code = "codex_overloaded";
+  } else if (/Connection|Disconnected/i.test(normalizedInfo)) {
+    code = "codex_connection_failed";
+  }
+  return createBridgeError(message, { code, statusCode });
+}
+
+function extractCodexHttpStatus(errorInfo) {
+  if (!errorInfo || typeof errorInfo !== "object") return 0;
+  for (const value of Object.values(errorInfo)) {
+    const status = Number(value?.httpStatusCode);
+    if (Number.isInteger(status) && status >= 400 && status <= 599) return status;
+  }
+  return 0;
+}
+
 function readPngDimensions(dataUrl) {
   if (!/^data:image\/png;base64,/i.test(dataUrl || "")) return { width: 0, height: 0 };
   try {
@@ -1448,8 +1505,18 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function readDurationSetting(name, fallback, minimum, maximum) {
+  const raw = cleanText(process.env[name] || "");
+  if (!raw) return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value)
+    ? Math.min(maximum, Math.max(minimum, Math.round(value)))
+    : fallback;
+}
+
 // La connexion HTTP doit survivre à la plus longue opération possible. La
-// génération d'image peut durer jusqu'à CODEX_IMAGE_TIMEOUT_MS (5 min) : avec
+// génération d'image peut durer jusqu'à CODEX_IMAGE_TIMEOUT_MS (10 min par
+// défaut) : avec
 // l'ancien plafond de 240 s, une image longue était bel et bien produite par
 // Codex mais la réponse arrivait sur une connexion déjà fermée, et l'utilisateur
 // ne voyait jamais son image malgré un "request_done" dans le journal.

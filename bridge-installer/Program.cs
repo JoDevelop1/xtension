@@ -16,6 +16,7 @@ internal static class Program
     private const int DefaultPort = 47623;
     private const string RunRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string UninstallRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\XtensionBridge";
+    private static readonly string ProductVersion = GetProductVersion();
 
     private static int Main(string[] args)
     {
@@ -351,7 +352,7 @@ internal static class Program
         using var key = Registry.CurrentUser.CreateSubKey(UninstallRegistryKey, true)
             ?? throw new InvalidOperationException("Unable to create the uninstall entry.");
         key.SetValue("DisplayName", ProductName);
-        key.SetValue("DisplayVersion", "0.6.5");
+        key.SetValue("DisplayVersion", ProductVersion);
         key.SetValue("Publisher", "NOVA2G");
         key.SetValue("InstallLocation", installDir);
         key.SetValue("DisplayIcon", installedSetup);
@@ -368,6 +369,16 @@ internal static class Program
             ? Directory.EnumerateFiles(installDir, "*", SearchOption.AllDirectories).Select(file => new FileInfo(file).Length).Sum()
             : 0;
         return (int)Math.Min(int.MaxValue, Math.Max(1, bytes / 1024));
+    }
+
+    private static string GetProductVersion()
+    {
+        var informational = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        var version = (informational ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0")
+            .Split('+', 2)[0];
+        return string.IsNullOrWhiteSpace(version) ? "0.0.0" : version;
     }
 
     private static async Task<string> WaitForProvidersAsync()

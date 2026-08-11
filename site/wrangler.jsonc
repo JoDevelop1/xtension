@@ -14,7 +14,7 @@
   // le Worker ne fait que rediriger vers l'asset de la dernière release.
   "vars": {
     // Utilisée uniquement si l'API GitHub est indisponible ou limitée en débit.
-    "FALLBACK_VERSION": "0.6.10"
+    "FALLBACK_VERSION": "0.6.11"
   },
   "routes": [
     {

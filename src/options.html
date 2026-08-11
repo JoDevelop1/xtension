@@ -146,10 +146,11 @@
             <legend data-i18n="optionsLogsTitle">Diagnostic logs</legend>
             <p class="field-note" data-i18n="optionsLogsHint">The latest AI operations are stored locally without full prompts or post text.</p>
             <div class="inline-actions">
+              <button id="reply-ai-logs-copy" type="button" class="secondary" data-i18n="optionsLogsCopy">Copy logs</button>
               <button id="reply-ai-logs-refresh" type="button" class="secondary" data-i18n="optionsLogsRefresh">Refresh logs</button>
               <button id="reply-ai-logs-clear" type="button" class="secondary danger" data-i18n="optionsLogsClear">Clear logs</button>
             </div>
-            <pre id="reply-ai-logs-output" class="diagnostic-log-output" tabindex="0"></pre>
+            <textarea id="reply-ai-logs-output" class="diagnostic-log-output" readonly spellcheck="false" aria-label="Diagnostic logs"></textarea>
           </fieldset>
         </section>
 

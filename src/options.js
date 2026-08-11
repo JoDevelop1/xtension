@@ -5,11 +5,13 @@
   const runtimeApi = extensionApi?.runtime;
   const i18nApi = extensionApi?.i18n;
   const storageApi = extensionApi?.storage?.local;
+  const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
+  const BRIDGE_STATUS_TIMEOUT_MS = 15000;
 
-  const REPLY_AI_CONFIG_VERSION = 19;
+  const REPLY_AI_CONFIG_VERSION = 20;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
-  const DEFAULT_CODEX_REASONING_EFFORT = "max";
+  const DEFAULT_CODEX_REASONING_EFFORT = "medium";
   const CODEX_REASONING_ORDER = ["low", "medium", "high", "xhigh", "max", "ultra"];
   const FALLBACK_CODEX_MODELS = [
     { model: "gpt-5.6-sol", displayName: "GPT-5.6 Sol", supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
@@ -59,6 +61,8 @@
   const loginButton = document.querySelector("#reply-ai-login");
   const logoutButton = document.querySelector("#reply-ai-logout");
   const installConnectorLink = document.querySelector("#reply-ai-install-connector");
+  const connectorDownload = installConnectorLink?.closest(".bridge-download");
+  const logsCopyButton = document.querySelector("#reply-ai-logs-copy");
   const logsRefreshButton = document.querySelector("#reply-ai-logs-refresh");
   const logsClearButton = document.querySelector("#reply-ai-logs-clear");
   const logsOutput = document.querySelector("#reply-ai-logs-output");
@@ -66,14 +70,13 @@
   const tabPanels = Array.from(document.querySelectorAll(".settings-tab-panel"));
   const statusBaseClass = statusElement?.className || "options-status";
   let modelCatalog = [...FALLBACK_CODEX_MODELS];
+  let diagnosticLogText = "";
 
   document.addEventListener("DOMContentLoaded", start, { once: true });
 
   async function start() {
     localizePage();
     setupTabs();
-    await loadConfig();
-    await refreshCodexStatus();
 
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -94,6 +97,10 @@
 
     codexModelInput?.addEventListener("change", () => {
       applyReasoningOptions(codexModelInput.value, codexReasoningInput?.value);
+    });
+
+    logsCopyButton?.addEventListener("click", async () => {
+      await copyDiagnosticLogs();
     });
 
     logsRefreshButton?.addEventListener("click", async () => {
@@ -117,6 +124,11 @@
       setPromptProfileInputs(cloneDefaultReplyPromptProfiles());
       showStatus(localizedText("optionsPromptsReset", "Default prompts restored. Save to apply them."), "");
     });
+
+    // Bind every control before touching the network. A stopped or wedged
+    // connector must never make Save, tabs, or diagnostics appear broken.
+    await loadConfig();
+    await refreshCodexStatus();
   }
 
   function localizePage() {
@@ -214,7 +226,9 @@
       renderCodexStatus(data);
       await refreshCodexModels(config);
       renderCodexStatus(data);
-      if (isCodexAuthenticated(data)) {
+      if (isConnectorUpdateRequired(data)) {
+        showStatus(localizedText("optionsCodexUpdateRequired", "Update the Xtension connector before using Codex."), "error");
+      } else if (isCodexAuthenticated(data)) {
         showStatus(localizedText("optionsCodexConnected", "Connected to OpenAI Codex."), "success");
       } else {
         showStatus(localizedText("optionsCodexAccountRequired", "Connect your ChatGPT account to use OpenAI Codex."), "error");
@@ -237,6 +251,7 @@
       renderCodexStatus(data);
       return data;
     } catch (error) {
+      setConnectorDownloadState(false);
       setConnectionState("unavailable", localizedText("optionsCodexUnavailableBadge", "Codex unavailable"));
       setEngineStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
       setAccountStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
@@ -249,6 +264,9 @@
   function renderCodexStatus(data) {
     const codexInstalled = Boolean(data?.codex?.installed);
     const authenticated = isCodexAuthenticated(data);
+    const connectorVersion = getConnectorVersion(data);
+    const updateRequired = codexInstalled && isConnectorUpdateRequired(data);
+    setConnectorDownloadState(updateRequired);
     const selectedModel = getSelectedModel() || cleanText(data?.model || DEFAULT_CODEX_MODEL);
     const modelEntry = modelCatalog.find((item) => item.model === selectedModel);
     const modelName = modelEntry?.displayName || selectedModel;
@@ -263,6 +281,19 @@
       return;
     }
 
+    if (updateRequired) {
+      setConnectionState("outdated", localizedText("optionsCodexUpdateBadge", "Update required"));
+      setEngineStatus(localizedText(
+        "optionsCodexUpdateRequiredVersion",
+        "This connector is outdated or does not report its version. Install v{version} to match the extension."
+      ).replace("{version}", EXTENSION_VERSION || "latest"));
+      setAccountStatus(authenticated
+        ? localizedText("optionsCodexAccountConnected", "ChatGPT account connected.")
+        : localizedText("optionsCodexAccountRequired", "Connect your ChatGPT account to use OpenAI Codex."));
+      setLoginButtons({ authenticated, busy: false, available: false });
+      return;
+    }
+
     if (!authenticated) {
       setConnectionState("signed-out", localizedText("optionsCodexDisconnectedBadge", "Not connected"));
       setEngineStatus(localizedText("optionsCodexAccountRequired", "ChatGPT sign-in is required before using Codex."));
@@ -273,14 +304,49 @@
 
     const plan = cleanText(data?.auth?.planType || data?.planType || "");
     const planText = plan ? ` (${plan})` : "";
+    const connectorText = connectorVersion
+      ? ` ${localizedText("optionsCodexConnectorVersion", "Connector v{version}.").replace("{version}", connectorVersion)}`
+      : "";
     setConnectionState("connected", localizedText("optionsCodexConnectedBadge", "Connected to ChatGPT"));
-    setEngineStatus(`${localizedText("optionsCodexConnected", "Connected to OpenAI Codex.")} ${modelLabel}`);
+    setEngineStatus(`${localizedText("optionsCodexConnected", "Connected to OpenAI Codex.")} ${modelLabel}${connectorText}`);
     setAccountStatus(`${localizedText("optionsCodexAccountConnected", "ChatGPT account connected.")}${planText}`);
     setLoginButtons({ authenticated: true, busy: false, available: true });
   }
 
   function isCodexAuthenticated(data) {
     return Boolean(data?.auth?.authenticated ?? data?.authenticated);
+  }
+
+  function getConnectorVersion(data) {
+    return cleanText(data?.connectorVersion || data?.connector?.version || data?.version || "");
+  }
+
+  function isConnectorUpdateRequired(data) {
+    if (!EXTENSION_VERSION) return false;
+    const connectorVersion = getConnectorVersion(data);
+    return !connectorVersion || compareVersions(connectorVersion, EXTENSION_VERSION) < 0;
+  }
+
+  function compareVersions(left, right) {
+    const parse = (value) => String(value || "").split(".").map((part) => Number.parseInt(part, 10) || 0);
+    const a = parse(left);
+    const b = parse(right);
+    for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+      const difference = (a[index] || 0) - (b[index] || 0);
+      if (difference) return difference;
+    }
+    return 0;
+  }
+
+  function setConnectorDownloadState(updateRequired) {
+    if (connectorDownload) {
+      connectorDownload.dataset.state = updateRequired ? "outdated" : "current";
+    }
+    if (installConnectorLink) {
+      installConnectorLink.textContent = updateRequired
+        ? localizedText("optionsCodexUpdateConnector", "Update connector")
+        : localizedText("optionsCodexInstallOrUpdate", "Install or update");
+    }
   }
 
   async function refreshCodexModels(config = getFormConfig()) {
@@ -485,10 +551,17 @@
 
   async function fetchBridgeJson(url, options = {}) {
     let response;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), BRIDGE_STATUS_TIMEOUT_MS);
     try {
-      response = await fetch(url, options);
-    } catch {
+      response = await fetch(url, { ...options, signal: options.signal || controller.signal });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        throw new Error(localizedText("optionsCodexConnectorTimeout", "The Codex connector did not answer in time."));
+      }
       throw new Error(localizedText("optionsCodexConnectorMissing", "The Codex connector is not reachable."));
+    } finally {
+      clearTimeout(timer);
     }
 
     const data = await response.json().catch(() => ({}));
@@ -506,7 +579,9 @@
       return;
     }
 
-    logsOutput.textContent = localizedText("optionsLogsLoading", "Loading logs...");
+    diagnosticLogText = "";
+    setDiagnosticLogOutput(localizedText("optionsLogsLoading", "Loading logs..."));
+    if (logsCopyButton) logsCopyButton.disabled = true;
     const response = await runtimeSendMessage({ type: "xtension-get-diagnostic-logs" });
     if (!response?.ok) {
       throw new Error(response?.error || localizedText("optionsLogsLoadFailed", "Unable to load logs."));
@@ -523,20 +598,64 @@
     showStatus(localizedText("optionsLogsCleared", "Logs cleared."), "success");
   }
 
+  async function copyDiagnosticLogs() {
+    if (!diagnosticLogText) {
+      showStatus(localizedText("optionsLogsNothingToCopy", "There are no diagnostic logs to copy."), "");
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(diagnosticLogText);
+      } else if (!copyLogsWithSelection()) {
+        throw new Error("Clipboard API unavailable");
+      }
+      showStatus(localizedText("optionsLogsCopied", "Logs copied to the clipboard."), "success");
+    } catch {
+      if (copyLogsWithSelection()) {
+        showStatus(localizedText("optionsLogsCopied", "Logs copied to the clipboard."), "success");
+        return;
+      }
+      showStatus(localizedText("optionsLogsCopyFailed", "Unable to copy the logs."), "error");
+    }
+  }
+
+  function copyLogsWithSelection() {
+    if (!logsOutput?.select || !document.execCommand) return false;
+    logsOutput.focus();
+    logsOutput.select();
+    return Boolean(document.execCommand("copy"));
+  }
+
   function renderDiagnosticLogs(logs) {
     if (!logsOutput) {
       return;
     }
     if (!Array.isArray(logs) || logs.length === 0) {
-      logsOutput.textContent = localizedText("optionsLogsEmpty", "No diagnostic logs yet.");
+      diagnosticLogText = "";
+      setDiagnosticLogOutput(localizedText("optionsLogsEmpty", "No diagnostic logs yet."));
+      if (logsCopyButton) logsCopyButton.disabled = true;
       return;
     }
-    logsOutput.textContent = logs.map(formatDiagnosticLogEntry).join("\n");
+    diagnosticLogText = logs.map(formatDiagnosticLogEntry).join("\n");
+    setDiagnosticLogOutput(diagnosticLogText);
+    if (logsCopyButton) logsCopyButton.disabled = false;
   }
 
   function renderDiagnosticLogsError(error) {
+    diagnosticLogText = "";
     if (logsOutput) {
-      logsOutput.textContent = error?.message || localizedText("optionsLogsLoadFailed", "Unable to load logs.");
+      setDiagnosticLogOutput(error?.message || localizedText("optionsLogsLoadFailed", "Unable to load logs."));
+    }
+    if (logsCopyButton) logsCopyButton.disabled = true;
+  }
+
+  function setDiagnosticLogOutput(value) {
+    if (!logsOutput) return;
+    if ("value" in logsOutput) {
+      logsOutput.value = value || "";
+    } else {
+      logsOutput.textContent = value || "";
     }
   }
 
@@ -590,6 +709,9 @@
     normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
     normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
     normalized.codexReasoningEffort = normalizeReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
+    if (Number(rawConfig.configVersion) < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+      normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
+    }
     normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
     normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
     normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);

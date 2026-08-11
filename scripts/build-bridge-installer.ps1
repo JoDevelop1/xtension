@@ -12,6 +12,11 @@ $payloadRoot = Join-Path $distDir "bridge-installer-payload"
 $payloadDir = Join-Path $payloadRoot "payload"
 $payloadZip = Join-Path $payloadRoot "XtensionBridgePayload.zip"
 $installerProject = Join-Path $repoRoot "bridge-installer\Xtension.Bridge.Installer.csproj"
+$package = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "package.json") | ConvertFrom-Json
+$version = [string]$package.version
+if ($version -notmatch '^\d+\.\d+\.\d+$') {
+  throw "Invalid Xtension version in package.json: $version"
+}
 
 if (-not $OutputDir) {
   $OutputDir = Join-Path $distDir "bridge-installer"
@@ -41,7 +46,7 @@ Copy-Item -LiteralPath $bridgeExe -Destination (Join-Path $payloadDir "XtensionB
 Copy-Item -LiteralPath $hostExe -Destination (Join-Path $payloadDir "XtensionBridgeHost.exe") -Force
 Compress-Archive -Path (Join-Path $payloadDir "*") -DestinationPath $payloadZip -Force
 
-dotnet publish $installerProject -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=false -o $OutputDir
+dotnet publish $installerProject -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=false -p:Version=$version -p:InformationalVersion=$version -o $OutputDir
 if ($LASTEXITCODE -ne 0) {
   throw "Installer publish failed with exit code $LASTEXITCODE"
 }
@@ -51,4 +56,4 @@ if (-not (Test-Path -LiteralPath $installerExe -PathType Leaf)) {
   throw "Installer executable was not created: $installerExe"
 }
 
-Write-Host "[OK] Built unsigned installer: $installerExe"
+Write-Host "[OK] Built unsigned installer v$version`: $installerExe"

@@ -3544,7 +3544,10 @@
   }
 
   function isReplyAiSetupErrorCode(code) {
-    return code === "not_configured" || code === "bridge_unreachable" || code === "provider_login_required";
+    return code === "not_configured"
+      || code === "bridge_unreachable"
+      || code === "bridge_update_required"
+      || code === "provider_login_required";
   }
 
   function getReplyAiSetupErrorMessage(code) {
@@ -3553,6 +3556,9 @@
     }
     if (code === "bridge_unreachable") {
       return localizedText("replyAiBridgeUnavailable", "The Xtension Codex connector is not reachable. Open Xtension options, install or restart it, then try again.");
+    }
+    if (code === "bridge_update_required") {
+      return localizedText("replyAiBridgeUpdateRequired", "Update the Xtension Codex connector in the extension options, then try again.");
     }
 
     return localizedText("replyAiNotConfigured", "Configure the OpenAI Codex connector in Xtension options first.");
@@ -4359,7 +4365,7 @@
       } catch (error) {
         status.dataset.tone = "error";
         const seconds = Math.round((Date.now() - startedAt) / 1000);
-        const message = error?.message || localizedText("imageGenerationFailed", "Unable to generate this image.");
+        const message = getImageGenerationErrorMessage(error);
         // Le temps écoulé situe l'échec : coupure immédiate (connecteur arrêté)
         // ou abandon après une longue génération.
         status.textContent = `${message} (${seconds} s)`;
@@ -4392,6 +4398,26 @@
       link.click();
     });
     window.setTimeout(() => prompt.focus(), 0);
+  }
+
+  function getImageGenerationErrorMessage(error) {
+    const code = cleanText(error?.code || "").toLowerCase();
+    if (code === "codex_timeout") {
+      return localizedText("imageGenerationTimeout", "Codex did not finish this generation in time. No post was changed; try again.");
+    }
+    if (code === "codex_overloaded" || code === "codex_usage_limit") {
+      return localizedText("imageGenerationBusy", "Image generation is temporarily unavailable for this Codex account. Try again shortly.");
+    }
+    if (code === "bridge_unreachable") {
+      return localizedText("replyAiBridgeUnavailable", "The Xtension Codex connector is not reachable. Open Xtension options, install or restart it, then try again.");
+    }
+    if (code === "bridge_update_required") {
+      return localizedText("replyAiBridgeUpdateRequired", "Update the Xtension Codex connector in the extension options, then try again.");
+    }
+    if (code === "provider_login_required") {
+      return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then try again.");
+    }
+    return error?.message || localizedText("imageGenerationFailed", "Unable to generate this image.");
   }
 
   async function getImageGenerationReference(editor) {
