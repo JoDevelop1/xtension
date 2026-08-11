@@ -20,6 +20,7 @@ const port = Number(process.env.XTENSION_BRIDGE_PORT || 47623);
 const maxBodyBytes = 128 * 1024;
 const maxTransformBodyBytes = 6 * 1024 * 1024;
 const maxImageGenerationBodyBytes = 10 * 1024 * 1024;
+const maxReferenceImageDataUrlBytes = 19 * 512 * 1024;
 // Frappe clavier OS native (/type) : disponible seulement sur Windows (SendInput
 // via le helper XtensionInput.exe). Le texte est court (une reponse X) et un seul
 // envoi peut etre en vol a la fois, sinon deux rafales de touches se melangeraient
@@ -864,12 +865,25 @@ const server = http.createServer(async (request, response) => {
       if (!prompt) {
         throw createBridgeError("An image prompt is required.", { code: "invalid_request", statusCode: 400 });
       }
+      const referenceImageRequired = payload?.referenceImageRequired === true;
+      const referenceImage = normalizeImageDataUrl(payload?.referenceImage);
+      if (referenceImageRequired && !referenceImage) {
+        throw createBridgeError("The selected post image was not received as a supported image.", {
+          code: "image_reference_required",
+          statusCode: 400
+        });
+      }
       const startedAt = Date.now();
       const requestId = createRequestId();
-      logBridgeEvent("request_started", { requestId, operation: "image_generate" });
+      logBridgeEvent("request_started", {
+        requestId,
+        operation: "image_generate",
+        referenceImageRequired,
+        hasReferenceImage: Boolean(referenceImage)
+      });
       const result = await codex.generateImage({
         prompt,
-        referenceImage: normalizeImageDataUrl(payload?.referenceImage),
+        referenceImage,
         aspectRatio: payload?.aspectRatio,
         visualStyle: payload?.visualStyle,
         framing: payload?.framing,
@@ -1658,7 +1672,7 @@ function normalizeDraftTransformOperation(value) {
 
 function normalizeImageDataUrl(value) {
   const image = cleanText(value || "");
-  return /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(image) && image.length <= 5 * 1024 * 1024
+  return /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(image) && image.length <= maxReferenceImageDataUrlBytes
     ? image
     : "";
 }

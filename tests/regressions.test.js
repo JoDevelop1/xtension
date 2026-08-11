@@ -101,6 +101,36 @@ test("image generation no longer has a five-minute default cutoff", () => {
   assert.match(bridge, /message\.method === "error"/);
 });
 
+test("image generation preloads the first post photo and never drops a selected reference silently", () => {
+  const content = read("src/content.js");
+  const background = read("src/background.js");
+  const bridge = read("scripts/xtension-ai-bridge.js");
+
+  assert.match(content, /referenceInput\.type = "checkbox";\s+referenceInput\.checked = true;/);
+  assert.match(content, /loadReferenceImage\(\)\.catch/);
+  assert.match(content, /xtension-imagegen-reference-preview/);
+  assert.match(content, /hostname\.toLowerCase\(\) !== "pbs\.twimg\.com"/);
+  assert.match(content, /!\/\^\\\/media\\\//);
+  assert.match(content, /getImageGenerationTweetCandidates/);
+  assert.match(content, /statusUrl && statusUrl === primaryStatusUrl/);
+  assert.match(content, /document\.addEventListener\("click", rememberReplyImageReference, true\)/);
+  assert.match(content, /button\[data-testid="reply"\]/);
+  assert.match(content, /getRememberedReplyImageReference\(tweetCandidates\[0\]\)/);
+  assert.match(content, /referenceImageRequired: referenceInput\.checked/);
+  assert.match(content, /error\.code = "image_reference_missing"/);
+  assert.match(content, /error\.code = "image_reference_download_failed"/);
+
+  assert.match(background, /referenceImageRequested: Boolean\(message\.referenceImageRequired\)/);
+  assert.match(background, /if \(referenceImageRequired && !referenceImage\)/);
+  assert.match(background, /referenceImageRequired,/);
+  assert.match(background, /MAX_FETCHED_IMAGE_BYTES/);
+  assert.match(background, /\^image\\\/\(\?:png\|jpe\?g\|webp\|gif\)\$/);
+
+  assert.match(bridge, /const referenceImageRequired = payload\?\.referenceImageRequired === true/);
+  assert.match(bridge, /referenceImageRequired && !referenceImage/);
+  assert.match(bridge, /hasReferenceImage: Boolean\(referenceImage\)/);
+});
+
 test("the Windows connector builds, signs, packages, and installs the native input helper", () => {
   const packageJson = require(path.join(root, "package.json"));
   const release = packageJson.scripts["bridge:release"];

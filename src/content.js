@@ -34,6 +34,7 @@
   const XTENSION_OVERLAY_ROOT_ATTRIBUTE = "data-xtension-overlay-root";
   const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
   const COMPOSER_SUBMIT_SUPPRESSION_MS = 12000;
+  const REPLY_IMAGE_REFERENCE_CACHE_MS = 5 * 60 * 1000;
   const DEFAULT_DRAFT_ACTION_DURATION_MS = {
     correct: 12000,
     translate: 14000,
@@ -162,6 +163,7 @@
   let extensionContextInvalidated = false;
   let lastEnhancedPathname = "";
   let statusPageScrollToken = 0;
+  let lastReplyImageReference = null;
 
   function start() {
     if (extensionContextInvalidated) {
@@ -170,6 +172,7 @@
 
     document.documentElement?.setAttribute?.(CONTENT_BUILD_ATTRIBUTE, DRAFT_ACTIONS_HOST_VERSION);
     document.addEventListener("pointerdown", rememberMenuTriggerContext, true);
+    document.addEventListener("click", rememberReplyImageReference, true);
     document.addEventListener("click", rememberDraftComposerSubmit, true);
     document.addEventListener("keydown", rememberMenuTriggerContext, true);
     document.addEventListener("focusin", scheduleEnhancementUnlessNativeMediaControl, true);
@@ -4252,9 +4255,22 @@
     referenceLabel.className = "xtension-imagegen-reference";
     const referenceInput = document.createElement("input");
     referenceInput.type = "checkbox";
+    referenceInput.checked = true;
     const referenceText = document.createElement("span");
     referenceText.textContent = localizedText("imageGenerationUsePostImage", "Use the first image in the post as a visual reference");
     referenceLabel.append(referenceInput, referenceText);
+
+    const referenceCard = document.createElement("div");
+    referenceCard.className = "xtension-imagegen-reference-card";
+    const referencePreview = document.createElement("img");
+    referencePreview.className = "xtension-imagegen-reference-preview";
+    referencePreview.alt = localizedText("imageGenerationReferencePreviewAlt", "First image in the post used as a visual reference");
+    referencePreview.hidden = true;
+    const referenceStatus = document.createElement("p");
+    referenceStatus.className = "xtension-imagegen-reference-status";
+    referenceStatus.setAttribute("role", "status");
+    referenceStatus.setAttribute("aria-live", "polite");
+    referenceCard.append(referencePreview, referenceStatus);
 
     const status = document.createElement("p");
     status.className = "xtension-imagegen-status";
@@ -4282,7 +4298,7 @@
     download.hidden = true;
     actions.append(generate, attach, download);
 
-    dialog.append(header, prompt, formatFieldset, visualFieldset, referenceLabel, status, preview, actions);
+    dialog.append(header, prompt, formatFieldset, visualFieldset, referenceLabel, referenceCard, status, preview, actions);
     overlay.append(dialog);
     document.body.append(overlay);
 
@@ -4294,6 +4310,66 @@
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeDialog();
     });
+
+    let referenceImage = null;
+    let referenceLoadPromise = null;
+    const setReferenceStatus = (tone, text) => {
+      referenceStatus.dataset.tone = tone;
+      referenceStatus.textContent = text;
+    };
+    const loadReferenceImage = ({ force = false } = {}) => {
+      if (!force && referenceImage?.dataUrl) {
+        return Promise.resolve(referenceImage);
+      }
+      if (!force && referenceLoadPromise) {
+        return referenceLoadPromise;
+      }
+
+      setReferenceStatus("loading", localizedText("imageGenerationReferenceLoading", "Loading the first image in the post..."));
+      referenceLoadPromise = getImageGenerationReference(editor).then((image) => {
+        referenceImage = image;
+        referencePreview.src = image.dataUrl;
+        referencePreview.hidden = false;
+        if (referenceInput.checked) {
+          setReferenceStatus("success", localizedText("imageGenerationReferenceReady", "Original post image loaded. It will be sent to ImageGen."));
+        } else {
+          setReferenceStatus("muted", localizedText("imageGenerationReferenceNotUsed", "The post image will not be used."));
+        }
+        return image;
+      }).catch((error) => {
+        referenceImage = null;
+        referencePreview.removeAttribute("src");
+        referencePreview.hidden = true;
+        if (error?.code === "image_reference_missing") {
+          referenceInput.checked = false;
+          referenceInput.disabled = true;
+          setReferenceStatus("muted", localizedText("imageGenerationReferenceMissing", "No still image was detected in this post."));
+        } else {
+          setReferenceStatus("error", localizedText("imageGenerationReferenceDownloadFailed", "The post image could not be loaded. Retry, or uncheck the option to generate without it."));
+        }
+        throw error;
+      }).finally(() => {
+        referenceLoadPromise = null;
+      });
+      // Le préchargement est lancé sans attendre l'action de l'utilisateur.
+      // Son échec est affiché dans la carte et sera traité strictement au clic.
+      referenceLoadPromise.catch(() => {});
+      return referenceLoadPromise;
+    };
+
+    referenceInput.addEventListener("change", () => {
+      if (!referenceInput.checked) {
+        setReferenceStatus("muted", localizedText("imageGenerationReferenceNotUsed", "The post image will not be used."));
+        return;
+      }
+      if (referenceImage?.dataUrl) {
+        setReferenceStatus("success", localizedText("imageGenerationReferenceReady", "Original post image loaded. It will be sent to ImageGen."));
+        return;
+      }
+      loadReferenceImage({ force: !referenceImage }).catch(() => {});
+    });
+
+    loadReferenceImage().catch(() => {});
 
     generate.addEventListener("click", async () => {
       const requestPrompt = cleanMultilineText(prompt.value);
@@ -4307,28 +4383,32 @@
       attach.hidden = true;
       download.hidden = true;
       preview.hidden = true;
-      status.dataset.tone = "loading";
-      // La génération dure typiquement 1 à 3 minutes. Sans compteur, l'attente
-      // est indiscernable d'un blocage : on affiche le temps écoulé pour que
-      // l'utilisateur sache que la requête est toujours en cours.
-      const loadingLabel = localizedText("imageGenerationLoading", "Codex is generating the image. This may take a minute...");
       const startedAt = Date.now();
-      status.textContent = loadingLabel;
-      const elapsedTimer = window.setInterval(() => {
-        if (!status.isConnected) {
-          window.clearInterval(elapsedTimer);
-          return;
-        }
-        const seconds = Math.round((Date.now() - startedAt) / 1000);
-        status.textContent = `${loadingLabel} (${seconds} s)`;
-      }, 1000);
+      let elapsedTimer = 0;
       try {
-        const referenceImage = referenceInput.checked ? await getImageGenerationReference(editor) : "";
+        const selectedReference = referenceInput.checked
+          ? await loadReferenceImage({ force: !referenceImage })
+          : null;
+        status.dataset.tone = "loading";
+        // La génération dure typiquement 1 à 3 minutes. Sans compteur, l'attente
+        // est indiscernable d'un blocage : on affiche le temps écoulé pour que
+        // l'utilisateur sache que la requête est toujours en cours.
+        const loadingLabel = localizedText("imageGenerationLoading", "Codex is generating the image. This may take a minute...");
+        status.textContent = loadingLabel;
+        elapsedTimer = window.setInterval(() => {
+          if (!status.isConnected) {
+            window.clearInterval(elapsedTimer);
+            return;
+          }
+          const seconds = Math.round((Date.now() - startedAt) / 1000);
+          status.textContent = `${loadingLabel} (${seconds} s)`;
+        }, 1000);
         const aspectRatio = dialog.querySelector('input[name="xtension-imagegen-format"]:checked')?.value || "1:1";
         const response = await sendRuntimeMessage({
           type: "xtension-generate-image",
           prompt: requestPrompt,
-          referenceImage,
+          referenceImage: selectedReference?.dataUrl || "",
+          referenceImageRequired: referenceInput.checked,
           aspectRatio,
           visualStyle: visualStyle.value,
           framing: framing.value,
@@ -4354,7 +4434,7 @@
         // ou abandon après une longue génération.
         status.textContent = `${message} (${seconds} s)`;
       } finally {
-        window.clearInterval(elapsedTimer);
+        if (elapsedTimer) window.clearInterval(elapsedTimer);
         generate.disabled = false;
       }
     });
@@ -4401,20 +4481,136 @@
     if (code === "provider_login_required") {
       return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then try again.");
     }
+    if (code === "image_reference_missing") {
+      return localizedText("imageGenerationReferenceMissing", "No still image was detected in this post.");
+    }
+    if (code === "image_reference_download_failed" || code === "image_reference_required") {
+      return localizedText("imageGenerationReferenceDownloadFailed", "The post image could not be loaded. Retry, or uncheck the option to generate without it.");
+    }
     return error?.message || localizedText("imageGenerationFailed", "Unable to generate this image.");
   }
 
   async function getImageGenerationReference(editor) {
+    const target = findEditableReplyEditor(editor) || editor;
+    const tweetCandidates = getImageGenerationTweetCandidates(target);
+    const sourceUrl = tweetCandidates
+      .map((tweet) => getFirstPostPhotoSource(tweet))
+      .find(Boolean)
+      || getRememberedReplyImageReference(tweetCandidates[0])
+      || "";
+    if (!sourceUrl) {
+      const error = new Error("No still image was detected in this post.");
+      error.code = "image_reference_missing";
+      throw error;
+    }
+
+    let response;
     try {
-      const context = await getReplyDraftContext(editor);
-      const media = Array.isArray(context?.mediaContext) ? context.mediaContext : [];
-      const firstImage = media.find((item) => item?.type === "image" && item.imageUrl);
-      if (!firstImage) return "";
-      const response = await sendRuntimeMessage({ type: "xtension-fetch-image", url: firstImage.imageUrl });
-      return response?.ok && response?.image?.dataUrl ? response.image.dataUrl : "";
-    } catch {
+      response = await sendRuntimeMessage({ type: "xtension-fetch-image", url: sourceUrl });
+    } catch (cause) {
+      const error = new Error(cause?.message || "The post image could not be loaded.");
+      error.code = "image_reference_download_failed";
+      throw error;
+    }
+    if (!response?.ok || !response?.image?.dataUrl) {
+      const error = new Error(response?.error || "The post image could not be loaded.");
+      error.code = "image_reference_download_failed";
+      error.detailCode = response?.code || "image_fetch_failed";
+      throw error;
+    }
+
+    return {
+      dataUrl: response.image.dataUrl,
+      mimeType: response.image.mimeType || "",
+      byteLength: Number(response.image.byteLength) || 0,
+      sourceUrl
+    };
+  }
+
+  function rememberReplyImageReference(event) {
+    const button = event.target instanceof Element
+      ? event.target.closest('button[data-testid="reply"], [role="button"][data-testid="reply"]')
+      : null;
+    const tweet = button?.closest?.('article[data-testid="tweet"]');
+    if (!tweet) return;
+
+    const imageUrl = getFirstPostPhotoSource(tweet);
+    if (!imageUrl) {
+      lastReplyImageReference = null;
+      return;
+    }
+
+    lastReplyImageReference = {
+      at: Date.now(),
+      imageUrl,
+      statusId: getStatusIdFromUrl(getTweetStatusContext(tweet)?.url)
+    };
+  }
+
+  function getRememberedReplyImageReference(tweet) {
+    const remembered = lastReplyImageReference;
+    if (!remembered?.imageUrl || Date.now() - remembered.at > REPLY_IMAGE_REFERENCE_CACHE_MS) {
+      lastReplyImageReference = null;
       return "";
     }
+
+    const currentStatusId = getStatusIdFromUrl(getTweetStatusContext(tweet)?.url);
+    if (remembered.statusId && currentStatusId && remembered.statusId !== currentStatusId) {
+      return "";
+    }
+    return remembered.imageUrl;
+  }
+
+  function getStatusIdFromUrl(value) {
+    try {
+      return new URL(value || "", window.location.href).pathname.match(STATUS_PATH_PATTERN)?.[2] || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getImageGenerationTweetCandidates(editor) {
+    const primaryTweet = findReplySourceTweet(editor);
+    if (!primaryTweet) return [];
+
+    const candidates = [primaryTweet];
+    const primaryStatusUrl = cleanText(getTweetStatusContext(primaryTweet)?.url || "");
+    if (!primaryStatusUrl) return candidates;
+
+    // X allège parfois le tweet affiché dans la boîte de réponse : le lien
+    // pic.x.com reste visible, mais le nœud <img> n'y est plus. Le tweet complet
+    // demeure dans la timeline derrière la modale ; son URL de statut permet de
+    // le retrouver sans risquer de prendre l'image d'un autre post.
+    for (const tweet of Array.from(document.querySelectorAll('article[data-testid="tweet"]'))) {
+      if (tweet === primaryTweet || candidates.includes(tweet)) continue;
+      const statusUrl = cleanText(getTweetStatusContext(tweet)?.url || "");
+      if (statusUrl && statusUrl === primaryStatusUrl) {
+        candidates.push(tweet);
+      }
+    }
+    return candidates;
+  }
+
+  function getFirstPostPhotoSource(tweet) {
+    for (const image of Array.from(tweet?.querySelectorAll?.("img") || [])) {
+      const src = image.currentSrc || image.getAttribute("src") || image.src || "";
+      if (!src || /^data:|^blob:/i.test(src) || image.matches(PROFILE_IMAGE_SELECTOR)) {
+        continue;
+      }
+      try {
+        const url = new URL(src, window.location.href);
+        // Les photos publiées par X utilisent /media/. Les aperçus de vidéos,
+        // GIF et cartes utilisent d'autres chemins et ne sont pas des références.
+        if (url.hostname.toLowerCase() !== "pbs.twimg.com" || !/^\/media\//i.test(url.pathname)) {
+          continue;
+        }
+        url.searchParams.set("name", "large");
+        return url.href;
+      } catch (error) {
+        continue;
+      }
+    }
+    return "";
   }
 
   async function attachGeneratedImageToComposer(editor, image) {

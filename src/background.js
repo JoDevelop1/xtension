@@ -67,6 +67,7 @@ const BRIDGE_UNREACHABLE_CODE = "bridge_unreachable";
 const BRIDGE_COMPATIBILITY_CACHE_MS = 5 * 60 * 1000;
 const CONTEXT_IMAGE_CACHE_TTL_MS = 2 * 60 * 1000;
 const CONTEXT_IMAGE_CACHE_LIMIT = 8;
+const MAX_FETCHED_IMAGE_BYTES = 7 * 1024 * 1024;
 let diagnosticLogWriteQueue = Promise.resolve();
 let bridgeCompatibilityCache = null;
 const contextImageCache = new Map();
@@ -85,7 +86,8 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     }).catch((error) => {
       sendResponse({
         ok: false,
-        error: error.message
+        error: error.message,
+        code: error.code || "image_fetch_failed"
       });
     });
 
@@ -128,6 +130,7 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
       () => generateImageWithBridge(message),
       {
         promptLength: String(message.prompt || "").length,
+        referenceImageRequested: Boolean(message.referenceImageRequired),
         hasReferenceImage: Boolean(message.referenceImage)
       }
     );
@@ -594,7 +597,7 @@ function isAllowedImageUrl(value) {
 
 async function fetchImageAsDataUrl(url) {
   if (!isAllowedImageUrl(url)) {
-    throw new Error("Image host is not allowed.");
+    throw createImageFetchError("Image host is not allowed.", "image_host_not_allowed");
   }
 
   const response = await fetch(url, {
@@ -603,16 +606,36 @@ async function fetchImageAsDataUrl(url) {
   });
 
   if (!response.ok) {
-    throw new Error(`Image ${response.status}`);
+    throw createImageFetchError(`Image ${response.status}`, "image_fetch_failed");
   }
 
-  const mimeType = response.headers.get("content-type") || "application/octet-stream";
+  const mimeType = cleanText(response.headers.get("content-type") || "").split(";")[0].toLowerCase();
+  if (!/^image\/(?:png|jpe?g|webp|gif)$/i.test(mimeType)) {
+    throw createImageFetchError("The downloaded resource is not a supported image.", "image_type_unsupported");
+  }
+  const declaredLength = Number(response.headers.get("content-length")) || 0;
+  if (declaredLength > MAX_FETCHED_IMAGE_BYTES) {
+    throw createImageFetchError("The post image is too large to use as a reference.", "image_too_large");
+  }
   const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!bytes.length) {
+    throw createImageFetchError("The downloaded image is empty.", "image_fetch_failed");
+  }
+  if (bytes.length > MAX_FETCHED_IMAGE_BYTES) {
+    throw createImageFetchError("The post image is too large to use as a reference.", "image_too_large");
+  }
 
   return {
     mimeType,
+    byteLength: bytes.length,
     dataUrl: `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`
   };
+}
+
+function createImageFetchError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function uint8ArrayToBase64(bytes) {
@@ -868,6 +891,14 @@ async function generateImageWithBridge(message) {
     throw error;
   }
 
+  const referenceImage = cleanText(message?.referenceImage || "");
+  const referenceImageRequired = message?.referenceImageRequired === true;
+  if (referenceImageRequired && !referenceImage) {
+    const error = new Error("The selected post image was not loaded.");
+    error.code = "image_reference_required";
+    throw error;
+  }
+
   const aspectRatio = normalizeImageAspectRatio(message?.aspectRatio);
   const visualStyle = normalizeImageVisualOption(message?.visualStyle, ["auto", "photorealistic", "illustration", "infographic", "3d"]);
   const framing = normalizeImageVisualOption(message?.framing, ["auto", "close_up", "wide", "top_down"]);
@@ -883,7 +914,8 @@ async function generateImageWithBridge(message) {
     },
     body: JSON.stringify({
       prompt,
-      referenceImage: cleanText(message?.referenceImage || ""),
+      referenceImage,
+      referenceImageRequired,
       aspectRatio,
       visualStyle,
       framing,

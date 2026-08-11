@@ -1044,6 +1044,41 @@
   width: 17px;
 }
 
+.xtension-imagegen-reference-card {
+  align-items: center;
+  background: rgb(247, 249, 249);
+  border: 1px solid rgb(207, 217, 222);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px;
+}
+
+.xtension-imagegen-reference-preview {
+  background: rgb(239, 243, 244);
+  border-radius: 8px;
+  flex: 0 0 72px;
+  height: 54px;
+  object-fit: cover;
+  width: 72px;
+}
+
+.xtension-imagegen-reference-status {
+  color: rgb(83, 100, 113);
+  font-size: 13px;
+  line-height: 18px;
+  margin: 0;
+}
+
+.xtension-imagegen-reference-status[data-tone="error"] {
+  color: rgb(244, 33, 46);
+}
+
+.xtension-imagegen-reference-status[data-tone="success"] {
+  color: rgb(0, 128, 96);
+}
+
 .xtension-imagegen-status {
   color: rgb(83, 100, 113);
   margin: 0;
@@ -1100,6 +1135,10 @@
     background: rgb(0, 0, 0);
     border-color: rgb(47, 51, 54);
     color: rgb(231, 233, 234);
+  }
+  .xtension-imagegen-reference-card {
+    background: rgb(22, 24, 28);
+    border-color: rgb(47, 51, 54);
   }
   .xtension-imagegen-format-option span {
     border-color: rgb(47, 51, 54);

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.16
+
+- Selects the first still image in the replied-to post as the ImageGen visual reference by default and preloads it as soon as the generation dialog opens.
+- Shows the exact source-image thumbnail and a localized loaded/error state before generation, while excluding GIFs, videos, and their thumbnails.
+- Remembers the clicked post photo briefly so X reply modals that omit their media node still receive the correct reference from the originating timeline post.
+- Prevents a selected reference from being dropped silently: download, format, size, and connector validation failures now stop generation with an actionable message. Diagnostics record both whether the reference was requested and whether it actually reached the connector, without logging image data.
+
 ## v0.6.15
 
 - Replaces native window-title matching with a short-lived, single-use target lease that pins the exact foreground browser window, process, UI thread, and focused native child control.

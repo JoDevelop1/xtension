@@ -698,6 +698,12 @@ const replyFeatureDefaultMessages = {
   imageGenerationMoodCinematic: "Cinematic",
   imageGenerationMoodMinimal: "Minimal",
   imageGenerationUsePostImage: "Use the first image in the post as a visual reference",
+  imageGenerationReferencePreviewAlt: "First image in the post used as a visual reference",
+  imageGenerationReferenceLoading: "Loading the first image in the post...",
+  imageGenerationReferenceReady: "Original post image loaded. It will be sent to ImageGen.",
+  imageGenerationReferenceMissing: "No still image was detected in this post.",
+  imageGenerationReferenceDownloadFailed: "The post image could not be loaded. Retry, or uncheck the option to generate without it.",
+  imageGenerationReferenceNotUsed: "The post image will not be used.",
   imageGenerationGenerate: "Generate image",
   imageGenerationAttach: "Add to post",
   imageGenerationDownload: "Download",
@@ -952,6 +958,12 @@ Object.assign(replyFeatureMessages.fr, {
   imageGenerationMoodCinematic: "Cinématographique",
   imageGenerationMoodMinimal: "Minimaliste",
   imageGenerationUsePostImage: "Utiliser la première image du post comme référence visuelle",
+  imageGenerationReferencePreviewAlt: "Première image du post utilisée comme référence visuelle",
+  imageGenerationReferenceLoading: "Chargement de la première image du post...",
+  imageGenerationReferenceReady: "Image du post d'origine chargée. Elle sera envoyée à ImageGen.",
+  imageGenerationReferenceMissing: "Aucune image fixe n'a été détectée dans ce post.",
+  imageGenerationReferenceDownloadFailed: "Impossible de charger l'image du post. Réessayez ou décochez l'option pour générer sans elle.",
+  imageGenerationReferenceNotUsed: "L'image du post ne sera pas utilisée.",
   imageGenerationGenerate: "Générer l'image",
   imageGenerationAttach: "Ajouter au post",
   imageGenerationDownload: "Télécharger",
@@ -1127,6 +1139,12 @@ Object.assign(replyFeatureMessages.fr, {
 });
 
 Object.assign(replyFeatureMessages.de, {
+  imageGenerationReferencePreviewAlt: "Erstes Bild des Beitrags als visuelle Referenz",
+  imageGenerationReferenceLoading: "Das erste Bild des Beitrags wird geladen...",
+  imageGenerationReferenceReady: "Das Bild des Originalbeitrags wurde geladen und wird an ImageGen gesendet.",
+  imageGenerationReferenceMissing: "In diesem Beitrag wurde kein Standbild erkannt.",
+  imageGenerationReferenceDownloadFailed: "Das Beitragsbild konnte nicht geladen werden. Versuche es erneut oder deaktiviere die Option, um ohne das Bild zu generieren.",
+  imageGenerationReferenceNotUsed: "Das Beitragsbild wird nicht verwendet.",
   imageGenerationTimeout: "Codex hat diese Generierung nicht rechtzeitig abgeschlossen. Kein Beitrag wurde geändert; versuche es erneut.",
   imageGenerationBusy: "Die Bildgenerierung ist für dieses Codex-Konto vorübergehend nicht verfügbar. Versuche es gleich noch einmal.",
   replyAiBridgeUpdateRequired: "Aktualisiere den Xtension-Codex-Connector in den Erweiterungsoptionen und versuche es erneut.",
@@ -1174,6 +1192,12 @@ Object.assign(replyFeatureMessages.de, {
 });
 
 Object.assign(replyFeatureMessages.es, {
+  imageGenerationReferencePreviewAlt: "Primera imagen de la publicación usada como referencia visual",
+  imageGenerationReferenceLoading: "Cargando la primera imagen de la publicación...",
+  imageGenerationReferenceReady: "Se cargó la imagen de la publicación original y se enviará a ImageGen.",
+  imageGenerationReferenceMissing: "No se detectó ninguna imagen fija en esta publicación.",
+  imageGenerationReferenceDownloadFailed: "No se pudo cargar la imagen de la publicación. Inténtalo de nuevo o desmarca la opción para generar sin ella.",
+  imageGenerationReferenceNotUsed: "No se usará la imagen de la publicación.",
   imageGenerationTimeout: "Codex no terminó esta generación a tiempo. No se modificó ninguna publicación; inténtalo de nuevo.",
   imageGenerationBusy: "La generación de imágenes no está disponible temporalmente para esta cuenta de Codex. Inténtalo de nuevo en breve.",
   replyAiBridgeUpdateRequired: "Actualiza el conector Codex de Xtension en las opciones de la extensión y vuelve a intentarlo.",
@@ -1221,6 +1245,12 @@ Object.assign(replyFeatureMessages.es, {
 });
 
 Object.assign(replyFeatureMessages.ja, {
+  imageGenerationReferencePreviewAlt: "視覚的な参照として使用する投稿の最初の画像",
+  imageGenerationReferenceLoading: "投稿の最初の画像を読み込んでいます...",
+  imageGenerationReferenceReady: "元の投稿画像を読み込みました。ImageGen に送信されます。",
+  imageGenerationReferenceMissing: "この投稿には静止画像が見つかりませんでした。",
+  imageGenerationReferenceDownloadFailed: "投稿画像を読み込めませんでした。再試行するか、オプションを外して画像なしで生成してください。",
+  imageGenerationReferenceNotUsed: "投稿画像は使用されません。",
   imageGenerationTimeout: "Codex は時間内に画像生成を完了できませんでした。投稿は変更されていません。もう一度お試しください。",
   imageGenerationBusy: "この Codex アカウントでは画像生成を一時的に利用できません。しばらくしてからもう一度お試しください。",
   replyAiBridgeUpdateRequired: "拡張機能のオプションで Xtension Codex コネクターを更新してから、もう一度お試しください。",
