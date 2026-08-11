@@ -430,27 +430,31 @@ Avant une intégration réelle, il faudrait notamment définir :
 
 Le banc d'essai initial ci-dessus validait la faisabilité de la chaîne Windows `SendInput` → navigateur → événements DOM `isTrusted: true`. La section suivante décrit l'intégration produit réalisée ensuite et sa validation séparée.
 
-## Intégration réalisée dans Xtension 0.6.13
+## Intégration réalisée dans Xtension 0.6.13, renforcée en 0.6.14
 
 L'intégration produit utilise désormais le flux suivant sous Windows :
 
 ```text
 content script Xtension
   ├─ vérifie et sélectionne l'éditeur actif
-  ├─ transmet le texte, le navigateur et le titre attendu
+  ├─ pose un marqueur aléatoire éphémère dans le titre de l'onglet
+  ├─ transmet le texte, le navigateur et ce marqueur attendu
   ↓
-connecteur local Xtension 0.6.13
+connecteur local Xtension 0.6.14
   ├─ vérifie que XtensionInput.exe est réellement installé
   ├─ sérialise une seule opération à la fois
   ↓
 XtensionInput.exe
   ├─ vérifie le processus du navigateur au premier plan
-  ├─ vérifie le titre de la page, la fenêtre et le contrôle natif focalisé
+  ├─ exige le marqueur exact dans le titre de la fenêtre native
+  ├─ vérifie la fenêtre et le contrôle natif focalisé
   ├─ appelle SendInput avec KEYEVENTF_UNICODE
   └─ refuse l'opération si la cible change
 ```
 
 Une fois la capacité native annoncée, Xtension ne retombe pas silencieusement sur l'ancienne insertion DOM après un échec : cela évite de recréer des événements non fiables ou de dupliquer un texte partiellement saisi. Les plateformes sans helper Windows conservent le repli de compatibilité existant.
+
+La version 0.6.14 remplace la comparaison directe avec `document.title` : Edge peut afficher dans la barre des tâches un titre de groupe ou d'espace de travail tel que « et 11 pages de plus ». Le marqueur aléatoire permet de reconnaître l'onglet actif dans cette forme de titre sans accepter arbitrairement une autre fenêtre du même navigateur.
 
 ### Où vérifier `Event.isTrusted` dans le navigateur
 

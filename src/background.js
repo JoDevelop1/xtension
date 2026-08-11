@@ -1084,11 +1084,11 @@ async function bridgeSupportsNativeType(config) {
   }
   return Boolean(
     bridgeCompatibilityCache?.capabilities?.nativeType
-    && Number(bridgeCompatibilityCache?.capabilities?.nativeTypeProtocol || 0) >= 1
+    && Number(bridgeCompatibilityCache?.capabilities?.nativeTypeProtocol || 0) >= 2
   );
 }
 
-async function typeTextWithBridge(config, text, replaceExisting, expectedTitle, expectedBrowser) {
+async function typeTextWithBridge(config, text, replaceExisting, expectedWindowMarker, expectedBrowser) {
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -1105,7 +1105,7 @@ async function typeTextWithBridge(config, text, replaceExisting, expectedTitle, 
     body: JSON.stringify({
       text,
       replaceExisting: Boolean(replaceExisting),
-      expectedTitle,
+      expectedWindowMarker,
       expectedBrowser
     })
   }, {
@@ -1133,12 +1133,12 @@ async function handleNativeTypeRequest(message) {
   if (!(await bridgeSupportsNativeType(config))) {
     return { ok: false, code: "native_type_unavailable" };
   }
-  const expectedTitle = cleanText(message?.expectedTitle || "").slice(0, 512);
+  const expectedWindowMarker = normalizeNativeWindowMarker(message?.expectedWindowMarker);
   const expectedBrowser = normalizeNativeTypeBrowser(message?.expectedBrowser);
-  if (!expectedTitle || !expectedBrowser) {
+  if (!expectedWindowMarker || !expectedBrowser) {
     return { ok: false, code: "native_type_target_required" };
   }
-  await typeTextWithBridge(config, text, message?.replaceExisting, expectedTitle, expectedBrowser);
+  await typeTextWithBridge(config, text, message?.replaceExisting, expectedWindowMarker, expectedBrowser);
   return { ok: true, typed: true };
 }
 
@@ -1154,6 +1154,11 @@ async function handleNativeTypeCapabilityRequest() {
 function normalizeNativeTypeBrowser(value) {
   const browser = cleanText(value || "").toLowerCase();
   return ["chrome", "edge", "firefox"].includes(browser) ? browser : "";
+}
+
+function normalizeNativeWindowMarker(value) {
+  const marker = cleanText(value || "");
+  return /^Xtension-[A-Za-z0-9-]{15,70}$/.test(marker) ? marker : "";
 }
 
 async function ensureCompatibleBridge(config, bridgeUrl) {

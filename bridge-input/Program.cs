@@ -32,7 +32,7 @@ try
 }
 catch (Exception error)
 {
-    // Never echo the text or the expected page title: stderr may be captured by
+    // Never echo the text or the expected window marker: stderr may be captured by
     // the connector for diagnostics.
     Console.Error.WriteLine(error is NativeInputException nativeError ? nativeError.Code : "native_input_failed");
     return 1;
@@ -42,7 +42,7 @@ internal sealed record NativeTypeRequest
 {
     public string Text { get; init; } = "";
     public bool ReplaceExisting { get; init; }
-    public string ExpectedTitle { get; init; } = "";
+    public string ExpectedWindowMarker { get; init; } = "";
     public string ExpectedBrowser { get; init; } = "";
 
     public NativeTypeRequest Normalize(int maxChars)
@@ -67,10 +67,13 @@ internal sealed record NativeTypeRequest
             throw new NativeInputException("target_browser_invalid");
         }
 
-        var title = (ExpectedTitle ?? "").Trim();
-        if (title.Length == 0 || title.Length > 512)
+        var marker = (ExpectedWindowMarker ?? "").Trim();
+        if (marker.Length < 24
+            || marker.Length > 80
+            || !marker.StartsWith("Xtension-", StringComparison.Ordinal)
+            || marker.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
         {
-            throw new NativeInputException("target_title_invalid");
+            throw new NativeInputException("target_marker_invalid");
         }
         if (safeText.Length == 0 && !ReplaceExisting)
         {
@@ -81,7 +84,7 @@ internal sealed record NativeTypeRequest
         {
             Text = safeText.ToString(),
             ExpectedBrowser = browser,
-            ExpectedTitle = title
+            ExpectedWindowMarker = marker
         };
     }
 }
@@ -203,9 +206,9 @@ internal sealed class UnicodeInputSender
         }
 
         var actualTitle = ReadWindowTitle(foreground);
-        if (!TitleMatches(actualTitle, request.ExpectedTitle))
+        if (!actualTitle.Contains(request.ExpectedWindowMarker, StringComparison.Ordinal))
         {
-            throw new NativeInputException("target_title_mismatch");
+            throw new NativeInputException("target_marker_mismatch");
         }
 
         var focusedChild = ReadFocusedChild(threadId);
@@ -234,17 +237,6 @@ internal sealed class UnicodeInputSender
         {
             throw new NativeInputException("target_focus_changed");
         }
-    }
-
-    private static bool TitleMatches(string actual, string expected)
-    {
-        if (string.Equals(actual, expected, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        return actual.StartsWith(expected + " - ", StringComparison.Ordinal)
-            || actual.StartsWith(expected + " — ", StringComparison.Ordinal);
     }
 
     private static string ReadWindowTitle(IntPtr window)

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.14
+
+- Fixes native insertion in real Edge windows whose taskbar title represents a tab group or workspace (for example, “and 11 more pages”) instead of starting with the active page's `document.title`.
+- Temporarily places a cryptographically random marker in the active tab title and requires the native Edge/Chrome/Firefox window to contain that exact marker before `SendInput`. The original title is restored immediately after the operation.
+- Raises the native-input protocol to version 2 so an updated extension cannot accidentally use the earlier strict-title connector.
+
 ## v0.6.13
 
 - Inserts generated, corrected, translated, suggested, restored, and replaced draft text through the installed Windows connector and `SendInput`, so Chrome and Edge create the resulting `keydown`, `beforeinput`, `input`, and `keyup` events with `Event.isTrusted === true`.

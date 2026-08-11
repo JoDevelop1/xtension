@@ -4785,34 +4785,67 @@
         return { available: false, ok: false, code: capability?.code || "native_type_unavailable" };
       }
 
-      target.focus();
-      selectEditorContents(target);
-      await nextFrame();
-      // SendInput atteint la fenetre au premier plan et le controle qui a le focus.
-      // Ne jamais l'emettre si le document n'a pas le focus systeme ou si l'editeur
-      // cible n'est pas l'element actif : les touches iraient dans le mauvais champ
-      // voire une autre application.
-      if (!document.hasFocus() || document.activeElement !== target || !selectionBelongsToEditor(target)) {
-        return { available: true, ok: false, code: "target_not_focused" };
+      // Le titre natif d'Edge peut etre un libelle de groupe ("... et N pages de
+      // plus") sans rapport direct avec document.title. On pose donc brièvement un
+      // marqueur aleatoire dans le titre de l'onglet. Le helper exige que CE
+      // marqueur soit visible dans la fenêtre native active avant SendInput.
+      const previousTitle = document.title;
+      const expectedWindowMarker = createNativeWindowMarker();
+      document.title = expectedWindowMarker;
+      try {
+        // Laisser Chromium/Firefox propager le nouveau titre jusqu'a la fenetre
+        // native avant de faire le dernier controle de focus.
+        await delay(80);
+        if (document.title !== expectedWindowMarker) {
+          return { available: true, ok: false, code: "target_marker_lost" };
+        }
+
+        target.focus();
+        selectEditorContents(target);
+        await nextFrame();
+        if (document.title !== expectedWindowMarker) {
+          return { available: true, ok: false, code: "target_marker_lost" };
+        }
+        // SendInput atteint la fenetre au premier plan et le controle qui a le focus.
+        // Ne jamais l'emettre si le document n'a pas le focus systeme ou si l'editeur
+        // cible n'est pas l'element actif : les touches iraient dans le mauvais champ
+        // voire une autre application.
+        if (!document.hasFocus() || document.activeElement !== target || !selectionBelongsToEditor(target)) {
+          return { available: true, ok: false, code: "target_not_focused" };
+        }
+        const response = await sendRuntimeMessage({
+          type: "xtension-native-type",
+          text,
+          replaceExisting: true,
+          expectedWindowMarker,
+          expectedBrowser: getNativeTypingBrowserName()
+        });
+        if (response?.ok) {
+          return { available: true, ok: true };
+        }
+        if (["native_type_unavailable", "native_type_unsupported", "not_found", "disabled"].includes(response?.code)) {
+          xtensionNativeTypeUnavailable = true;
+          return { available: false, ok: false, code: response?.code };
+        }
+        return { available: true, ok: false, code: response?.code || "native_type_failed" };
+      } finally {
+        if (document.title === expectedWindowMarker) {
+          document.title = previousTitle;
+        }
       }
-      const response = await sendRuntimeMessage({
-        type: "xtension-native-type",
-        text,
-        replaceExisting: true,
-        expectedTitle: document.title,
-        expectedBrowser: getNativeTypingBrowserName()
-      });
-      if (response?.ok) {
-        return { available: true, ok: true };
-      }
-      if (["native_type_unavailable", "native_type_unsupported", "not_found", "disabled"].includes(response?.code)) {
-        xtensionNativeTypeUnavailable = true;
-        return { available: false, ok: false, code: response?.code };
-      }
-      return { available: true, ok: false, code: response?.code || "native_type_failed" };
     } catch (error) {
       return { available: true, ok: false, code: error?.code || "native_type_failed" };
     }
+  }
+
+  function createNativeWindowMarker() {
+    const cryptoApi = globalThis.crypto;
+    if (typeof cryptoApi?.randomUUID === "function") {
+      return `Xtension-${cryptoApi.randomUUID()}`;
+    }
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    return `Xtension-${Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("")}`;
   }
 
   function getNativeTypingBrowserName() {

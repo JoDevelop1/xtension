@@ -24,7 +24,7 @@ const maxImageGenerationBodyBytes = 10 * 1024 * 1024;
 // envoi peut etre en vol a la fois, sinon deux rafales de touches se melangeraient
 // dans le champ au premier plan.
 const NATIVE_TYPE_PLATFORM_SUPPORTED = process.platform === "win32";
-const NATIVE_TYPE_PROTOCOL = 1;
+const NATIVE_TYPE_PROTOCOL = 2;
 const NATIVE_TYPE_MAX_CHARS = 4000;
 const NATIVE_TYPE_TIMEOUT_MS = 15000;
 let nativeTypeInFlight = false;
@@ -918,9 +918,9 @@ const server = http.createServer(async (request, response) => {
       if (!text) {
         throw createBridgeError("Text to type is required.", { code: "invalid_request", statusCode: 400 });
       }
-      const expectedTitle = sanitizeExpectedWindowTitle(payload?.expectedTitle);
+      const expectedWindowMarker = sanitizeExpectedWindowMarker(payload?.expectedWindowMarker);
       const expectedBrowser = normalizeExpectedBrowser(payload?.expectedBrowser);
-      if (!expectedTitle || !expectedBrowser) {
+      if (!expectedWindowMarker || !expectedBrowser) {
         throw createBridgeError("The expected foreground browser target is required.", {
           code: "native_type_target_required",
           statusCode: 400
@@ -938,7 +938,7 @@ const server = http.createServer(async (request, response) => {
         await typeViaHelper({
           text,
           replaceExisting: Boolean(payload?.replaceExisting),
-          expectedTitle,
+          expectedWindowMarker,
           expectedBrowser
         });
       } finally {
@@ -1176,9 +1176,9 @@ function sanitizeTypeText(value) {
   return output;
 }
 
-function sanitizeExpectedWindowTitle(value) {
-  const title = cleanText(value || "");
-  return title.length <= 512 ? title : "";
+function sanitizeExpectedWindowMarker(value) {
+  const marker = cleanText(value || "");
+  return /^Xtension-[A-Za-z0-9-]{15,70}$/.test(marker) ? marker : "";
 }
 
 function normalizeExpectedBrowser(value) {
@@ -1207,10 +1207,10 @@ function getNativeTypeCapabilities() {
   };
 }
 
-// Passe la requete au helper par STDIN (jamais par argv : le texte et le titre de
-// page ne doivent pas apparaitre dans la liste des processus). Le helper refuse
-// l'injection si le navigateur, la fenetre ou le focus natif ont change.
-function typeViaHelper({ text, replaceExisting, expectedTitle, expectedBrowser }) {
+// Passe la requete au helper par STDIN (jamais par argv : le texte et le marqueur
+// ephemere ne doivent pas apparaitre dans la liste des processus). Le helper refuse
+// l'injection si le navigateur, la fenetre, l'onglet ou le focus natif ont change.
+function typeViaHelper({ text, replaceExisting, expectedWindowMarker, expectedBrowser }) {
   return new Promise((resolve, reject) => {
     const exe = resolveInputHelperPath();
     if (!fs.existsSync(exe)) {
@@ -1272,7 +1272,7 @@ function typeViaHelper({ text, replaceExisting, expectedTitle, expectedBrowser }
     child.stdin.end(Buffer.from(JSON.stringify({
       text,
       replaceExisting,
-      expectedTitle,
+      expectedWindowMarker,
       expectedBrowser
     }), "utf8"));
   });
