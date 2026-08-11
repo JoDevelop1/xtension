@@ -239,6 +239,30 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "xtension-native-type") {
+    handleNativeTypeRequest(message)
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({
+        ok: false,
+        code: error?.code || "native_type_failed",
+        error: error?.message
+      }));
+
+    return true;
+  }
+
+  if (message.type === "xtension-native-type-capability") {
+    handleNativeTypeCapabilityRequest()
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({
+        ok: false,
+        code: error?.code || "native_type_unavailable",
+        error: error?.message
+      }));
+
+    return true;
+  }
+
   return false;
 });
 
@@ -1048,6 +1072,90 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
   return sanitizeGeneratedReplyText(data?.text || data?.correctedText || data?.translatedText || data?.generatedText || "");
 }
 
+// La frappe native (isTrusted:true via SendInput) n'est disponible que si le
+// connecteur l'annonce (Windows + helper present). On lit la capacite deja mise
+// en cache par ensureCompatibleBridge ; un connecteur trop ancien n'expose aucune
+// capabilities et la reponse est false -> l'extension garde son injection actuelle.
+async function bridgeSupportsNativeType(config) {
+  try {
+    await ensureCompatibleBridge(config);
+  } catch (error) {
+    return false;
+  }
+  return Boolean(
+    bridgeCompatibilityCache?.capabilities?.nativeType
+    && Number(bridgeCompatibilityCache?.capabilities?.nativeTypeProtocol || 0) >= 1
+  );
+}
+
+async function typeTextWithBridge(config, text, replaceExisting, expectedTitle, expectedBrowser) {
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const response = await fetchBridgeRequest(`${bridgeUrl}/type`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: JSON.stringify({
+      text,
+      replaceExisting: Boolean(replaceExisting),
+      expectedTitle,
+      expectedBrowser
+    })
+  }, {
+    operation: "native_type"
+  });
+
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+  return response.json().catch(() => ({}));
+}
+
+// Repond au content-script qui veut taper le texte via l'entree Windows native.
+// Le content-script n'utilise le repli DOM que si cette capacite n'est pas
+// annoncee ; un echec apres le demarrage natif est retourne sans reinsertion.
+async function handleNativeTypeRequest(message) {
+  const config = await getReplyAiConfig();
+  if (!config.enabled) {
+    return { ok: false, code: "disabled" };
+  }
+  const text = String(message?.text || "");
+  if (!text.trim()) {
+    return { ok: false, code: "empty" };
+  }
+  if (!(await bridgeSupportsNativeType(config))) {
+    return { ok: false, code: "native_type_unavailable" };
+  }
+  const expectedTitle = cleanText(message?.expectedTitle || "").slice(0, 512);
+  const expectedBrowser = normalizeNativeTypeBrowser(message?.expectedBrowser);
+  if (!expectedTitle || !expectedBrowser) {
+    return { ok: false, code: "native_type_target_required" };
+  }
+  await typeTextWithBridge(config, text, message?.replaceExisting, expectedTitle, expectedBrowser);
+  return { ok: true, typed: true };
+}
+
+async function handleNativeTypeCapabilityRequest() {
+  const config = await getReplyAiConfig();
+  if (!config.enabled) {
+    return { ok: false, available: false, code: "disabled" };
+  }
+  const available = await bridgeSupportsNativeType(config);
+  return { ok: true, available };
+}
+
+function normalizeNativeTypeBrowser(value) {
+  const browser = cleanText(value || "").toLowerCase();
+  return ["chrome", "edge", "firefox"].includes(browser) ? browser : "";
+}
+
 async function ensureCompatibleBridge(config, bridgeUrl) {
   const normalizedUrl = normalizeCodexBridgeUrl(bridgeUrl || config?.codexBridgeUrl);
   if (!normalizedUrl) {
@@ -1076,8 +1184,9 @@ async function ensureCompatibleBridge(config, bridgeUrl) {
 
   const data = await response.json().catch(() => ({}));
   const version = cleanText(data?.version || data?.connectorVersion || "");
+  const capabilities = data?.capabilities && typeof data.capabilities === "object" ? data.capabilities : {};
   const compatible = !EXTENSION_VERSION || (version && compareVersions(version, EXTENSION_VERSION) >= 0);
-  bridgeCompatibilityCache = { url: normalizedUrl, checkedAt: now, version, compatible };
+  bridgeCompatibilityCache = { url: normalizedUrl, checkedAt: now, version, compatible, capabilities };
   if (!compatible) {
     appendDiagnosticLog({
       level: "error",

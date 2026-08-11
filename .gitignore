@@ -27,6 +27,8 @@ Thumbs.db
 /vendor/
 /bridge-service/bin/
 /bridge-service/obj/
+/bridge-input/bin/
+/bridge-input/obj/
 /bridge-installer/bin/
 /bridge-installer/obj/
 *.crx

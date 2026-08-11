@@ -19,6 +19,15 @@ const port = Number(process.env.XTENSION_BRIDGE_PORT || 47623);
 const maxBodyBytes = 128 * 1024;
 const maxTransformBodyBytes = 6 * 1024 * 1024;
 const maxImageGenerationBodyBytes = 10 * 1024 * 1024;
+// Frappe clavier OS native (/type) : disponible seulement sur Windows (SendInput
+// via le helper XtensionInput.exe). Le texte est court (une reponse X) et un seul
+// envoi peut etre en vol a la fois, sinon deux rafales de touches se melangeraient
+// dans le champ au premier plan.
+const NATIVE_TYPE_PLATFORM_SUPPORTED = process.platform === "win32";
+const NATIVE_TYPE_PROTOCOL = 1;
+const NATIVE_TYPE_MAX_CHARS = 4000;
+const NATIVE_TYPE_TIMEOUT_MS = 15000;
+let nativeTypeInFlight = false;
 const bridgeToken = cleanText(process.env.XTENSION_BRIDGE_TOKEN || "");
 const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefaultBridgeLogFile());
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
@@ -745,7 +754,14 @@ const server = http.createServer(async (request, response) => {
     // Vitalite seule : aucune donnee de compte, joignable par les scripts
     // d'installation qui n'ont pas d'origine d'extension a presenter.
     if (request.method === "GET" && pathname === "/ping") {
-      sendJson(response, 200, { ok: true, service: "xtension-bridge", version: CODEX_CLIENT_VERSION });
+      // capabilities ne divulgue qu'une aptitude de plateforme (jamais de compte) :
+      // l'extension y lit si la frappe native est disponible, sans requete en plus.
+      sendJson(response, 200, {
+        ok: true,
+        service: "xtension-bridge",
+        version: CODEX_CLIENT_VERSION,
+        capabilities: getNativeTypeCapabilities()
+      });
       return;
     }
 
@@ -881,6 +897,56 @@ const server = http.createServer(async (request, response) => {
         translatedText: result,
         generatedText: result
       });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/type") {
+      if (!NATIVE_TYPE_PLATFORM_SUPPORTED) {
+        throw createBridgeError("Native typing is only available on Windows.", {
+          code: "native_type_unsupported",
+          statusCode: 501
+        });
+      }
+      if (!fs.existsSync(resolveInputHelperPath())) {
+        throw createBridgeError("Native input helper is not installed.", {
+          code: "input_helper_missing",
+          statusCode: 503
+        });
+      }
+      const payload = await readJsonBody(request, maxBodyBytes);
+      const text = sanitizeTypeText(payload?.text);
+      if (!text) {
+        throw createBridgeError("Text to type is required.", { code: "invalid_request", statusCode: 400 });
+      }
+      const expectedTitle = sanitizeExpectedWindowTitle(payload?.expectedTitle);
+      const expectedBrowser = normalizeExpectedBrowser(payload?.expectedBrowser);
+      if (!expectedTitle || !expectedBrowser) {
+        throw createBridgeError("The expected foreground browser target is required.", {
+          code: "native_type_target_required",
+          statusCode: 400
+        });
+      }
+      if (nativeTypeInFlight) {
+        throw createBridgeError("A native typing operation is already in progress.", {
+          code: "native_type_busy",
+          statusCode: 409
+        });
+      }
+      nativeTypeInFlight = true;
+      const startedAt = Date.now();
+      try {
+        await typeViaHelper({
+          text,
+          replaceExisting: Boolean(payload?.replaceExisting),
+          expectedTitle,
+          expectedBrowser
+        });
+      } finally {
+        nativeTypeInFlight = false;
+      }
+      // On journalise la LONGUEUR uniquement, jamais le contenu tape.
+      logBridgeEvent("request_done", { operation: "type", durationMs: Date.now() - startedAt, length: text.length });
+      sendJson(response, 200, { ok: true, provider: "native-input", typed: text.length });
       return;
     }
 
@@ -1091,12 +1157,134 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
   return sections.join("\n");
 }
 
+// Whitelist stricte : caractere imprimable ou saut de ligne uniquement. On retire
+// tout caractere de controle (Tab, Echap, Retour arriere, DEL, C0/C1) pour qu'une
+// charge utile ne puisse jamais faire fuir un changement de focus ni une soumission
+// (le helper, lui, n'emet que du texte + un Shift+Entree fixe pour "\n").
+function sanitizeTypeText(value) {
+  const normalized = String(value == null ? "" : value).replace(/\r\n?/g, "\n");
+  let output = "";
+  for (const ch of normalized) {
+    const code = ch.codePointAt(0);
+    if (ch === "\n" || (code >= 0x20 && code !== 0x7f && !(code >= 0x80 && code <= 0x9f))) {
+      output += ch;
+    }
+    if (output.length >= NATIVE_TYPE_MAX_CHARS) {
+      break;
+    }
+  }
+  return output;
+}
+
+function sanitizeExpectedWindowTitle(value) {
+  const title = cleanText(value || "");
+  return title.length <= 512 ? title : "";
+}
+
+function normalizeExpectedBrowser(value) {
+  const browser = cleanText(value || "").toLowerCase();
+  return ["chrome", "edge", "firefox"].includes(browser) ? browser : "";
+}
+
+function resolveInputHelperPath() {
+  const override = cleanText(process.env.XTENSION_INPUT_HELPER || "");
+  if (override) {
+    return override;
+  }
+  // Sous @yao-pkg/pkg, process.execPath EST XtensionBridge.exe ; le helper est
+  // installe a cote (meme dossier que le host lance le connecteur).
+  return path.join(path.dirname(process.execPath), "XtensionInput.exe");
+}
+
+function nativeTypeIsAvailable() {
+  return NATIVE_TYPE_PLATFORM_SUPPORTED && fs.existsSync(resolveInputHelperPath());
+}
+
+function getNativeTypeCapabilities() {
+  return {
+    nativeType: nativeTypeIsAvailable(),
+    nativeTypeProtocol: NATIVE_TYPE_PROTOCOL
+  };
+}
+
+// Passe la requete au helper par STDIN (jamais par argv : le texte et le titre de
+// page ne doivent pas apparaitre dans la liste des processus). Le helper refuse
+// l'injection si le navigateur, la fenetre ou le focus natif ont change.
+function typeViaHelper({ text, replaceExisting, expectedTitle, expectedBrowser }) {
+  return new Promise((resolve, reject) => {
+    const exe = resolveInputHelperPath();
+    if (!fs.existsSync(exe)) {
+      reject(createBridgeError("Native input helper is not installed.", {
+        code: "input_helper_missing",
+        statusCode: 503
+      }));
+      return;
+    }
+
+    let settled = false;
+    const finish = (fn, arg) => {
+      if (!settled) {
+        settled = true;
+        fn(arg);
+      }
+    };
+
+    const child = spawn(exe, [], {
+      stdio: ["pipe", "ignore", "pipe"],
+      windowsHide: true
+    });
+    let helperErrorCode = "";
+    const timer = setTimeout(() => {
+      try { child.kill(); } catch { /* already gone */ }
+      finish(reject, createBridgeError("Native input helper timed out.", {
+        code: "input_helper_timeout",
+        statusCode: 504
+      }));
+    }, NATIVE_TYPE_TIMEOUT_MS);
+
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      finish(reject, createBridgeError("Native input helper failed to start.", {
+        code: "input_helper_error",
+        statusCode: 500,
+        cause: error
+      }));
+    });
+    child.stderr.on("data", (chunk) => {
+      if (helperErrorCode.length < 120) {
+        helperErrorCode += String(chunk || "");
+      }
+    });
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        finish(resolve);
+      } else {
+        const nativeCode = cleanText(helperErrorCode).replace(/[^a-z0-9_]/gi, "").slice(0, 80);
+        finish(reject, createBridgeError("Native input was refused because the foreground target changed or Windows rejected the input.", {
+          code: nativeCode || "input_helper_error",
+          statusCode: nativeCode.startsWith("target_") ? 409 : 500
+        }));
+      }
+    });
+
+    child.stdin.on("error", () => { /* the child may close stdin early */ });
+    child.stdin.end(Buffer.from(JSON.stringify({
+      text,
+      replaceExisting,
+      expectedTitle,
+      expectedBrowser
+    }), "utf8"));
+  });
+}
+
 async function getHealthStatus() {
   const base = {
     ok: true,
     version: CODEX_CLIENT_VERSION,
     connectorVersion: CODEX_CLIENT_VERSION,
     engine: "codex",
+    capabilities: getNativeTypeCapabilities(),
     defaultProvider: "openai-codex",
     provider: "openai-codex",
     model: CODEX_MODEL,

@@ -41,10 +41,9 @@ const shared = {
       run_at: "document_idle"
     }
   ],
-  // Pont monde-principal (world: MAIN) : permet d'écrire dans le ContentState de
-  // Draft.js via son onChange React (seule méthode qui garde le texte éditable).
-  // Ajouté aux cibles Chromium uniquement (chromiumShared) ; Firefox < 128 ne
-  // supporte pas world: MAIN dans les content_scripts et retombe sur execCommand.
+  // Pont monde-principal (world: MAIN) conservé comme repli pour les plateformes
+  // sans connecteur Windows natif. Le connecteur SendInput est prioritaire quand
+  // il est installé et produit les événements DOM natifs attendus.
   web_accessible_resources: [
     {
       resources: ["pdf-menu-icon.png", "flags/*.svg"],
@@ -127,7 +126,7 @@ function cleanDirectory(dir) {
 
 function cleanDistDirectory() {
   fs.mkdirSync(dist, { recursive: true });
-  const preservedEntries = new Set(["bridge", "bridge-service", "bridge-installer", "bridge-installer-payload"]);
+  const preservedEntries = new Set(["bridge", "bridge-input", "bridge-service", "bridge-installer", "bridge-installer-payload"]);
   for (const entry of fs.readdirSync(dist, { withFileTypes: true })) {
     if (preservedEntries.has(entry.name) || entry.name.startsWith("XtensionBridgeSetup.")) {
       continue;

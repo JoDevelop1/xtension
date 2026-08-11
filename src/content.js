@@ -3945,20 +3945,18 @@
     }
   }
 
-  // Génération en STREAMING : ouvre un port, affiche le texte au fil de l'eau dans
-  // l'éditeur (via le pont Draft, throttlé à ~70 ms), et résout avec le texte
-  // FINAL. Résout null si le streaming est indisponible/échoue -> l'appelant
-  // retombe sur le chemin message classique (la génération marche donc toujours).
-  function streamGenerateReplyText(payload, editor) {
+  // Génération en STREAMING : ouvre un port pour recevoir le texte au fil de
+  // l'eau, mais n'écrit plus de deltas synthétiques dans l'éditeur. Seul le texte
+  // FINAL est inséré ensuite par la voie native Windows quand elle est disponible.
+  // Résout null si le streaming échoue afin de conserver le chemin classique.
+  function streamGenerateReplyText(payload) {
     return new Promise((resolve) => {
       const port = connectRuntimePort("xtension-generate-stream");
       if (!port) {
         resolve(null);
         return;
       }
-      const target = findEditableReplyEditor(editor);
       let settled = false;
-      let lastRenderAt = 0;
 
       const finish = (value) => {
         if (settled) {
@@ -3969,27 +3967,11 @@
         resolve(value);
       };
 
-      const renderLive = (fullText) => {
-        if (!target || !fullText) {
-          return;
-        }
-        const now = Date.now();
-        if (now - lastRenderAt < 70) {
-          return;
-        }
-        lastRenderAt = now;
-        // Aperçu au fil de l'eau via le pont Draft (no-op si le pont est absent,
-        // ex. Firefox : le rendu final passera par injectReplyDraft).
-        applyDraftTextViaBridge(target, cleanMultilineText(fullText));
-      };
-
       port.onMessage.addListener((message) => {
         if (!message) {
           return;
         }
-        if (message.type === "delta") {
-          renderLive(message.text || "");
-        } else if (message.type === "done") {
+        if (message.type === "done") {
           finish(cleanMultilineText(message.text || ""));
         } else if (message.type === "error") {
           finish(null);
@@ -4013,15 +3995,17 @@
     const context = await getReplyDraftContext(editor);
     const targetLanguage = await getDraftActionTargetLanguage(actionId, context, text);
 
-    // Correction, traduction et génération s'affichent au fil de l'eau
-    // (streaming) : le premier mot apparaît en ~1,3 s au lieu d'attendre la
-    // réponse entière. Repli automatique sur le chemin message classique si le
-    // streaming n'aboutit pas.
+    // Correction, traduction et génération sont reçues en streaming, mais le
+    // champ reste intact jusqu'au résultat final afin que toute écriture visible
+    // passe par SendInput. Repli sur le chemin message si le flux n'aboutit pas.
     if (actionId === "generate" || actionId === "correct" || actionId === "translate") {
-      const streamed = await streamGenerateReplyText(
-        { operation: actionId, locale: getUiLocale(), targetLanguage, context, text },
-        editor
-      );
+      const streamed = await streamGenerateReplyText({
+        operation: actionId,
+        locale: getUiLocale(),
+        targetLanguage,
+        context,
+        text
+      });
       if (streamed != null) {
         return cleanMultilineText(streamed);
       }
@@ -4781,6 +4765,77 @@
     }
   }
 
+  // Une fois la frappe native jugee indisponible (non-Windows, connecteur ancien,
+  // desactivee), on cesse d'essayer pour la session : inutile de payer
+  // un aller-retour au connecteur a chaque insertion.
+  let xtensionNativeTypeUnavailable = false;
+
+  // Voie PRIORITAIRE : demande au connecteur local de taper `text` via SendInput.
+  // Quand la capacité native est annoncée, un échec ne retombe volontairement PAS
+  // sur l'injection DOM : cela éviterait de réintroduire des événements non fiables
+  // ou de dupliquer un texte partiellement livré.
+  async function typeReplyDraftNatively(target, text) {
+    if (xtensionNativeTypeUnavailable || !target) {
+      return { available: false, ok: false };
+    }
+    try {
+      const capability = await sendRuntimeMessage({ type: "xtension-native-type-capability" });
+      if (!capability?.available) {
+        xtensionNativeTypeUnavailable = true;
+        return { available: false, ok: false, code: capability?.code || "native_type_unavailable" };
+      }
+
+      target.focus();
+      selectEditorContents(target);
+      await nextFrame();
+      // SendInput atteint la fenetre au premier plan et le controle qui a le focus.
+      // Ne jamais l'emettre si le document n'a pas le focus systeme ou si l'editeur
+      // cible n'est pas l'element actif : les touches iraient dans le mauvais champ
+      // voire une autre application.
+      if (!document.hasFocus() || document.activeElement !== target || !selectionBelongsToEditor(target)) {
+        return { available: true, ok: false, code: "target_not_focused" };
+      }
+      const response = await sendRuntimeMessage({
+        type: "xtension-native-type",
+        text,
+        replaceExisting: true,
+        expectedTitle: document.title,
+        expectedBrowser: getNativeTypingBrowserName()
+      });
+      if (response?.ok) {
+        return { available: true, ok: true };
+      }
+      if (["native_type_unavailable", "native_type_unsupported", "not_found", "disabled"].includes(response?.code)) {
+        xtensionNativeTypeUnavailable = true;
+        return { available: false, ok: false, code: response?.code };
+      }
+      return { available: true, ok: false, code: response?.code || "native_type_failed" };
+    } catch (error) {
+      return { available: true, ok: false, code: error?.code || "native_type_failed" };
+    }
+  }
+
+  function getNativeTypingBrowserName() {
+    const agent = String(navigator.userAgent || "");
+    if (/Edg\//i.test(agent)) {
+      return "edge";
+    }
+    if (/Firefox\//i.test(agent)) {
+      return "firefox";
+    }
+    return /Chrome\//i.test(agent) ? "chrome" : "";
+  }
+
+  function selectionBelongsToEditor(editor) {
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+    const anchor = selection.anchorNode;
+    const focus = selection.focusNode;
+    return Boolean(anchor && focus && (anchor === editor || editor.contains(anchor)) && (focus === editor || editor.contains(focus)));
+  }
+
   function getDraftActionDoneKey(action) {
     const actionId = normalizeDraftAction(action);
     if (actionId === "translate") {
@@ -4864,9 +4919,24 @@
     target._xtensionReplyInjecting = true;
 
     try {
-      // Voie PRINCIPALE : pont monde-principal -> onChange React de Draft.js.
-      // C'est la SEULE méthode qui écrit dans le ContentState et garde le texte
-      // PLEINEMENT ÉDITABLE (vérifié en direct : execCommand affiche le texte
+      // Voie PRIORITAIRE (Windows + connecteur) : frappe native SendInput. Draft.js
+      // absorbe les evenements fiables par ses gestionnaires et le texte reste
+      // editable. Le repli ci-dessous n'est autorise que si le connecteur n'annonce
+      // pas cette capacite ; un echec de ciblage natif arrete l'insertion.
+      const nativeResult = await typeReplyDraftNatively(target, trimmedMessage);
+      if (nativeResult.available) {
+        if (!nativeResult.ok) {
+          return false;
+        }
+        if (await waitForReplyDraftCommitted(target, trimmedMessage, 800)) {
+          return true;
+        }
+        return false;
+      }
+
+      // Repli de compatibilite : pont monde-principal -> onChange React de Draft.js.
+      // Sur une plateforme sans SendInput, cette méthode écrit dans le ContentState
+      // et garde le texte editable (execCommand seul peut afficher le texte
       // mais laisse le modèle Draft vide -> texte figé, ni effaçable ni
       // modifiable). Repli execCommand ci-dessous si le pont est absent.
       if (applyDraftTextViaBridge(target, trimmedMessage)) {

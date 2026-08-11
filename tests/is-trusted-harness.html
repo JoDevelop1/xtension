@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Xtension isTrusted Local Test</title>
+  <style>
+    body { font: 16px system-ui; margin: 32px; }
+    #target { min-height: 120px; padding: 16px; border: 2px solid #555; }
+    #log { white-space: pre-wrap; user-select: text; }
+  </style>
+</head>
+<body>
+  <h1>Test local de Event.isTrusted</h1>
+  <div id="target" contenteditable="true" data-testid="target"></div>
+  <pre id="log"></pre>
+  <script>
+    const target = document.getElementById("target");
+    const log = document.getElementById("log");
+    const eventNames = [
+      "keydown", "beforeinput", "input", "keyup", "paste",
+      "compositionstart", "compositionupdate", "compositionend"
+    ];
+
+    window.__xtensionEvents = [];
+
+    function record(event) {
+      window.__xtensionEvents.push({
+        type: event.type,
+        isTrusted: event.isTrusted,
+        inputType: event.inputType || "",
+        data: event.data ?? null,
+        key: event.key || "",
+        text: target.innerText
+      });
+      log.textContent = JSON.stringify(window.__xtensionEvents, null, 2);
+    }
+
+    for (const eventName of eventNames) {
+      target.addEventListener(eventName, record);
+    }
+
+    window.__resetXtensionTest = () => {
+      target.innerHTML = "";
+      window.__xtensionEvents.length = 0;
+      log.textContent = "";
+      target.focus();
+    };
+
+    window.__resetXtensionTest();
+  </script>
+</body>
+</html>

@@ -77,6 +77,8 @@ internal static class Program
             Directory.CreateDirectory(installDir);
             File.Copy(Path.Combine(tempDir, "XtensionBridge.exe"), Path.Combine(installDir, "XtensionBridge.exe"), true);
             File.Copy(Path.Combine(tempDir, "XtensionBridgeHost.exe"), Path.Combine(installDir, "XtensionBridgeHost.exe"), true);
+            // Helper de frappe native (SendInput) lance a la demande par le connecteur.
+            File.Copy(Path.Combine(tempDir, "XtensionInput.exe"), Path.Combine(installDir, "XtensionInput.exe"), true);
             var installedSetup = CopyInstallerToInstallDir(installDir);
 
             Step("Enabling automatic startup in this Windows session.");
@@ -187,7 +189,8 @@ internal static class Program
         var allowedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             Path.GetFullPath(Path.Combine(installDir, "XtensionBridgeHost.exe")),
-            Path.GetFullPath(Path.Combine(installDir, "XtensionBridge.exe"))
+            Path.GetFullPath(Path.Combine(installDir, "XtensionBridge.exe")),
+            Path.GetFullPath(Path.Combine(installDir, "XtensionInput.exe"))
         };
 
         var legacyDir = Path.GetFullPath(Path.Combine(
@@ -197,7 +200,7 @@ internal static class Program
         allowedPaths.Add(Path.Combine(legacyDir, "XtensionBridgeService.exe"));
         allowedPaths.Add(Path.Combine(legacyDir, "XtensionBridge.exe"));
 
-        foreach (var processName in new[] { "XtensionBridgeHost", "XtensionBridge", "XtensionBridgeService" })
+        foreach (var processName in new[] { "XtensionBridgeHost", "XtensionBridge", "XtensionInput", "XtensionBridgeService" })
         {
             foreach (var process in Process.GetProcessesByName(processName))
             {

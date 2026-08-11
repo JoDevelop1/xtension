@@ -13,7 +13,8 @@ if (-not $ClonyVoiceRoot) {
 if (-not $Target -or $Target.Count -eq 0) {
   $Target = @(
     (Join-Path $repoRoot "dist\bridge\XtensionBridge.exe"),
-    (Join-Path $repoRoot "dist\bridge-service\XtensionBridgeHost.exe")
+    (Join-Path $repoRoot "dist\bridge-service\XtensionBridgeHost.exe"),
+    (Join-Path $repoRoot "dist\bridge-input\XtensionInput.exe")
   )
 }
 

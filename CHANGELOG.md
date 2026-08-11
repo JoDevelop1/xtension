@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.13
+
+- Inserts generated, corrected, translated, suggested, restored, and replaced draft text through the installed Windows connector and `SendInput`, so Chrome and Edge create the resulting `keydown`, `beforeinput`, `input`, and `keyup` events with `Event.isTrusted === true`.
+- Stops writing streaming AI deltas into the composer through synthetic DOM updates. The final text is delivered once through native Windows input, while non-Windows or legacy connectors retain the existing compatibility fallback.
+- Refuses native typing if the foreground browser, page title, native window, or focused native child changes before delivery. Once the connector advertises native typing, a failure no longer falls back silently to synthetic insertion or risks duplicating a partial result.
+- Packages, signs, installs, and verifies the dedicated `XtensionInput.exe` helper as part of every Windows connector release. The connector only advertises the capability when the helper is actually present.
+
 ## v0.6.12
 
 - Preserves intentional blank lines all the way into the X/Twitter editor, so generated posts and replies can use short, readable paragraphs instead of collapsing into one dense block.

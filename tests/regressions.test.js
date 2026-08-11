@@ -100,3 +100,37 @@ test("image generation no longer has a five-minute default cutoff", () => {
   assert.match(bridge, /findImageGenerationItem\(turn\.items\)/);
   assert.match(bridge, /message\.method === "error"/);
 });
+
+test("the Windows connector builds, signs, packages, and installs the native input helper", () => {
+  const packageJson = require(path.join(root, "package.json"));
+  const release = packageJson.scripts["bridge:release"];
+  const installerBuild = read("scripts/build-bridge-installer.ps1");
+  const installer = read("bridge-installer/Program.cs");
+  const signing = read("scripts/sign-bridge.ps1");
+
+  assert.match(release, /bridge:input:build/);
+  assert.ok(release.indexOf("bridge:input:build") < release.indexOf("bridge:sign"));
+  assert.match(installerBuild, /bridge-input\\XtensionInput\.exe/);
+  assert.match(installer, /File\.Copy\([^\n]+XtensionInput\.exe/);
+  assert.match(signing, /bridge-input\\XtensionInput\.exe/);
+});
+
+test("native draft insertion uses SendInput targeting and never silently falls back after an advertised attempt", () => {
+  const helper = read("bridge-input/Program.cs");
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  const content = read("src/content.js");
+
+  assert.match(helper, /KeyEventUnicode = 0x0004/);
+  assert.match(helper, /SendInput\(\(uint\)nativeInputs\.Length/);
+  assert.match(helper, /GetGUIThreadInfo/);
+  assert.match(helper, /target_title_mismatch/);
+  assert.match(bridge, /nativeTypeIsAvailable\(\)/);
+  assert.match(bridge, /expectedTitle[\s\S]{0,180}expectedBrowser/);
+  assert.match(content, /type: "xtension-native-type-capability"/);
+  assert.match(content, /if \(nativeResult\.available\)[\s\S]{0,180}return false;/);
+
+  const streamStart = content.indexOf("  function streamGenerateReplyText");
+  const streamEnd = content.indexOf("\n  async function transformReplyText", streamStart);
+  assert.ok(streamStart >= 0 && streamEnd > streamStart);
+  assert.doesNotMatch(content.slice(streamStart, streamEnd), /applyDraftTextViaBridge/);
+});
