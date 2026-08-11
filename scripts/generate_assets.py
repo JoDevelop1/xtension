@@ -258,11 +258,11 @@ def promo(width, height, path, marquee=False):
         d.text((168, 46), "Xtension", fill="#0f1419", font=font(46, True))
         d.text((170, 105), "Improve your X/Twitter experience", fill="#536471", font=font(25))
 
-        d.text((62, 190), "Useful tools,", fill="#0f1419", font=font(58, True))
-        d.text((62, 255), "inside the post menu.", fill="#0f1419", font=font(58, True))
+        d.text((62, 190), "PDF and AI writing,", fill="#0f1419", font=font(54, True))
+        d.text((62, 255), "inside X/Twitter.", fill="#0f1419", font=font(54, True))
         draw_wrapped(
             d,
-            "Add practical actions to X/Twitter where you already work with posts, threads, articles, and media.",
+            "Export posts locally, improve drafts, generate contextual replies, and create images with your own ChatGPT account.",
             (66, 344),
             470,
             font(24),
@@ -271,7 +271,7 @@ def promo(width, height, path, marquee=False):
         )
 
         chip_x = 66
-        for label, color in [("Posts", "#4285f4"), ("Threads", "#34a853"), ("Articles", "#fbbc05")]:
+        for label, color in [("PDF", "#4285f4"), ("Writing AI", "#34a853"), ("Images", "#fbbc05")]:
             chip_x += draw_chip(d, (chip_x, 462), label, color) + 12
 
         d.rounded_rectangle((648, 444, 905, 492), radius=24, fill="#0f1419")
@@ -282,10 +282,14 @@ def promo(width, height, path, marquee=False):
         d.text((96, 27), "Xtension", fill="#0f1419", font=font(29, True))
         d.text((98, 66), "Improve your X/Twitter experience", fill="#536471", font=font(16))
 
-        d.text((28, 114), "Tools in the X menu", fill="#0f1419", font=font(30, True))
+        d.text((28, 114), "PDF & AI tools for X", fill="#0f1419", font=font(30, True))
 
-        screenshot_img = crop_cover(source, (392, 100), crop=(565, 555, 1225, 730), centering=(0.5, 0.56))
-        paste_rounded_image(img, screenshot_img, (24, 170), 18, shadow=True)
+        rounded_rectangle(d, (24, 170, 204, 252), 16, "#ffffff", "#d8e0e5", 1)
+        d.ellipse((42, 202, 54, 214), fill="#4285f4")
+        d.text((66, 194), "Export PDF", fill="#0f1419", font=font(18, True))
+        rounded_rectangle(d, (220, 170, 416, 252), 16, "#ffffff", "#d8e0e5", 1)
+        d.ellipse((238, 202, 250, 214), fill="#34a853")
+        d.text((262, 194), "Write with AI", fill="#0f1419", font=font(18, True))
 
     img.convert("RGB").save(path)
 
@@ -295,39 +299,73 @@ def screenshot(path, variant=1):
     img = Image.new("RGB", (width, height), "#edf2f5")
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, width, 70), fill="#ffffff")
-    d.text((32, 22), "x.com / twitter.com", fill="#536471", font=font(18))
-    d.text((112, 22), "Thread", fill="#0f1419", font=font(18, True))
+    mark = icon(42)
+    img.paste(mark, (30, 14), mark)
+    d.text((88, 19), "Xtension for X/Twitter", fill="#0f1419", font=font(24, True))
+    d.text((1030, 23), "Synthetic demo", fill="#536471", font=font(16))
 
-    rounded_rectangle(d, (90, 110, 690, 710), 22, "#ffffff", "#d8e0e5", 2)
-    d.text((134, 150), "Thread X/Twitter", fill="#0f1419", font=font(34, True))
-    d.text((134, 205), "Text, images, and same-author posts.", fill="#536471", font=font(18))
-    for i in range(8):
-        y = 270 + i * 34
-        d.rectangle((134, y, 610 - (i % 3) * 60, y + 12), fill="#d8e0e5")
-    rounded_rectangle(d, (134, 570, 610, 670), 14, "#e8f5fd", "#9bd4ff", 2)
-    d.text((164, 606), "Image embedded in the PDF", fill="#1d4f7a", font=font(20, True))
+    if variant == 1:
+        rounded_rectangle(d, (88, 110, 704, 710), 22, "#ffffff", "#d8e0e5", 2)
+        d.ellipse((130, 148, 186, 204), fill="#4285f4")
+        d.text((206, 146), "Example author", fill="#0f1419", font=font(22, True))
+        d.text((206, 178), "@example", fill="#536471", font=font(17))
+        d.text((132, 238), "A useful idea, shared as a thread.", fill="#0f1419", font=font(27, True))
+        d.text((132, 292), "Xtension preserves paragraphs, links, images,", fill="#536471", font=font(19))
+        d.text((132, 326), "quoted posts, and consecutive posts by the same author.", fill="#536471", font=font(19))
+        rounded_rectangle(d, (132, 384, 660, 586), 16, "#e8f5fd", "#9bd4ff", 2)
+        d.text((164, 424), "Public post image", fill="#1d4f7a", font=font(24, True))
+        d.text((164, 470), "embedded in the local PDF", fill="#1d4f7a", font=font(19))
+        d.text((132, 630), "No upload. Your browser saves the file.", fill="#536471", font=font(18))
 
-    rounded_rectangle(d, (760, 138, 1136, 430), 18, "#ffffff", "#d8e0e5", 2)
-    d.text((804, 180), "Menu ...", fill="#0f1419", font=font(24, True))
-    d.rectangle((804, 238, 1090, 240), fill="#edf2f5")
-    d.text((836, 272), "Download as PDF", fill="#0f1419", font=font(22, True))
-    d.text((836, 314), "PDF saved by the browser.", fill="#536471", font=font(15))
+        rounded_rectangle(d, (760, 126, 1164, 650), 20, "#ffffff", "#d8e0e5", 2)
+        d.text((806, 170), "Post menu", fill="#0f1419", font=font(27, True))
+        menu_items = ["Not interested", "Add to Lists", "View post activity"]
+        for index, label in enumerate(menu_items):
+            d.text((806, 238 + index * 72), label, fill="#536471", font=font(20))
+        rounded_rectangle(d, (790, 440, 1134, 528), 12, "#fff4f4", "#ea4335", 3)
+        d.text((822, 468), "Download as PDF", fill="#0f1419", font=font(23, True))
+        d.text((806, 566), "Generated locally", fill="#34a853", font=font(19, True))
+    else:
+        rounded_rectangle(d, (70, 108, 770, 714), 22, "#ffffff", "#d8e0e5", 2)
+        d.text((112, 148), "Write with your own ChatGPT account", fill="#0f1419", font=font(30, True))
+        d.text((112, 198), "Replying to a post in its original language", fill="#536471", font=font(18))
+        rounded_rectangle(d, (112, 246, 728, 498), 16, "#f7f9f9", "#d8e0e5", 2)
+        d.text((142, 276), "This is a first clear idea.", fill="#0f1419", font=font(21))
+        d.text((142, 342), "A blank line keeps the reply airy and readable.", fill="#0f1419", font=font(21))
+        d.text((142, 408), "Each distinct thought gets its own paragraph.", fill="#0f1419", font=font(21))
+        chip_x = 112
+        for label, color in [("Fix", "#4285f4"), ("Translate", "#34a853"), ("Rewrite", "#fbbc05"), ("Generate", "#ea4335")]:
+            chip_x += draw_chip(d, (chip_x, 536), label, color) + 10
+        d.text((112, 618), "Undo", fill="#536471", font=font(18, True))
+        d.text((190, 618), "Redo", fill="#536471", font=font(18, True))
+        rounded_rectangle(d, (582, 602, 728, 662), 30, "#0f1419")
+        d.text((625, 619), "Reply", fill="#ffffff", font=font(20, True))
 
-    if variant == 2:
-        rounded_rectangle(d, (760, 470, 1136, 710), 18, "#ffffff", "#d8e0e5", 2)
-        d.text((804, 512), "PDF generated", fill="#0f1419", font=font(26, True))
-        d.text((804, 560), "Headings, paragraphs, lists, and images.", fill="#536471", font=font(18))
-        d.rectangle((804, 612, 1090, 634), fill="#e53935")
+        rounded_rectangle(d, (814, 108, 1194, 714), 22, "#ffffff", "#d8e0e5", 2)
+        d.text((852, 150), "Suggested replies", fill="#0f1419", font=font(26, True))
+        for top, label, color in [
+            (212, "Human reaction", "#4285f4"),
+            (320, "Concrete argument", "#34a853"),
+            (428, "Useful question", "#fbbc05"),
+        ]:
+            rounded_rectangle(d, (846, top, 1162, top + 78), 12, "#f7f9f9", "#d8e0e5", 1)
+            d.ellipse((868, top + 28, 880, top + 40), fill=color)
+            d.text((896, top + 24), label, fill="#0f1419", font=font(18, True))
+        rounded_rectangle(d, (846, 558, 1162, 672), 12, "#eef8f0", "#8fd19e", 2)
+        d.rectangle((870, 585, 894, 609), fill="#34a853")
+        d.text((875, 582), "✓", fill="#ffffff", font=font(18, True))
+        d.text((910, 578), "Use the first post image", fill="#0f1419", font=font(16, True))
+        d.text((910, 610), "as a visual reference", fill="#536471", font=font(15))
 
     img.save(path)
 
 
 def main():
     save_icons()
-    if not (STORE / "screenshot-1-1280x800.png").exists():
-        screenshot(STORE / "screenshot-1-1280x800.png", 1)
-    if not (STORE / "screenshot-2-1280x800.png").exists():
-        screenshot(STORE / "screenshot-2-1280x800.png", 2)
+    # Store screenshots are generated from synthetic content so releases never
+    # publish a real profile, post, avatar, or other user data by accident.
+    screenshot(STORE / "screenshot-1-1280x800.png", 1)
+    screenshot(STORE / "screenshot-2-1280x800.png", 2)
     promo(440, 280, STORE / "promo-small-440x280.png", marquee=False)
     promo(1400, 560, STORE / "promo-marquee-1400x560.png", marquee=True)
 

@@ -834,6 +834,15 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
     throw error;
   }
 
+  if (normalizeReplyLanguageMode(config.replyLanguageMode) !== "ui"
+      && context?.translationDetected
+      && !context?.originalTextRestored
+      && !cleanText(context?.tweetLanguage || "")) {
+    const error = new Error("X did not expose the original post language. Show the original post once, or choose a fixed output language in Xtension.");
+    error.code = "source_language_unavailable";
+    throw error;
+  }
+
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");

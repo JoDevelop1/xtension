@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.7.zip
+dist/xtension-chrome-v0.6.17.zip
 ```
 
 Assets to provide:
@@ -59,7 +59,7 @@ Use these values in the **Privacy practices** tab.
 Single purpose description:
 
 ```text
-Xtension improves the X/Twitter experience with focused tools for exporting visible X/Twitter content as local PDF files and, when enabled by the user, assisting with reply suggestions, correction, translation, and draft generation inside the X/Twitter composer.
+Xtension provides user-invoked productivity tools directly on X/Twitter posts: saving selected visible content as a local PDF and helping the user write, translate, correct, or illustrate a post or reply in the X/Twitter composer.
 ```
 
 Remote code justification:
@@ -102,7 +102,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.7.zip
+dist/xtension-edge-v0.6.17.zip
 ```
 
 Assets to provide:
@@ -123,7 +123,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.7.zip
+dist/xtension-firefox-v0.6.17.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:

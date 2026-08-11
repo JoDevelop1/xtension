@@ -6,7 +6,7 @@ Exportez vos publications X/Twitter en PDF et écrivez mieux avec votre propre c
 
 ## Description
 
-Xtension ajoute deux ensembles d'outils indépendants à X/Twitter. Chacun fonctionne sans l'autre.
+Xtension ajoute un ensemble ciblé d'outils de productivité, déclenchés par l'utilisateur directement dans les publications et zones de rédaction X/Twitter où vous lisez, sauvegardez et écrivez du contenu.
 
 **1. Export PDF — entièrement local**
 

@@ -7,6 +7,7 @@
   const storageApi = extensionApi?.storage?.local;
   const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
+  const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
 
   const REPLY_AI_CONFIG_VERSION = 22;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
@@ -140,7 +141,9 @@
     // Bind every control before touching the network. A stopped or wedged
     // connector must never make Save, tabs, or diagnostics appear broken.
     await loadConfig();
-    await refreshCodexStatus();
+    setConnectionState("checking", localizedText("optionsEngineStatusUnknown", "Checking..."));
+    setEngineStatus(localizedText("optionsCodexConnecting", "Checking the Codex connector and ChatGPT account..."));
+    await refreshCodexStatus({ warmup: true, retry: true });
   }
 
   function localizePage() {
@@ -251,26 +254,46 @@
     }
   }
 
-  async function refreshCodexStatus() {
+  async function refreshCodexStatus({ warmup = false, retry = false } = {}) {
     const config = getFormConfig();
-    try {
-      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/auth/status`, {
-        method: "GET",
-        headers: buildBridgeAuthHeaders(config)
-      });
-      renderCodexStatus(data);
-      await refreshCodexModels(config);
-      renderCodexStatus(data);
-      return data;
-    } catch (error) {
-      setConnectorDownloadState(false);
-      setConnectionState("unavailable", localizedText("optionsCodexUnavailableBadge", "Codex unavailable"));
-      setEngineStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
-      setAccountStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
-      setLoginButtons({ authenticated: false, busy: false, available: false });
-      populateModelSelect(FALLBACK_CODEX_MODELS, getSelectedModel());
-      return null;
+    const delays = retry ? BRIDGE_STATUS_RETRY_DELAYS_MS : [0];
+    let lastError = null;
+
+    for (let attempt = 0; attempt < delays.length; attempt += 1) {
+      if (delays[attempt] > 0) {
+        await delay(delays[attempt]);
+      }
+
+      try {
+        const data = await fetchBridgeJson(`${getBridgeUrl(config)}${warmup ? "/warmup" : "/auth/status"}`, {
+          method: warmup ? "POST" : "GET",
+          headers: buildBridgeAuthHeaders(config)
+        });
+
+        // The connector can answer before the Codex child process has finished
+        // starting. Retry this transient state automatically instead of showing
+        // a permanent red badge that disappears only after a manual test.
+        if (!data?.codex?.installed && attempt + 1 < delays.length) {
+          lastError = new Error(data?.error || "Codex is still starting.");
+          continue;
+        }
+
+        renderCodexStatus(data);
+        await refreshCodexModels(config);
+        renderCodexStatus(data);
+        return data;
+      } catch (error) {
+        lastError = error;
+      }
     }
+
+    setConnectorDownloadState(false);
+    setConnectionState("unavailable", localizedText("optionsCodexUnavailableBadge", "Codex unavailable"));
+    setEngineStatus(lastError?.message || localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
+    setAccountStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
+    setLoginButtons({ authenticated: false, busy: false, available: false });
+    populateModelSelect(FALLBACK_CODEX_MODELS, getSelectedModel());
+    return null;
   }
 
   function renderCodexStatus(data) {

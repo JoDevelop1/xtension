@@ -6,7 +6,7 @@ Export X/Twitter posts as PDF, and write better with your own ChatGPT account.
 
 ## Description
 
-Xtension adds two independent sets of tools to X/Twitter. Each one works without the other.
+Xtension adds a focused set of user-invoked productivity tools directly to the X/Twitter posts and composers where you read, save, and write content.
 
 **1. PDF export — entirely local**
 

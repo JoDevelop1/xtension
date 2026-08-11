@@ -2265,7 +2265,11 @@
       tweetLanguage,
       tweetLanguageSource: originalTextState?.sourceLanguage
         ? "translation_banner"
-        : (originalTextState?.restored ? "original_text" : (tweetLanguage ? "tweet_text" : "unknown")),
+        : (originalTextState?.restored
+          ? "original_text"
+          : (originalTextState?.translationDetected ? "translated_text_unknown" : (tweetLanguage ? "tweet_text" : "unknown"))),
+      translationDetected: Boolean(originalTextState?.translationDetected),
+      originalTextRestored: Boolean(originalTextState?.restored),
       tweetText,
       toneSignals: detectReplyToneSignals(tweet, tweetText),
       mediaContext: collectReplyMediaContext(tweet),
@@ -2278,7 +2282,8 @@
 
   async function ensureOriginalTweetTextVisible(tweet) {
     const tweetTextElement = findPrimaryTweetText(tweet);
-    const sourceLanguage = findTranslationSourceLanguage(tweet);
+    const translationScope = getTweetTranslationScope(tweet);
+    const sourceLanguage = findTranslationSourceLanguage(translationScope);
     const originalButton = findShowOriginalTweetButton(tweet, tweetTextElement);
     const state = {
       restored: false,
@@ -2296,6 +2301,12 @@
     try {
       originalButton.click();
       state.restored = await waitForOriginalTweetText(tweet, previousText, previousLang);
+      if (state.restored && !state.sourceLanguage) {
+        const restoredTextElement = findPrimaryTweetText(tweet);
+        const restoredText = extractVisibleText(restoredTextElement);
+        state.sourceLanguage = findTweetLanguage(tweet, restoredTextElement)
+          || normalizeLanguageCode(inferDraftLanguage(restoredText));
+      }
     } catch (_error) {
       state.restored = false;
     }
@@ -2307,8 +2318,10 @@
       return null;
     }
 
-    const explicitOriginalControl = Array.from(tweet.querySelectorAll('button, [role="button"]')).find((control) => {
-      if (!isVisibleElement(control) || control.closest('article[data-testid="tweet"]') !== tweet) {
+    const translationScope = getTweetTranslationScope(tweet);
+    const explicitOriginalControl = Array.from(translationScope.querySelectorAll('button, [role="button"]')).find((control) => {
+      const ownerTweet = control.closest('article[data-testid="tweet"]');
+      if (!isVisibleElement(control) || (ownerTweet && ownerTweet !== tweet)) {
         return false;
       }
       const label = cleanText([
@@ -2363,6 +2376,18 @@
     return null;
   }
 
+  function getTweetTranslationScope(tweet) {
+    const cell = tweet?.closest?.('[data-testid="cellInnerDiv"]');
+    if (!cell) {
+      return tweet;
+    }
+
+    const directTweets = Array.from(cell.querySelectorAll('article[data-testid="tweet"]')).filter((candidate) => {
+      return candidate.closest('[data-testid="cellInnerDiv"]') === cell;
+    });
+    return directTweets.length === 1 && directTweets[0] === tweet ? cell : tweet;
+  }
+
   function isLikelyTranslationBanner(element) {
     if (!element || !isVisibleElement(element) || !element.querySelector('button, [role="button"]')) {
       return false;
@@ -2383,8 +2408,16 @@
   }
 
   function findTranslationSourceLanguage(tweet) {
-    const text = cleanText(tweet?.innerText || tweet?.textContent || "");
-    const cueIndex = text.search(/translated\s+from|traduit(?:e)?\s+(?:de|du|des|depuis)|traducido\s+(?:del|de)|übersetzt(?:\s+(?:aus|von))?|翻訳|번역/i);
+    const metadata = Array.from(tweet?.querySelectorAll?.('[aria-label], [title]') || [])
+      .slice(0, 120)
+      .flatMap((element) => [element.getAttribute?.("aria-label"), element.getAttribute?.("title")])
+      .map(cleanText)
+      .filter((value) => /translat|tradui|traduc|übersetz|original|origine|原文|翻訳|원문|번역/i.test(value));
+    const text = cleanText([
+      tweet?.innerText || tweet?.textContent || "",
+      ...metadata
+    ].join(" "));
+    const cueIndex = text.search(/translated(?:\s+from)?|traduit(?:e)?(?:\s+(?:de|du|des|depuis))?|traducido(?:\s+(?:del|de))?|übersetzt(?:\s+(?:aus|von))?|(?:show|view|see|afficher|voir|mostrar|ver)\s+(?:the\s+|le\s+|l['’]|el\s+)?original|翻訳|原文|번역|원문/i);
     if (cueIndex < 0) {
       return "";
     }
@@ -2555,6 +2588,12 @@
   }
 
   function resolveTweetSourceLanguage(tweet, tweetTextElement, tweetText, originalTextState) {
+    if (originalTextState?.translationDetected
+        && !originalTextState?.sourceLanguage
+        && !originalTextState?.restored) {
+      return "";
+    }
+
     return normalizeLanguageCode(
       originalTextState?.sourceLanguage
       || findTweetLanguage(tweet, tweetTextElement)
@@ -3613,6 +3652,7 @@
     return code === "not_configured"
       || code === "bridge_unreachable"
       || code === "bridge_update_required"
+      || code === "source_language_unavailable"
       || code === "provider_login_required";
   }
 
@@ -3625,6 +3665,9 @@
     }
     if (code === "bridge_update_required") {
       return localizedText("replyAiBridgeUpdateRequired", "Update the Xtension Codex connector in the extension options, then try again.");
+    }
+    if (code === "source_language_unavailable") {
+      return localizedText("replySourceLanguageUnavailable", "X did not expose the original post language. Show the original post once, or choose a fixed output language in Xtension.");
     }
 
     return localizedText("replyAiNotConfigured", "Configure the OpenAI Codex connector in Xtension options first.");
@@ -4104,17 +4147,10 @@
 
   async function getReplyDraftContext(editor) {
     const target = findEditableReplyEditor(editor) || editor;
-    if (target?._xtensionReplyContext) {
-      return target._xtensionReplyContext;
-    }
 
     const tweet = findReplySourceTweet(target);
     if (tweet) {
-      const context = await collectReplySuggestionContext(tweet);
-      if (target) {
-        target._xtensionReplyContext = context;
-      }
-      return context;
+      return collectReplySuggestionContext(tweet);
     }
 
     return {
@@ -4126,9 +4162,9 @@
   function findReplySourceTweet(editor) {
     const dialog = findVisibleReplyDialog(editor);
     if (dialog) {
-      return Array.from(dialog.querySelectorAll('article[data-testid="tweet"]'))
-        .find((tweet) => !tweet.contains(editor) && findPrimaryTweetText(tweet))
-        || null;
+      const candidates = Array.from(dialog.querySelectorAll('article[data-testid="tweet"]'))
+        .filter((tweet) => !tweet.contains(editor) && isVisibleElement(tweet) && findPrimaryTweetText(tweet));
+      return findClosestPrecedingReplyTweet(candidates, editor);
     }
 
     const article = editor?.closest?.('article[data-testid="tweet"]');
@@ -4137,6 +4173,18 @@
     }
 
     return findNearestPreviousTweetForReplyEditor(editor);
+  }
+
+  function findClosestPrecedingReplyTweet(candidates, editor) {
+    const tweets = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+    if (!tweets.length || !editor) {
+      return null;
+    }
+
+    const preceding = tweets.filter((tweet) => {
+      return Boolean(tweet.compareDocumentPosition?.(editor) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    return preceding.at(-1) || tweets.at(-1) || null;
   }
 
   function findNearestPreviousTweetForReplyEditor(editor) {
@@ -4166,6 +4214,14 @@
     }
 
     const contextText = cleanText(context?.tweetText || "");
+    if (context?.translationDetected && !context?.originalTextRestored && !context?.tweetLanguage) {
+      const error = new Error(localizedText(
+        "replySourceLanguageUnavailable",
+        "X did not expose the original post language. Show the original post once, or choose a fixed output language in Xtension."
+      ));
+      error.code = "source_language_unavailable";
+      throw error;
+    }
     return cleanText(
       context?.tweetLanguage
       || inferDraftLanguage(contextText)

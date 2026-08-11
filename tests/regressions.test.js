@@ -92,10 +92,106 @@ test("auto reply language reads the original language from X translation banners
   assert.equal(findTranslationSourceLanguage({ innerText: "Translated from French by Grok  Show original" }), "fr");
   assert.equal(findTranslationSourceLanguage({ innerText: "Traduit de l’anglais par Grok  Afficher l’original" }), "en");
   assert.equal(findTranslationSourceLanguage({ innerText: "Aus dem Spanischen übersetzt  Original anzeigen" }), "es");
+  assert.equal(findTranslationSourceLanguage({
+    innerText: "Translated by Grok  Show original",
+    querySelectorAll: () => [{
+      getAttribute: (name) => name === "aria-label" ? "Translated from French by Grok" : ""
+    }]
+  }), "fr");
   assert.equal(findTranslationSourceLanguage({ innerText: "Simple English tweet without a translation banner" }), "");
   assert.match(content, /querySelectorAll\('button, \[role="button"\]'\)/);
   assert.match(content, /originalTextState\?\.sourceLanguage\s+\|\| findTweetLanguage/);
   assert.match(content, /contextText \? "unknown"/);
+  assert.match(content, /translationDetected: Boolean\(originalTextState\?\.translationDetected\)/);
+  assert.match(content, /originalTextRestored: Boolean\(originalTextState\?\.restored\)/);
+});
+
+test("reply dialogs use the closest preceding post instead of the first post in a thread", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function findClosestPrecedingReplyTweet");
+  const end = content.indexOf("\n  function findNearestPreviousTweetForReplyEditor", start);
+  assert.ok(start >= 0 && end > start);
+  const Node = { DOCUMENT_POSITION_FOLLOWING: 4 };
+  const findClosestPrecedingReplyTweet = new Function(
+    "Node",
+    `${content.slice(start, end)}\nreturn findClosestPrecedingReplyTweet;`
+  )(Node);
+  const editor = {};
+  const firstPost = { compareDocumentPosition: () => 4 };
+  const repliedToComment = { compareDocumentPosition: () => 4 };
+  const laterPost = { compareDocumentPosition: () => 0 };
+  assert.equal(
+    findClosestPrecedingReplyTweet([firstPost, repliedToComment, laterPost], editor),
+    repliedToComment
+  );
+  assert.match(content, /translationDetected[\s\S]{0,420}source_language_unavailable/);
+  assert.doesNotMatch(content, /target\?\._xtensionReplyContext/);
+});
+
+test("auto language never treats an un-restored X translation as the source language", async () => {
+  const content = read("src/content.js");
+  const sourceStart = content.indexOf("  function resolveTweetSourceLanguage");
+  const sourceEnd = content.indexOf("\n  function collectReplyLinkCards", sourceStart);
+  assert.ok(sourceStart >= 0 && sourceEnd > sourceStart);
+  const resolveTweetSourceLanguage = new Function(
+    "normalizeLanguageCode",
+    "findTweetLanguage",
+    "inferDraftLanguage",
+    `${content.slice(sourceStart, sourceEnd)}\nreturn resolveTweetSourceLanguage;`
+  )(
+    (value) => String(value || "").toLowerCase(),
+    () => "en",
+    () => "en"
+  );
+  assert.equal(resolveTweetSourceLanguage({}, {}, "Translated English", {
+    translationDetected: true,
+    restored: false,
+    sourceLanguage: ""
+  }), "");
+  assert.equal(resolveTweetSourceLanguage({}, {}, "Translated English", {
+    translationDetected: true,
+    restored: false,
+    sourceLanguage: "fr"
+  }), "fr");
+
+  const targetStart = content.indexOf("  async function getDraftActionTargetLanguage");
+  const targetEnd = content.indexOf("\n  // Renvoie un message", targetStart);
+  assert.ok(targetStart >= 0 && targetEnd > targetStart);
+  const getDraftActionTargetLanguage = new Function(
+    "getDraftGenerationLanguage",
+    "cleanText",
+    "inferDraftLanguage",
+    "getUiLocale",
+    "localizedText",
+    `${content.slice(targetStart, targetEnd)}\nreturn getDraftActionTargetLanguage;`
+  )(
+    async () => "auto",
+    (value) => String(value || "").replace(/\s+/g, " ").trim(),
+    (value) => /bonjour/i.test(value) ? "fr" : "en",
+    () => "en",
+    (_key, fallback) => fallback
+  );
+  await assert.rejects(() => getDraftActionTargetLanguage("generate", {
+    tweetText: "Translated English",
+    tweetLanguage: "",
+    translationDetected: true,
+    originalTextRestored: false
+  }, ""), (error) => error?.code === "source_language_unavailable");
+  assert.equal(await getDraftActionTargetLanguage("generate", {
+    tweetText: "Bonjour à tous",
+    tweetLanguage: "fr",
+    translationDetected: true,
+    originalTextRestored: true
+  }, ""), "fr");
+  assert.match(read("src/background.js"), /context\?\.translationDetected[\s\S]{0,280}source_language_unavailable/);
+});
+
+test("options warm up and retry the connector automatically on page load", () => {
+  const options = read("src/options.js");
+  assert.match(options, /BRIDGE_STATUS_RETRY_DELAYS_MS = \[0, 350, 1000\]/);
+  assert.match(options, /refreshCodexStatus\(\{ warmup: true, retry: true \}\)/);
+  assert.match(options, /warmup \? "\/warmup" : "\/auth\/status"/);
+  assert.match(options, /!data\?\.codex\?\.installed && attempt \+ 1 < delays\.length/);
 });
 
 test("latency optimizations refill threads and share context image work", () => {
