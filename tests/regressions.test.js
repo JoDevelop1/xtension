@@ -18,6 +18,12 @@ test("all JavaScript release builders use package.json as their version source",
   assert.doesNotMatch(read("scripts/xtension-ai-bridge.js"), /CODEX_CLIENT_VERSION = "\d+\.\d+\.\d+"/);
 });
 
+test("browser release ZIP entries use a cross-platform deterministic order", () => {
+  const build = read("scripts/build.js");
+  assert.match(build, /path\.relative\(dir, left\)\.replace/);
+  assert.match(build, /Buffer\.compare\(Buffer\.from\(leftName, "utf8"\), Buffer\.from\(rightName, "utf8"\)\)/);
+});
+
 test("the Windows installer records its built product version", () => {
   const installer = read("bridge-installer/Program.cs");
   assert.match(installer, /key\.SetValue\("DisplayVersion", ProductVersion\)/);

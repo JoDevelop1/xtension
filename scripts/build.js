@@ -205,7 +205,14 @@ function collectFiles(dir) {
   }
 
   walk(dir);
-  return files;
+  // Directory enumeration order differs between Windows and Linux. ZIP entry
+  // order affects the archive hash even when every byte of every file matches,
+  // so sort normalized UTF-8 paths explicitly for reproducible release assets.
+  return files.sort((left, right) => {
+    const leftName = path.relative(dir, left).replace(/\\/g, "/");
+    const rightName = path.relative(dir, right).replace(/\\/g, "/");
+    return Buffer.compare(Buffer.from(leftName, "utf8"), Buffer.from(rightName, "utf8"));
+  });
 }
 
 function writeZip(sourceDir, zipPath) {
