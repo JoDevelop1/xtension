@@ -251,6 +251,18 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "xtension-native-type-prepare") {
+    handleNativeTypePrepareRequest(message)
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({
+        ok: false,
+        code: error?.code || "native_type_failed",
+        error: error?.message
+      }));
+
+    return true;
+  }
+
   if (message.type === "xtension-native-type-capability") {
     handleNativeTypeCapabilityRequest()
       .then((result) => sendResponse(result))
@@ -1084,11 +1096,36 @@ async function bridgeSupportsNativeType(config) {
   }
   return Boolean(
     bridgeCompatibilityCache?.capabilities?.nativeType
-    && Number(bridgeCompatibilityCache?.capabilities?.nativeTypeProtocol || 0) >= 2
+    && Number(bridgeCompatibilityCache?.capabilities?.nativeTypeProtocol || 0) >= 3
   );
 }
 
-async function typeTextWithBridge(config, text, replaceExisting, expectedWindowMarker, expectedBrowser) {
+async function prepareNativeTypeWithBridge(config, expectedBrowser) {
+  const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
+  if (!bridgeUrl) {
+    const error = new Error("AI bridge URL is invalid.");
+    error.code = "not_configured";
+    throw error;
+  }
+
+  const response = await fetchBridgeRequest(`${bridgeUrl}/type-target`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...buildBridgeAuthHeaders(config)
+    },
+    body: JSON.stringify({ expectedBrowser })
+  }, {
+    operation: "native_type_prepare"
+  });
+
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+  return response.json().catch(() => ({}));
+}
+
+async function typeTextWithBridge(config, text, replaceExisting, targetToken, expectedBrowser) {
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -1105,7 +1142,7 @@ async function typeTextWithBridge(config, text, replaceExisting, expectedWindowM
     body: JSON.stringify({
       text,
       replaceExisting: Boolean(replaceExisting),
-      expectedWindowMarker,
+      targetToken,
       expectedBrowser
     })
   }, {
@@ -1133,13 +1170,32 @@ async function handleNativeTypeRequest(message) {
   if (!(await bridgeSupportsNativeType(config))) {
     return { ok: false, code: "native_type_unavailable" };
   }
-  const expectedWindowMarker = normalizeNativeWindowMarker(message?.expectedWindowMarker);
+  const targetToken = normalizeNativeTypeTargetToken(message?.targetToken);
   const expectedBrowser = normalizeNativeTypeBrowser(message?.expectedBrowser);
-  if (!expectedWindowMarker || !expectedBrowser) {
+  if (!targetToken || !expectedBrowser) {
     return { ok: false, code: "native_type_target_required" };
   }
-  await typeTextWithBridge(config, text, message?.replaceExisting, expectedWindowMarker, expectedBrowser);
+  await typeTextWithBridge(config, text, message?.replaceExisting, targetToken, expectedBrowser);
   return { ok: true, typed: true };
+}
+
+async function handleNativeTypePrepareRequest(message) {
+  const config = await getReplyAiConfig();
+  if (!config.enabled) {
+    return { ok: false, code: "disabled" };
+  }
+  if (!(await bridgeSupportsNativeType(config))) {
+    return { ok: false, code: "native_type_unavailable" };
+  }
+  const expectedBrowser = normalizeNativeTypeBrowser(message?.expectedBrowser);
+  if (!expectedBrowser) {
+    return { ok: false, code: "native_type_target_required" };
+  }
+  const result = await prepareNativeTypeWithBridge(config, expectedBrowser);
+  const targetToken = normalizeNativeTypeTargetToken(result?.targetToken);
+  return targetToken
+    ? { ok: true, targetToken }
+    : { ok: false, code: "native_type_target_invalid" };
 }
 
 async function handleNativeTypeCapabilityRequest() {
@@ -1156,9 +1212,9 @@ function normalizeNativeTypeBrowser(value) {
   return ["chrome", "edge", "firefox"].includes(browser) ? browser : "";
 }
 
-function normalizeNativeWindowMarker(value) {
-  const marker = cleanText(value || "");
-  return /^Xtension-[A-Za-z0-9-]{15,70}$/.test(marker) ? marker : "";
+function normalizeNativeTypeTargetToken(value) {
+  const token = cleanText(value || "");
+  return /^[A-Za-z0-9_-]{43}$/.test(token) ? token : "";
 }
 
 async function ensureCompatibleBridge(config, bridgeUrl) {

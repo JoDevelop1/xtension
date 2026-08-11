@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.15
+
+- Replaces native window-title matching with a short-lived, single-use target lease that pins the exact foreground browser window, process, UI thread, and focused native child control.
+- Fixes Edge tab groups and multi-selected tabs whose native window title does not change when the active page changes its `document.title`.
+- Raises the native-input protocol to version 3 so the browser extension and installed connector cannot mix the earlier title-marker flow with the target-lease flow.
+
 ## v0.6.14
 
 - Fixes native insertion in real Edge windows whose taskbar title represents a tab group or workspace (for example, “and 11 more pages”) instead of starting with the active page's `document.title`.

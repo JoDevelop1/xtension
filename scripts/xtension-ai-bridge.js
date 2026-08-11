@@ -11,6 +11,7 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { version: CODEX_CLIENT_VERSION } = require("./version");
 
@@ -24,10 +25,13 @@ const maxImageGenerationBodyBytes = 10 * 1024 * 1024;
 // envoi peut etre en vol a la fois, sinon deux rafales de touches se melangeraient
 // dans le champ au premier plan.
 const NATIVE_TYPE_PLATFORM_SUPPORTED = process.platform === "win32";
-const NATIVE_TYPE_PROTOCOL = 2;
+const NATIVE_TYPE_PROTOCOL = 3;
 const NATIVE_TYPE_MAX_CHARS = 4000;
 const NATIVE_TYPE_TIMEOUT_MS = 15000;
+const NATIVE_TYPE_TARGET_TTL_MS = 5000;
+const NATIVE_TYPE_TARGET_LIMIT = 16;
 let nativeTypeInFlight = false;
+const nativeTypeTargets = new Map();
 const bridgeToken = cleanText(process.env.XTENSION_BRIDGE_TOKEN || "");
 const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefaultBridgeLogFile());
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
@@ -900,27 +904,43 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "POST" && pathname === "/type-target") {
+      ensureNativeTypeAvailable();
+      if (nativeTypeInFlight) {
+        throw createBridgeError("A native typing operation is already in progress.", {
+          code: "native_type_busy",
+          statusCode: 409
+        });
+      }
+      const payload = await readJsonBody(request, maxBodyBytes);
+      const expectedBrowser = normalizeExpectedBrowser(payload?.expectedBrowser);
+      if (!expectedBrowser) {
+        throw createBridgeError("The expected foreground browser is required.", {
+          code: "native_type_target_required",
+          statusCode: 400
+        });
+      }
+      const target = await captureTargetViaHelper({ expectedBrowser });
+      const targetToken = storeNativeTypeTarget(target, expectedBrowser);
+      sendJson(response, 200, {
+        ok: true,
+        provider: "native-input",
+        targetToken,
+        expiresInMs: NATIVE_TYPE_TARGET_TTL_MS
+      });
+      return;
+    }
+
     if (request.method === "POST" && pathname === "/type") {
-      if (!NATIVE_TYPE_PLATFORM_SUPPORTED) {
-        throw createBridgeError("Native typing is only available on Windows.", {
-          code: "native_type_unsupported",
-          statusCode: 501
-        });
-      }
-      if (!fs.existsSync(resolveInputHelperPath())) {
-        throw createBridgeError("Native input helper is not installed.", {
-          code: "input_helper_missing",
-          statusCode: 503
-        });
-      }
+      ensureNativeTypeAvailable();
       const payload = await readJsonBody(request, maxBodyBytes);
       const text = sanitizeTypeText(payload?.text);
       if (!text) {
         throw createBridgeError("Text to type is required.", { code: "invalid_request", statusCode: 400 });
       }
-      const expectedWindowMarker = sanitizeExpectedWindowMarker(payload?.expectedWindowMarker);
+      const targetToken = sanitizeNativeTypeTargetToken(payload?.targetToken);
       const expectedBrowser = normalizeExpectedBrowser(payload?.expectedBrowser);
-      if (!expectedWindowMarker || !expectedBrowser) {
+      if (!targetToken || !expectedBrowser) {
         throw createBridgeError("The expected foreground browser target is required.", {
           code: "native_type_target_required",
           statusCode: 400
@@ -932,14 +952,15 @@ const server = http.createServer(async (request, response) => {
           statusCode: 409
         });
       }
+      const target = consumeNativeTypeTarget(targetToken, expectedBrowser);
       nativeTypeInFlight = true;
       const startedAt = Date.now();
       try {
         await typeViaHelper({
           text,
           replaceExisting: Boolean(payload?.replaceExisting),
-          expectedWindowMarker,
-          expectedBrowser
+          expectedBrowser,
+          target
         });
       } finally {
         nativeTypeInFlight = false;
@@ -1176,9 +1197,9 @@ function sanitizeTypeText(value) {
   return output;
 }
 
-function sanitizeExpectedWindowMarker(value) {
-  const marker = cleanText(value || "");
-  return /^Xtension-[A-Za-z0-9-]{15,70}$/.test(marker) ? marker : "";
+function sanitizeNativeTypeTargetToken(value) {
+  const token = cleanText(value || "");
+  return /^[A-Za-z0-9_-]{43}$/.test(token) ? token : "";
 }
 
 function normalizeExpectedBrowser(value) {
@@ -1200,6 +1221,21 @@ function nativeTypeIsAvailable() {
   return NATIVE_TYPE_PLATFORM_SUPPORTED && fs.existsSync(resolveInputHelperPath());
 }
 
+function ensureNativeTypeAvailable() {
+  if (!NATIVE_TYPE_PLATFORM_SUPPORTED) {
+    throw createBridgeError("Native typing is only available on Windows.", {
+      code: "native_type_unsupported",
+      statusCode: 501
+    });
+  }
+  if (!fs.existsSync(resolveInputHelperPath())) {
+    throw createBridgeError("Native input helper is not installed.", {
+      code: "input_helper_missing",
+      statusCode: 503
+    });
+  }
+}
+
 function getNativeTypeCapabilities() {
   return {
     nativeType: nativeTypeIsAvailable(),
@@ -1207,10 +1243,93 @@ function getNativeTypeCapabilities() {
   };
 }
 
-// Passe la requete au helper par STDIN (jamais par argv : le texte et le marqueur
-// ephemere ne doivent pas apparaitre dans la liste des processus). Le helper refuse
-// l'injection si le navigateur, la fenetre, l'onglet ou le focus natif ont change.
-function typeViaHelper({ text, replaceExisting, expectedWindowMarker, expectedBrowser }) {
+function sanitizeNativeTargetSnapshot(value) {
+  const windowHandle = cleanText(value?.windowHandle || "");
+  const focusedChildHandle = cleanText(value?.focusedChildHandle || "");
+  const processId = Number(value?.processId || 0);
+  const threadId = Number(value?.threadId || 0);
+  if (!/^[1-9][0-9]{0,19}$/.test(windowHandle)
+    || !/^[1-9][0-9]{0,19}$/.test(focusedChildHandle)
+    || !Number.isInteger(processId) || processId <= 0 || processId > 0xffffffff
+    || !Number.isInteger(threadId) || threadId <= 0 || threadId > 0xffffffff) {
+    return null;
+  }
+  return { windowHandle, focusedChildHandle, processId, threadId };
+}
+
+function pruneNativeTypeTargets(now = Date.now()) {
+  for (const [token, target] of nativeTypeTargets) {
+    if (target.expiresAt <= now) {
+      nativeTypeTargets.delete(token);
+    }
+  }
+  while (nativeTypeTargets.size >= NATIVE_TYPE_TARGET_LIMIT) {
+    const oldestToken = nativeTypeTargets.keys().next().value;
+    if (!oldestToken) break;
+    nativeTypeTargets.delete(oldestToken);
+  }
+}
+
+function storeNativeTypeTarget(target, expectedBrowser) {
+  pruneNativeTypeTargets();
+  const targetToken = crypto.randomBytes(32).toString("base64url");
+  nativeTypeTargets.set(targetToken, {
+    ...target,
+    expectedBrowser,
+    expiresAt: Date.now() + NATIVE_TYPE_TARGET_TTL_MS
+  });
+  return targetToken;
+}
+
+function consumeNativeTypeTarget(targetToken, expectedBrowser) {
+  const now = Date.now();
+  pruneNativeTypeTargets(now);
+  const target = nativeTypeTargets.get(targetToken);
+  nativeTypeTargets.delete(targetToken);
+  if (!target || target.expiresAt <= now || target.expectedBrowser !== expectedBrowser) {
+    throw createBridgeError("The native input target expired or was already used.", {
+      code: "native_type_target_expired",
+      statusCode: 409
+    });
+  }
+  return target;
+}
+
+async function captureTargetViaHelper({ expectedBrowser }) {
+  const output = await invokeInputHelper({ operation: "capture", expectedBrowser });
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    parsed = null;
+  }
+  const target = sanitizeNativeTargetSnapshot(parsed);
+  if (!target) {
+    throw createBridgeError("Native input helper returned an invalid target.", {
+      code: "input_helper_error",
+      statusCode: 500
+    });
+  }
+  return target;
+}
+
+// Passe les requetes au helper par STDIN (jamais par argv). Le premier appel
+// capture la fenetre et le controle Windows focalises ; le second exige les memes
+// handles avant SendInput. Le navigateur ne recoit qu'un jeton opaque a usage unique.
+function typeViaHelper({ text, replaceExisting, expectedBrowser, target }) {
+  return invokeInputHelper({
+    operation: "type",
+    text,
+    replaceExisting,
+    expectedBrowser,
+    expectedWindowHandle: target.windowHandle,
+    expectedFocusedChildHandle: target.focusedChildHandle,
+    expectedProcessId: target.processId,
+    expectedThreadId: target.threadId
+  }).then(() => undefined);
+}
+
+function invokeInputHelper(payload) {
   return new Promise((resolve, reject) => {
     const exe = resolveInputHelperPath();
     if (!fs.existsSync(exe)) {
@@ -1230,10 +1349,11 @@ function typeViaHelper({ text, replaceExisting, expectedWindowMarker, expectedBr
     };
 
     const child = spawn(exe, [], {
-      stdio: ["pipe", "ignore", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
     });
     let helperErrorCode = "";
+    let helperOutput = "";
     const timer = setTimeout(() => {
       try { child.kill(); } catch { /* already gone */ }
       finish(reject, createBridgeError("Native input helper timed out.", {
@@ -1255,10 +1375,15 @@ function typeViaHelper({ text, replaceExisting, expectedWindowMarker, expectedBr
         helperErrorCode += String(chunk || "");
       }
     });
-    child.on("exit", (code) => {
+    child.stdout.on("data", (chunk) => {
+      if (helperOutput.length < 2048) {
+        helperOutput += String(chunk || "");
+      }
+    });
+    child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) {
-        finish(resolve);
+        finish(resolve, helperOutput);
       } else {
         const nativeCode = cleanText(helperErrorCode).replace(/[^a-z0-9_]/gi, "").slice(0, 80);
         finish(reject, createBridgeError("Native input was refused because the foreground target changed or Windows rejected the input.", {
@@ -1269,12 +1394,7 @@ function typeViaHelper({ text, replaceExisting, expectedWindowMarker, expectedBr
     });
 
     child.stdin.on("error", () => { /* the child may close stdin early */ });
-    child.stdin.end(Buffer.from(JSON.stringify({
-      text,
-      replaceExisting,
-      expectedWindowMarker,
-      expectedBrowser
-    }), "utf8"));
+    child.stdin.end(Buffer.from(JSON.stringify(payload), "utf8"));
   });
 }
 

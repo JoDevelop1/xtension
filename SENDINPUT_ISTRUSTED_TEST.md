@@ -430,31 +430,31 @@ Avant une intégration réelle, il faudrait notamment définir :
 
 Le banc d'essai initial ci-dessus validait la faisabilité de la chaîne Windows `SendInput` → navigateur → événements DOM `isTrusted: true`. La section suivante décrit l'intégration produit réalisée ensuite et sa validation séparée.
 
-## Intégration réalisée dans Xtension 0.6.13, renforcée en 0.6.14
+## Intégration réalisée dans Xtension 0.6.13, renforcée en 0.6.15
 
 L'intégration produit utilise désormais le flux suivant sous Windows :
 
 ```text
 content script Xtension
   ├─ vérifie et sélectionne l'éditeur actif
-  ├─ pose un marqueur aléatoire éphémère dans le titre de l'onglet
-  ├─ transmet le texte, le navigateur et ce marqueur attendu
+  ├─ demande la capture de la cible Windows actuellement focalisée
+  ├─ reçoit un jeton opaque à usage unique, puis transmet le texte avec ce jeton
   ↓
-connecteur local Xtension 0.6.14
+connecteur local Xtension 0.6.15
   ├─ vérifie que XtensionInput.exe est réellement installé
+  ├─ conserve la fenêtre et le contrôle focalisé derrière le jeton pendant 5 s
   ├─ sérialise une seule opération à la fois
   ↓
 XtensionInput.exe
   ├─ vérifie le processus du navigateur au premier plan
-  ├─ exige le marqueur exact dans le titre de la fenêtre native
-  ├─ vérifie la fenêtre et le contrôle natif focalisé
+  ├─ exige les mêmes fenêtre, processus, thread UI et contrôle natif focalisé
   ├─ appelle SendInput avec KEYEVENTF_UNICODE
   └─ refuse l'opération si la cible change
 ```
 
 Une fois la capacité native annoncée, Xtension ne retombe pas silencieusement sur l'ancienne insertion DOM après un échec : cela évite de recréer des événements non fiables ou de dupliquer un texte partiellement saisi. Les plateformes sans helper Windows conservent le repli de compatibilité existant.
 
-La version 0.6.14 remplace la comparaison directe avec `document.title` : Edge peut afficher dans la barre des tâches un titre de groupe ou d'espace de travail tel que « et 11 pages de plus ». Le marqueur aléatoire permet de reconnaître l'onglet actif dans cette forme de titre sans accepter arbitrairement une autre fenêtre du même navigateur.
+La version 0.6.15 ne dépend plus du titre : Edge peut conserver un titre de groupe ou de sélection multiple tel que « et 11 pages de plus », même lorsque `document.title` change. La capture en deux temps lie l'opération aux handles Windows observés pendant que l'éditeur X a réellement le focus ; le jeton expire après cinq secondes et ne peut servir qu'une fois.
 
 ### Où vérifier `Event.isTrusted` dans le navigateur
 

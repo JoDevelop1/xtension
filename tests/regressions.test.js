@@ -123,12 +123,15 @@ test("native draft insertion uses SendInput targeting and never silently falls b
   assert.match(helper, /KeyEventUnicode = 0x0004/);
   assert.match(helper, /SendInput\(\(uint\)nativeInputs\.Length/);
   assert.match(helper, /GetGUIThreadInfo/);
-  assert.match(helper, /target_marker_mismatch/);
+  assert.match(helper, /target_lease_mismatch/);
+  assert.match(helper, /ExpectedFocusedChildHandle/);
   assert.match(bridge, /nativeTypeIsAvailable\(\)/);
-  assert.match(bridge, /expectedWindowMarker[\s\S]{0,180}expectedBrowser/);
+  assert.match(bridge, /captureTargetViaHelper/);
+  assert.match(bridge, /consumeNativeTypeTarget/);
   assert.match(content, /type: "xtension-native-type-capability"/);
-  assert.match(content, /document\.title = expectedWindowMarker/);
-  assert.match(content, /createNativeWindowMarker\(\)/);
+  assert.match(content, /type: "xtension-native-type-prepare"/);
+  assert.match(content, /targetToken: prepared\.targetToken/);
+  assert.doesNotMatch(content, /document\.title = expectedWindowMarker/);
   assert.match(content, /if \(nativeResult\.available\)[\s\S]{0,180}return false;/);
 
   const streamStart = content.indexOf("  function streamGenerateReplyText");

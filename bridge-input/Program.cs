@@ -10,6 +10,7 @@
 // reliable native delivery and correct browser event provenance, not concealment.
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -26,26 +27,54 @@ try
         PropertyNameCaseInsensitive = true
     }) ?? throw new InvalidOperationException("Native input request is missing.");
 
-    request = request.Normalize(MaxChars);
+    var operation = (request.Operation ?? "").Trim().ToLowerInvariant();
+    if (operation == "capture")
+    {
+        request = request.NormalizeForCapture();
+        var target = UnicodeInputSender.CaptureTarget(request.ExpectedBrowser);
+        Console.Write(JsonSerializer.Serialize(new NativeTargetResponse
+        {
+            WindowHandle = target.Window.ToInt64().ToString(CultureInfo.InvariantCulture),
+            FocusedChildHandle = target.FocusedChild.ToInt64().ToString(CultureInfo.InvariantCulture),
+            ProcessId = target.ProcessId,
+            ThreadId = target.ThreadId
+        }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+        return 0;
+    }
+    if (operation != "type")
+    {
+        throw new NativeInputException("native_operation_invalid");
+    }
+
+    request = request.NormalizeForType(MaxChars);
     new UnicodeInputSender(request).Send();
     return 0;
 }
 catch (Exception error)
 {
-    // Never echo the text or the expected window marker: stderr may be captured by
-    // the connector for diagnostics.
+    // Never echo text or native target values: stderr may be captured by the
+    // connector for diagnostics.
     Console.Error.WriteLine(error is NativeInputException nativeError ? nativeError.Code : "native_input_failed");
     return 1;
 }
 
 internal sealed record NativeTypeRequest
 {
+    public string Operation { get; init; } = "";
     public string Text { get; init; } = "";
     public bool ReplaceExisting { get; init; }
-    public string ExpectedWindowMarker { get; init; } = "";
     public string ExpectedBrowser { get; init; } = "";
+    public string ExpectedWindowHandle { get; init; } = "";
+    public string ExpectedFocusedChildHandle { get; init; } = "";
+    public uint ExpectedProcessId { get; init; }
+    public uint ExpectedThreadId { get; init; }
 
-    public NativeTypeRequest Normalize(int maxChars)
+    public NativeTypeRequest NormalizeForCapture()
+    {
+        return this with { ExpectedBrowser = NormalizeBrowser(ExpectedBrowser) };
+    }
+
+    public NativeTypeRequest NormalizeForType(int maxChars)
     {
         var normalizedText = (Text ?? "").Replace("\r\n", "\n").Replace('\r', '\n');
         var safeText = new StringBuilder(Math.Min(normalizedText.Length, maxChars));
@@ -61,19 +90,12 @@ internal sealed record NativeTypeRequest
             }
         }
 
-        var browser = (ExpectedBrowser ?? "").Trim().ToLowerInvariant();
-        if (browser is not ("chrome" or "edge" or "firefox"))
+        var browser = NormalizeBrowser(ExpectedBrowser);
+        _ = ParseHandle(ExpectedWindowHandle);
+        _ = ParseHandle(ExpectedFocusedChildHandle);
+        if (ExpectedProcessId == 0 || ExpectedThreadId == 0)
         {
-            throw new NativeInputException("target_browser_invalid");
-        }
-
-        var marker = (ExpectedWindowMarker ?? "").Trim();
-        if (marker.Length < 24
-            || marker.Length > 80
-            || !marker.StartsWith("Xtension-", StringComparison.Ordinal)
-            || marker.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
-        {
-            throw new NativeInputException("target_marker_invalid");
+            throw new NativeInputException("target_lease_invalid");
         }
         if (safeText.Length == 0 && !ReplaceExisting)
         {
@@ -83,11 +105,44 @@ internal sealed record NativeTypeRequest
         return this with
         {
             Text = safeText.ToString(),
-            ExpectedBrowser = browser,
-            ExpectedWindowMarker = marker
+            ExpectedBrowser = browser
         };
     }
+
+    public IntPtr GetExpectedWindow() => new(ParseHandle(ExpectedWindowHandle));
+
+    public IntPtr GetExpectedFocusedChild() => new(ParseHandle(ExpectedFocusedChildHandle));
+
+    private static string NormalizeBrowser(string value)
+    {
+        var browser = (value ?? "").Trim().ToLowerInvariant();
+        if (browser is not ("chrome" or "edge" or "firefox"))
+        {
+            throw new NativeInputException("target_browser_invalid");
+        }
+        return browser;
+    }
+
+    private static long ParseHandle(string value)
+    {
+        if (!long.TryParse((value ?? "").Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var handle)
+            || handle <= 0)
+        {
+            throw new NativeInputException("target_lease_invalid");
+        }
+        return handle;
+    }
 }
+
+internal sealed record NativeTargetResponse
+{
+    public string WindowHandle { get; init; } = "";
+    public string FocusedChildHandle { get; init; } = "";
+    public uint ProcessId { get; init; }
+    public uint ThreadId { get; init; }
+}
+
+internal sealed record NativeTargetSnapshot(IntPtr Window, uint ProcessId, uint ThreadId, IntPtr FocusedChild);
 
 internal sealed class UnicodeInputSender
 {
@@ -119,10 +174,11 @@ internal sealed class UnicodeInputSender
 
     public void Send()
     {
-        // Capture and validate the exact foreground browser window immediately
-        // before constructing the input batch. The focused native child handle is
-        // pinned too, which catches a switch to the address bar or another tab.
-        var target = CaptureTarget();
+        // The connector captured this target immediately after the content script
+        // focused X's editor. Require the exact same native window and focused child
+        // before constructing or delivering the input batch.
+        var target = CaptureTarget(request.ExpectedBrowser);
+        EnsureExpectedTarget(target);
         var inputs = BuildInputs();
         EnsureTargetStillActive(target);
 
@@ -174,7 +230,7 @@ internal sealed class UnicodeInputSender
         return inputs;
     }
 
-    private TargetSnapshot CaptureTarget()
+    internal static NativeTargetSnapshot CaptureTarget(string expectedBrowser)
     {
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero)
@@ -199,16 +255,10 @@ internal sealed class UnicodeInputSender
             throw new NativeInputException("target_process_missing");
         }
 
-        if (!BrowserProcessNames.TryGetValue(request.ExpectedBrowser, out var expectedProcess)
+        if (!BrowserProcessNames.TryGetValue(expectedBrowser, out var expectedProcess)
             || !string.Equals(processName, expectedProcess, StringComparison.OrdinalIgnoreCase))
         {
             throw new NativeInputException("target_browser_mismatch");
-        }
-
-        var actualTitle = ReadWindowTitle(foreground);
-        if (!actualTitle.Contains(request.ExpectedWindowMarker, StringComparison.Ordinal))
-        {
-            throw new NativeInputException("target_marker_mismatch");
         }
 
         var focusedChild = ReadFocusedChild(threadId);
@@ -217,10 +267,26 @@ internal sealed class UnicodeInputSender
             throw new NativeInputException("target_focus_missing");
         }
 
-        return new TargetSnapshot(foreground, processId, threadId, focusedChild);
+        if (focusedChild != foreground && !IsChild(foreground, focusedChild))
+        {
+            throw new NativeInputException("target_focus_invalid");
+        }
+
+        return new NativeTargetSnapshot(foreground, processId, threadId, focusedChild);
     }
 
-    private void EnsureTargetStillActive(TargetSnapshot target)
+    private void EnsureExpectedTarget(NativeTargetSnapshot target)
+    {
+        if (target.Window != request.GetExpectedWindow()
+            || target.FocusedChild != request.GetExpectedFocusedChild()
+            || target.ProcessId != request.ExpectedProcessId
+            || target.ThreadId != request.ExpectedThreadId)
+        {
+            throw new NativeInputException("target_lease_mismatch");
+        }
+    }
+
+    private static void EnsureTargetStillActive(NativeTargetSnapshot target)
     {
         if (GetForegroundWindow() != target.Window)
         {
@@ -237,14 +303,6 @@ internal sealed class UnicodeInputSender
         {
             throw new NativeInputException("target_focus_changed");
         }
-    }
-
-    private static string ReadWindowTitle(IntPtr window)
-    {
-        var length = GetWindowTextLength(window);
-        var buffer = new StringBuilder(Math.Max(length + 1, 2));
-        _ = GetWindowText(window, buffer, buffer.Capacity);
-        return buffer.ToString();
     }
 
     private static IntPtr ReadFocusedChild(uint threadId)
@@ -295,16 +353,11 @@ internal sealed class UnicodeInputSender
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetWindowText(IntPtr window, StringBuilder value, int maxCount);
-
-    [DllImport("user32.dll")]
-    private static extern int GetWindowTextLength(IntPtr window);
-
     [DllImport("user32.dll")]
     private static extern bool GetGUIThreadInfo(uint threadId, ref GuiThreadInfo info);
 
-    private sealed record TargetSnapshot(IntPtr Window, uint ProcessId, uint ThreadId, IntPtr FocusedChild);
+    [DllImport("user32.dll")]
+    private static extern bool IsChild(IntPtr parentWindow, IntPtr window);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct GuiThreadInfo
