@@ -48,6 +48,41 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "21");
+  assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
+});
+
+test("generated text keeps one blank line between short paragraphs", () => {
+  const content = read("src/content.js");
+  const cleanStart = content.indexOf("  function cleanMultilineText");
+  const normalizeStart = content.indexOf("  function normalizeUrlFragments", cleanStart);
+  const normalizeEnd = content.indexOf("\n  function extractVisibleText", normalizeStart);
+  assert.ok(cleanStart >= 0 && normalizeStart > cleanStart && normalizeEnd > normalizeStart);
+  const source = `${content.slice(cleanStart, normalizeStart)}\n${content.slice(normalizeStart, normalizeEnd)}\nreturn cleanMultilineText;`;
+  const cleanMultilineText = new Function(source)();
+  assert.equal(
+    cleanMultilineText("Premier paragraphe.  \r\n \r\n Deuxième paragraphe.\n\n\nTroisième."),
+    "Premier paragraphe.\n\nDeuxième paragraphe.\n\nTroisième."
+  );
+});
+
+test("generation prompts request airy paragraphs without changing corrections", () => {
+  const background = read("src/background.js");
+  const options = read("src/options.js");
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  assert.match(background, /DEFAULT_GENERATE_PROMPT[^;]+exactly one blank line/);
+  assert.match(options, /DEFAULT_GENERATE_PROMPT[^;]+exactly one blank line/);
+  assert.match(bridge, /When the reply contains more than one sentence or idea[\s\S]{0,220}exactly one blank line/);
+  assert.match(bridge, /Keep exactly the same number of lines and the same line-break positions as the draft/);
+});
+
+test("latency optimizations refill threads and share context image work", () => {
+  const background = read("src/background.js");
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  assert.match(background, /const contextImageCache = new Map\(\)/);
+  assert.match(background, /contextImageCache\.set\(smallUrl, \{ at: now, promise \}\)/);
+  assert.match(bridge, /this\.spareThreadPromise/);
+  assert.match(bridge, /this\.prewarmThread\(selectedModel\)\.catch\(\(\) => \{\}\)/);
 });
 
 test("AI operations reject an unversioned legacy connector", () => {

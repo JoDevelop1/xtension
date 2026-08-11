@@ -8,10 +8,10 @@
   const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
 
-  const REPLY_AI_CONFIG_VERSION = 20;
+  const REPLY_AI_CONFIG_VERSION = 21;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
-  const DEFAULT_CODEX_REASONING_EFFORT = "medium";
+  const DEFAULT_CODEX_REASONING_EFFORT = "low";
   const CODEX_REASONING_ORDER = ["low", "medium", "high", "xhigh", "max", "ultra"];
   const FALLBACK_CODEX_MODELS = [
     { model: "gpt-5.6-sol", displayName: "GPT-5.6 Sol", supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
@@ -20,11 +20,17 @@
   ];
   const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
   const DEFAULT_REPLY_STYLE = "auto";
-  const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
-  const DEFAULT_REPLY_PROMPT_PROFILES = [
+  const LEGACY_GENERATE_PROMPT_V20 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
+  const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise. When the post contains more than one sentence or idea, use two short paragraphs separated by exactly one blank line; otherwise use one line. Never return a dense block.";
+  const LEGACY_REPLY_PROMPT_PROFILES_V20 = [
     { label: "Short impact", prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement." },
     { label: "Medium argument", prompt: "Write one natural X/Twitter reply in one sentence, ideally 100 to 210 characters, with one concrete reason or consequence." },
     { label: "Longer argument", prompt: "Write one dense, specific X/Twitter reply, ideally 170 to 300 characters, with a fuller argument and no filler." }
+  ];
+  const DEFAULT_REPLY_PROMPT_PROFILES = [
+    { label: "Short impact", prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement." },
+    { label: "Medium argument", prompt: "Write one natural X/Twitter reply as two short sentences in two short paragraphs separated by exactly one blank line, ideally 120 to 230 characters, with one concrete reason or consequence. Never return a dense block." },
+    { label: "Longer argument", prompt: "Write one specific X/Twitter reply in two or three short paragraphs separated by exactly one blank line, ideally 180 to 320 characters, with a fuller argument and no filler. Never return a dense block." }
   ];
 
   const DEFAULT_CONFIG = {
@@ -702,6 +708,7 @@
 
   function normalizeReplyAiConfig(config) {
     const rawConfig = config && typeof config === "object" ? config : {};
+    const previousConfigVersion = Number(rawConfig.configVersion) || 0;
     const normalized = { ...DEFAULT_CONFIG, ...rawConfig };
     normalized.configVersion = REPLY_AI_CONFIG_VERSION;
     normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
@@ -709,13 +716,21 @@
     normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
     normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
     normalized.codexReasoningEffort = normalizeReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
-    if (Number(rawConfig.configVersion) < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+    if (previousConfigVersion < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+      normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
+    }
+    if (previousConfigVersion < 21 && cleanText(rawConfig.codexReasoningEffort || "") === "medium") {
       normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
     }
     normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
     normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
-    normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
+    normalized.replyPromptProfiles = previousConfigVersion < 21 && usesLegacyReplyPromptProfilesV20(rawConfig.replyPromptProfiles)
+      ? cloneDefaultReplyPromptProfiles()
+      : normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
     normalized.generatePrompt = cleanText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
+    if (previousConfigVersion < 21 && cleanText(rawConfig.generatePrompt || "") === LEGACY_GENERATE_PROMPT_V20) {
+      normalized.generatePrompt = DEFAULT_GENERATE_PROMPT;
+    }
 
     // Remove settings from the former local/provider architecture, including
     // API-key fields users may have stored in an earlier development build.
@@ -728,6 +743,17 @@
 
   function cloneDefaultReplyPromptProfiles() {
     return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
+  }
+
+  function usesLegacyReplyPromptProfilesV20(value) {
+    if (!Array.isArray(value) || value.length < LEGACY_REPLY_PROMPT_PROFILES_V20.length) {
+      return false;
+    }
+    return LEGACY_REPLY_PROMPT_PROFILES_V20.every((legacy, index) => {
+      const profile = value[index] && typeof value[index] === "object" ? value[index] : {};
+      return cleanText(profile.label || profile.name || "") === legacy.label
+        && cleanDraftText(profile.prompt || "") === legacy.prompt;
+    });
   }
 
   function normalizeReplyPromptProfiles(value, legacyPrompt) {

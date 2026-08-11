@@ -4,21 +4,21 @@ const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
 const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 
-const REPLY_AI_CONFIG_VERSION = 20;
+const REPLY_AI_CONFIG_VERSION = 21;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
-// "medium" et non "max" : mesuré ~1,2 s de moins par requête pour une
-// correction ou une traduction de tweet, sans perte observable sur ces
-// tâches courtes. Réglable dans les options pour qui veut plus de
-// raisonnement.
-const DEFAULT_CODEX_REASONING_EFFORT = "medium";
+// Les réponses X sont courtes et bien délimitées. Le mode low est le meilleur
+// compromis mesuré sur ce parcours (Luna low ~3,7 s contre ~6,3 s en medium),
+// tout en restant réglable dans les options.
+const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const CODEX_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
 const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
 const DEFAULT_REPLY_STYLE = "auto";
 const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
 
-const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
-const DEFAULT_REPLY_PROMPT_PROFILES = [
+const LEGACY_GENERATE_PROMPT_V20 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
+const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise. When the post contains more than one sentence or idea, use two short paragraphs separated by exactly one blank line; otherwise use one line. Never return a dense block.";
+const LEGACY_REPLY_PROMPT_PROFILES_V20 = [
   {
     label: "Short impact",
     prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement."
@@ -30,6 +30,20 @@ const DEFAULT_REPLY_PROMPT_PROFILES = [
   {
     label: "Longer argument",
     prompt: "Write one dense, specific X/Twitter reply, ideally 170 to 300 characters, with a fuller argument and no filler."
+  }
+];
+const DEFAULT_REPLY_PROMPT_PROFILES = [
+  {
+    label: "Short impact",
+    prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement."
+  },
+  {
+    label: "Medium argument",
+    prompt: "Write one natural X/Twitter reply as two short sentences in two short paragraphs separated by exactly one blank line, ideally 120 to 230 characters, with one concrete reason or consequence. Never return a dense block."
+  },
+  {
+    label: "Longer argument",
+    prompt: "Write one specific X/Twitter reply in two or three short paragraphs separated by exactly one blank line, ideally 180 to 320 characters, with a fuller argument and no filler. Never return a dense block."
   }
 ];
 
@@ -51,8 +65,11 @@ const DIAGNOSTIC_LOG_LIMIT = 160;
 const DIAGNOSTIC_LOG_STRING_LIMIT = 900;
 const BRIDGE_UNREACHABLE_CODE = "bridge_unreachable";
 const BRIDGE_COMPATIBILITY_CACHE_MS = 5 * 60 * 1000;
+const CONTEXT_IMAGE_CACHE_TTL_MS = 2 * 60 * 1000;
+const CONTEXT_IMAGE_CACHE_LIMIT = 8;
 let diagnosticLogWriteQueue = Promise.resolve();
 let bridgeCompatibilityCache = null;
+const contextImageCache = new Map();
 
 runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
@@ -659,13 +676,29 @@ async function fetchContextImageDataUrl(context) {
       return "";
     }
     const smallUrl = toSmallImageUrl(item.imageUrl);
-    const image = await fetchImageAsDataUrl(smallUrl);
-    // Borne de sécurité : au-delà, on renonce (le bridge limite /transform à ~6 Mo,
-    // et une image trop grande ralentit inutilement l'encodage vision).
-    if (image?.dataUrl && image.dataUrl.length <= 4 * 1024 * 1024) {
-      return image.dataUrl;
+    const now = Date.now();
+    const cached = contextImageCache.get(smallUrl);
+    if (cached && now - cached.at < CONTEXT_IMAGE_CACHE_TTL_MS) {
+      return await cached.promise;
     }
-    return "";
+
+    const promise = fetchImageAsDataUrl(smallUrl).then((image) => {
+      // Borne de sécurité : au-delà, on renonce (le bridge limite /transform à
+      // ~6 Mo, et une image trop grande ralentit inutilement l'encodage vision).
+      return image?.dataUrl && image.dataUrl.length <= 4 * 1024 * 1024
+        ? image.dataUrl
+        : "";
+    });
+    contextImageCache.set(smallUrl, { at: now, promise });
+    while (contextImageCache.size > CONTEXT_IMAGE_CACHE_LIMIT) {
+      contextImageCache.delete(contextImageCache.keys().next().value);
+    }
+    promise.catch(() => {
+      if (contextImageCache.get(smallUrl)?.promise === promise) {
+        contextImageCache.delete(smallUrl);
+      }
+    });
+    return await promise;
   } catch (error) {
     return "";
   }
@@ -873,6 +906,7 @@ async function getReplyAiConfig() {
 
 function normalizeReplyAiConfig(config) {
   const rawConfig = config && typeof config === "object" ? config : {};
+  const previousConfigVersion = Number(rawConfig.configVersion) || 0;
   const normalized = {
     ...DEFAULT_REPLY_AI_CONFIG,
     ...rawConfig
@@ -888,13 +922,21 @@ function normalizeReplyAiConfig(config) {
   // Migration vers la v20 : l'ancien défaut "max" coûtait ~1,2 s par requête.
   // On ne le remplace que s'il s'agit bien de l'ancien défaut hérité, jamais
   // d'un réglage que l'utilisateur aurait choisi après cette migration.
-  if (Number(rawConfig.configVersion) < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+  if (previousConfigVersion < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
+    normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
+  }
+  if (previousConfigVersion < 21 && cleanText(rawConfig.codexReasoningEffort || "") === "medium") {
     normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
   }
   normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
   normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
-  normalized.replyPromptProfiles = normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
+  normalized.replyPromptProfiles = previousConfigVersion < 21 && usesLegacyReplyPromptProfilesV20(rawConfig.replyPromptProfiles)
+    ? cloneDefaultReplyPromptProfiles()
+    : normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
   normalized.generatePrompt = cleanDraftText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
+  if (previousConfigVersion < 21 && cleanDraftText(rawConfig.generatePrompt || "") === LEGACY_GENERATE_PROMPT_V20) {
+    normalized.generatePrompt = DEFAULT_GENERATE_PROMPT;
+  }
 
   delete normalized.provider;
   delete normalized.codexModelPreset;
@@ -910,6 +952,17 @@ function normalizeReplyAiConfig(config) {
 
 function cloneDefaultReplyPromptProfiles() {
   return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
+}
+
+function usesLegacyReplyPromptProfilesV20(value) {
+  if (!Array.isArray(value) || value.length < LEGACY_REPLY_PROMPT_PROFILES_V20.length) {
+    return false;
+  }
+  return LEGACY_REPLY_PROMPT_PROFILES_V20.every((legacy, index) => {
+    const profile = value[index] && typeof value[index] === "object" ? value[index] : {};
+    return cleanText(profile.label || profile.name || "") === legacy.label
+      && cleanDraftText(profile.prompt || "") === legacy.prompt;
+  });
 }
 
 function normalizeReplyPromptProfiles(value, legacyPrompt) {

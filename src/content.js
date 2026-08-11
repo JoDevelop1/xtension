@@ -9030,9 +9030,11 @@
   function cleanMultilineText(value) {
     return normalizeUrlFragments(String(value || ""))
       .replace(/\u00a0/g, " ")
-      .replace(/[ \t\r\f\v]+/g, " ")
-      .replace(/\n\s+/g, "\n")
-      .replace(/\s+\n/g, "\n")
+      .replace(/\r\n?/g, "\n")
+      .replace(/[ \t\f\v]+/g, " ")
+      .replace(/\n[ \t\f\v]+/g, "\n")
+      .replace(/[ \t\f\v]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
 

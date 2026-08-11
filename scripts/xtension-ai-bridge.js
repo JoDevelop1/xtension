@@ -24,9 +24,9 @@ const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefau
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
 
 const CODEX_MODEL = "gpt-5.6-luna";
-// Défaut aligné sur l'extension : "medium" suffit pour corriger ou
-// traduire un tweet et évite ~1,2 s de raisonnement par requête.
-const CODEX_REASONING_EFFORT = "medium";
+// Défaut aligné sur l'extension : les parcours courts bénéficient de "low"
+// pour réduire la latence, tout en laissant le réglage modifiable.
+const CODEX_REASONING_EFFORT = "low";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
 const CODEX_TURN_TIMEOUT_MS = readDurationSetting("XTENSION_CODEX_TIMEOUT_MS", 180000, 10000, 30 * 60 * 1000);
@@ -105,6 +105,8 @@ class CodexAppServerClient {
     this.lastError = "";
     this.accountCache = null;
     this.spareThread = null;
+    this.spareThreadPromise = null;
+    this.spareThreadModel = "";
   }
 
   async ensureStarted() {
@@ -408,16 +410,37 @@ class CodexAppServerClient {
    */
   async prewarmThread(model) {
     const selectedModel = normalizeCodexModel(model);
-    if (this.spareThread && this.spareThread.model === selectedModel) {
-      return;
+    if (this.spareThread
+      && this.spareThread.model === selectedModel
+      && Date.now() - this.spareThread.at < CODEX_SPARE_THREAD_TTL_MS) {
+      return this.spareThread.threadId;
     }
-    try {
-      const threadId = await this.startThread(selectedModel);
-      if (threadId) {
-        this.spareThread = { model: selectedModel, threadId, at: Date.now() };
+
+    if (this.spareThreadPromise && this.spareThreadModel === selectedModel) {
+      return this.spareThreadPromise;
+    }
+
+    const promise = (async () => {
+      try {
+        const threadId = await this.startThread(selectedModel);
+        if (threadId) {
+          this.spareThread = { model: selectedModel, threadId, at: Date.now() };
+        }
+        return threadId;
+      } catch {
+        this.spareThread = null;
+        return "";
       }
-    } catch {
-      this.spareThread = null;
+    })();
+    this.spareThreadPromise = promise;
+    this.spareThreadModel = selectedModel;
+    try {
+      return await promise;
+    } finally {
+      if (this.spareThreadPromise === promise) {
+        this.spareThreadPromise = null;
+        this.spareThreadModel = "";
+      }
     }
   }
 
@@ -427,6 +450,11 @@ class CodexAppServerClient {
    * il resterait porteur du tour précédent.
    */
   async takeThread(model) {
+    if ((!this.spareThread || this.spareThread.model !== model)
+      && this.spareThreadPromise
+      && this.spareThreadModel === model) {
+      await this.spareThreadPromise.catch(() => {});
+    }
     const spare = this.spareThread;
     this.spareThread = null;
     if (spare && spare.model === model && Date.now() - spare.at < CODEX_SPARE_THREAD_TTL_MS) {
@@ -542,6 +570,9 @@ class CodexAppServerClient {
         clientUserMessageId: createRequestId()
       }, CODEX_START_TIMEOUT_MS);
       turnId = cleanText(turnResult?.turn?.id || "");
+      // Le tour courant est parti : prépare déjà le fil du prochain appel,
+      // sans ajouter ce travail à son chemin critique.
+      this.prewarmThread(selectedModel).catch(() => {});
 
       const text = await withTimeout(completion, CODEX_TURN_TIMEOUT_MS, () => {
         if (!completed && turnId) {
@@ -671,6 +702,9 @@ class CodexAppServerClient {
     this.child = null;
     this.ready = false;
     this.buffer = "";
+    this.spareThread = null;
+    this.spareThreadPromise = null;
+    this.spareThreadModel = "";
     if (child && !child.killed) {
       try {
         child.kill();
@@ -945,6 +979,7 @@ async function runReply(payload) {
     `Requested style: ${replyStyle}.`,
     `Profile name: ${profileName}.`,
     "Follow the user's custom instructions below. Return only the reply text, without a label, quotes, markdown, or explanation.",
+    "When the reply contains more than one sentence or idea, split it into two or three short paragraphs separated by exactly one blank line. Never compress a multi-sentence reply into one dense block.",
     "Never use Unicode code point U+2014; use a comma or another suitable punctuation mark instead.",
     "Do not invent facts that are absent from the visible context.",
     "",
@@ -1033,7 +1068,8 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
     instructions = [
       "Write the X/Twitter post requested by the user's instruction below.",
       "Produce the post itself, not a correction or a description of the instruction.",
-      "Use a natural, human voice with a clear point of view. Do not invent specific fake facts, names, numbers, or quotes."
+      "Use a natural, human voice with a clear point of view. Do not invent specific fake facts, names, numbers, or quotes.",
+      "When the post contains more than one sentence or idea, split it into two or three short paragraphs separated by exactly one blank line. Never compress a multi-sentence post into one dense block."
     ];
     const style = cleanText(generatePrompt || "");
     if (style) {

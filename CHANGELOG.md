@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.12
+
+- Preserves intentional blank lines all the way into the X/Twitter editor, so generated posts and replies can use short, readable paragraphs instead of collapsing into one dense block.
+- Updates the default generation and suggestion profiles to separate multiple sentences or ideas with one blank line. Existing custom prompts remain unchanged.
+- Lowers the default Luna reasoning effort from `medium` to `low` for short social-writing tasks. In the same local alternating benchmark, Luna averaged about 3.7 seconds at low effort versus 6.3 seconds at medium, while the setting remains adjustable.
+- Continuously prepares the next ephemeral Codex thread after a request starts, rather than prewarming only once when the composer opens.
+- Shares the download and conversion of one contextual X image across parallel reply suggestions, removing duplicate work without retaining it beyond a short in-memory cache.
+
 ## v0.6.11
 
 - Adds a one-click **Copy logs** action. Diagnostic entries now live in a read-only text area, so selecting them cannot drag the selection through Refresh, Clear, or Save button labels.
