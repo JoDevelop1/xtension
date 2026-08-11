@@ -2250,18 +2250,22 @@
   }
 
   async function collectReplySuggestionContext(tweet) {
-    await ensureOriginalTweetTextVisible(tweet);
+    const originalTextState = await ensureOriginalTweetTextVisible(tweet);
     const status = getTweetStatusContext(tweet);
     const authorInfo = getTweetAuthorInfo(tweet, status);
     const tweetTextElement = findPrimaryTweetText(tweet);
     const tweetText = extractVisibleText(tweetTextElement) || cleanText(tweet.textContent);
     const authorHandle = cleanHandle(authorInfo?.handle || status?.author || "");
+    const tweetLanguage = resolveTweetSourceLanguage(tweet, tweetTextElement, tweetText, originalTextState);
 
     return {
       authorName: authorInfo?.displayName || "",
       authorHandle,
       sourceUrl: status?.url || "",
-      tweetLanguage: findTweetLanguage(tweet, tweetTextElement),
+      tweetLanguage,
+      tweetLanguageSource: originalTextState?.sourceLanguage
+        ? "translation_banner"
+        : (originalTextState?.restored ? "original_text" : (tweetLanguage ? "tweet_text" : "unknown")),
       tweetText,
       toneSignals: detectReplyToneSignals(tweet, tweetText),
       mediaContext: collectReplyMediaContext(tweet),
@@ -2274,23 +2278,49 @@
 
   async function ensureOriginalTweetTextVisible(tweet) {
     const tweetTextElement = findPrimaryTweetText(tweet);
+    const sourceLanguage = findTranslationSourceLanguage(tweet);
     const originalButton = findShowOriginalTweetButton(tweet, tweetTextElement);
+    const state = {
+      restored: false,
+      sourceLanguage,
+      translationDetected: Boolean(sourceLanguage || originalButton)
+    };
 
     if (!tweetTextElement || !originalButton) {
-      return false;
+      return state;
     }
 
     const previousText = extractVisibleText(tweetTextElement);
     const previousLang = findTweetLanguage(tweet, tweetTextElement);
 
-    originalButton.click();
-    await waitForOriginalTweetText(tweet, previousText, previousLang);
-    return true;
+    try {
+      originalButton.click();
+      state.restored = await waitForOriginalTweetText(tweet, previousText, previousLang);
+    } catch (_error) {
+      state.restored = false;
+    }
+    return state;
   }
 
   function findShowOriginalTweetButton(tweet, tweetTextElement) {
     if (!tweet || !tweetTextElement) {
       return null;
+    }
+
+    const explicitOriginalControl = Array.from(tweet.querySelectorAll('button, [role="button"]')).find((control) => {
+      if (!isVisibleElement(control) || control.closest('article[data-testid="tweet"]') !== tweet) {
+        return false;
+      }
+      const label = cleanText([
+        control.getAttribute?.("aria-label"),
+        control.getAttribute?.("title"),
+        control.innerText,
+        control.textContent
+      ].filter(Boolean).join(" "));
+      return /\b(?:show|view|see)\s+(?:the\s+)?original\b|(?:afficher|voir)\s+(?:(?:le\s+texte|l['’])\s*)?original(?:e)?\b|(?:mostrar|ver)\s+(?:el\s+)?original\b|original(?:text)?\s+(?:anzeigen|ansehen)\b|原文(?:を)?(?:表示|見る)|원문\s*(?:보기|표시)/i.test(label);
+    });
+    if (explicitOriginalControl) {
+      return explicitOriginalControl;
     }
 
     const checked = new Set();
@@ -2302,13 +2332,17 @@
       current = current.previousElementSibling;
     }
 
+    current = tweetTextElement.nextElementSibling;
+    for (let index = 0; current && index < 4; index += 1) {
+      candidates.push(current);
+      current = current.nextElementSibling;
+    }
+
     const parent = tweetTextElement.parentElement;
     if (parent) {
       candidates.push(...Array.from(parent.children).filter((child) => {
-        return child !== tweetTextElement
-          && isElementBeforeOrSame(child, tweetTextElement)
-          && !child.contains(tweetTextElement);
-      }).slice(-4));
+        return child !== tweetTextElement && !child.contains(tweetTextElement);
+      }).slice(-8));
     }
 
     for (const candidate of candidates) {
@@ -2317,7 +2351,7 @@
       }
 
       checked.add(candidate);
-      const button = Array.from(candidate.querySelectorAll("button")).find((item) => {
+      const button = Array.from(candidate.querySelectorAll('button, [role="button"]')).find((item) => {
         return isVisibleElement(item) && item.closest('article[data-testid="tweet"]') === tweet;
       });
 
@@ -2330,7 +2364,7 @@
   }
 
   function isLikelyTranslationBanner(element) {
-    if (!element || !isVisibleElement(element) || !element.querySelector("button")) {
+    if (!element || !isVisibleElement(element) || !element.querySelector('button, [role="button"]')) {
       return false;
     }
 
@@ -2339,7 +2373,7 @@
     }
 
     const text = cleanText(element.innerText || element.textContent || "");
-    const buttonCount = element.querySelectorAll("button").length;
+    const buttonCount = element.querySelectorAll('button, [role="button"]').length;
     const hasTranslationCue = /original|origine|trad|translat|übersetz|traduc|mostrar|afficher|show|元|翻訳|原文|원문|번역/i.test(text);
 
     return buttonCount <= 2
@@ -2348,8 +2382,26 @@
       && (hasTranslationCue || Boolean(element.querySelector("svg")));
   }
 
+  function findTranslationSourceLanguage(tweet) {
+    const text = cleanText(tweet?.innerText || tweet?.textContent || "");
+    const cueIndex = text.search(/translated\s+from|traduit(?:e)?\s+(?:de|du|des|depuis)|traducido\s+(?:del|de)|übersetzt(?:\s+(?:aus|von))?|翻訳|번역/i);
+    if (cueIndex < 0) {
+      return "";
+    }
+
+    const nearbyText = text.slice(Math.max(0, cueIndex - 120), cueIndex + 240);
+    const languageAliases = [
+      ["fr", /\bfrench\b|\bfran[çc]ais(?:e)?\b|\bfranc[eé]s\b|\bfranzösisch(?:en)?\b|フランス語|프랑스어/i],
+      ["en", /\benglish\b|\banglais(?:e)?\b|\bingl[eé]s\b|\benglisch(?:en)?\b|英語|영어/i],
+      ["es", /\bspanish\b|\bespagnol(?:e)?\b|\bespa[ñn]ol\b|\bspanisch(?:en)?\b|スペイン語|스페인어/i],
+      ["de", /\bgerman\b|\ballemand(?:e)?\b|\balem[aá]n\b|\bdeutsch(?:en)?\b|ドイツ語|독일어/i],
+      ["ja", /\bjapanese\b|\bjaponais(?:e)?\b|\bjapon[eé]s\b|\bjapanisch(?:en)?\b|日本語|일본어/i]
+    ];
+    return languageAliases.find(([, pattern]) => pattern.test(nearbyText))?.[0] || "";
+  }
+
   async function waitForOriginalTweetText(tweet, previousText, previousLang) {
-    const deadline = Date.now() + 1800;
+    const deadline = Date.now() + 3000;
 
     while (Date.now() < deadline) {
       await nextFrame();
@@ -2358,9 +2410,10 @@
       const currentLang = findTweetLanguage(tweet, tweetTextElement);
 
       if ((currentText && currentText !== previousText) || (currentLang && currentLang !== previousLang)) {
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   function detectReplyToneSignals(tweet, tweetText) {
@@ -2485,18 +2538,28 @@
     const candidates = [
       tweetTextElement,
       tweetTextElement?.closest?.("[lang]"),
-      tweet.querySelector('[data-testid="tweetText"][lang]'),
-      tweet.querySelector("[lang]")
+      ...Array.from(tweet.querySelectorAll('[data-testid="tweetText"][lang]'))
     ];
 
     for (const candidate of candidates) {
+      if (!candidate || (candidate !== tweet && !tweet.contains(candidate))) {
+        continue;
+      }
       const lang = cleanText(candidate?.getAttribute?.("lang") || candidate?.lang || "");
       if (lang && lang.toLowerCase() !== "und") {
-        return lang;
+        return normalizeLanguageCode(lang);
       }
     }
 
     return "";
+  }
+
+  function resolveTweetSourceLanguage(tweet, tweetTextElement, tweetText, originalTextState) {
+    return normalizeLanguageCode(
+      originalTextState?.sourceLanguage
+      || findTweetLanguage(tweet, tweetTextElement)
+      || inferDraftLanguage(tweetText)
+    );
   }
 
   function collectReplyLinkCards(tweet) {
@@ -3844,7 +3907,7 @@
   }
 
   function sanitizeDisplayedReplyText(value) {
-    return cleanText(value).replace(PROHIBITED_REPLY_SYMBOL_PATTERN, ",");
+    return cleanMultilineText(value).replace(PROHIBITED_REPLY_SYMBOL_PATTERN, ",");
   }
 
   function resolveReplyStyleLabel(reply, index) {
@@ -4055,7 +4118,7 @@
     }
 
     return {
-      tweetLanguage: getUiLocale(),
+      tweetLanguage: "",
       tweetText: ""
     };
   }
@@ -4102,7 +4165,12 @@
       return generationLanguage;
     }
 
-    return cleanText(context?.tweetLanguage || inferDraftLanguage(draftText) || getUiLocale() || "en");
+    const contextText = cleanText(context?.tweetText || "");
+    return cleanText(
+      context?.tweetLanguage
+      || inferDraftLanguage(contextText)
+      || (contextText ? "unknown" : (inferDraftLanguage(draftText) || getUiLocale() || "en"))
+    );
   }
 
   // Renvoie un message si le brouillon est DÉJÀ dans la langue cible (donc rien à

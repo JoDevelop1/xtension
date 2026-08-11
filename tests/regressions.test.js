@@ -48,7 +48,7 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "21");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "22");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
 });
 
@@ -66,14 +66,36 @@ test("generated text keeps one blank line between short paragraphs", () => {
   );
 });
 
-test("generation prompts request airy paragraphs without changing corrections", () => {
+test("generation prompts request an unbounded number of airy paragraphs without changing corrections", () => {
   const background = read("src/background.js");
   const options = read("src/options.js");
   const bridge = read("scripts/xtension-ai-bridge.js");
-  assert.match(background, /DEFAULT_GENERATE_PROMPT[^;]+exactly one blank line/);
-  assert.match(options, /DEFAULT_GENERATE_PROMPT[^;]+exactly one blank line/);
-  assert.match(bridge, /When the reply contains more than one sentence or idea[\s\S]{0,220}exactly one blank line/);
+  const content = read("src/content.js");
+  assert.match(background, /DEFAULT_GENERATE_PROMPT[^;]+Use as many short paragraphs as the content needs/);
+  assert.match(options, /DEFAULT_GENERATE_PROMPT[^;]+Use as many short paragraphs as the content needs/);
+  assert.match(bridge, /Keep the reply visually airy[\s\S]{0,420}never target a fixed paragraph count/);
+  assert.doesNotMatch(bridge, /two or three short paragraphs/);
+  assert.match(content, /function sanitizeDisplayedReplyText\(value\) \{\s+return cleanMultilineText\(value\)/);
   assert.match(bridge, /Keep exactly the same number of lines and the same line-break positions as the draft/);
+});
+
+test("auto reply language reads the original language from X translation banners", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function findTranslationSourceLanguage");
+  const end = content.indexOf("\n  async function waitForOriginalTweetText", start);
+  assert.ok(start >= 0 && end > start);
+  const findTranslationSourceLanguage = new Function(
+    "cleanText",
+    `${content.slice(start, end)}\nreturn findTranslationSourceLanguage;`
+  )((value) => String(value || "").replace(/\s+/g, " ").trim());
+
+  assert.equal(findTranslationSourceLanguage({ innerText: "Translated from French by Grok  Show original" }), "fr");
+  assert.equal(findTranslationSourceLanguage({ innerText: "Traduit de l’anglais par Grok  Afficher l’original" }), "en");
+  assert.equal(findTranslationSourceLanguage({ innerText: "Aus dem Spanischen übersetzt  Original anzeigen" }), "es");
+  assert.equal(findTranslationSourceLanguage({ innerText: "Simple English tweet without a translation banner" }), "");
+  assert.match(content, /querySelectorAll\('button, \[role="button"\]'\)/);
+  assert.match(content, /originalTextState\?\.sourceLanguage\s+\|\| findTweetLanguage/);
+  assert.match(content, /contextText \? "unknown"/);
 });
 
 test("latency optimizations refill threads and share context image work", () => {

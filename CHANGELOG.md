@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.17
+
+- Makes Auto language follow the original post rather than the X account language when X displays an automatic translation. Xtension reads X's source-language banner, recognizes localized **Show original** controls anywhere in the post, and waits for the original text before collecting context.
+- Stops falling back to the X interface locale when a source post exists but its language metadata is unavailable. The model can infer the language from the post instead of being forced into English.
+- Keeps reply suggestions multiline through display and native insertion instead of collapsing their blank lines in the UI sanitation step.
+- Replaces the former two/three-paragraph targets with an airy Twitter layout: one short paragraph per distinct sentence or idea, separated by one blank line, with no fixed paragraph-count ceiling. Existing custom prompts remain untouched.
+
 ## v0.6.16
 
 - Selects the first still image in the replied-to post as the ImageGen visual reference by default and preloads it as soon as the generation dialog opens.

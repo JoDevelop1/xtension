@@ -1080,7 +1080,7 @@ async function runReply(payload) {
     `Requested style: ${replyStyle}.`,
     `Profile name: ${profileName}.`,
     "Follow the user's custom instructions below. Return only the reply text, without a label, quotes, markdown, or explanation.",
-    "When the reply contains more than one sentence or idea, split it into two or three short paragraphs separated by exactly one blank line. Never compress a multi-sentence reply into one dense block.",
+    "Keep the reply visually airy for X/Twitter. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence reply may remain one paragraph.",
     "Never use Unicode code point U+2014; use a comma or another suitable punctuation mark instead.",
     "Do not invent facts that are absent from the visible context.",
     "",
@@ -1170,7 +1170,7 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
       "Write the X/Twitter post requested by the user's instruction below.",
       "Produce the post itself, not a correction or a description of the instruction.",
       "Use a natural, human voice with a clear point of view. Do not invent specific fake facts, names, numbers, or quotes.",
-      "When the post contains more than one sentence or idea, split it into two or three short paragraphs separated by exactly one blank line. Never compress a multi-sentence post into one dense block."
+      "Keep the post visually airy for X/Twitter. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the post needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph."
     ];
     const style = cleanText(generatePrompt || "");
     if (style) {
