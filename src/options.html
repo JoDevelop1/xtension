@@ -102,11 +102,15 @@
                 </select>
               </div>
               <div class="setting-row">
-                <div class="field-title"><label for="reply-ai-language-mode" data-i18n="optionsReplyLanguage">Output language</label></div>
-                <select id="reply-ai-language-mode">
-                  <option value="tweet" data-i18n="optionsReplyLanguageTweet">Use the post language</option>
-                  <option value="ui" data-i18n="optionsReplyLanguageUi">Use my browser language</option>
+                <div class="field-title"><label for="reply-ai-translation-language" data-i18n="optionsReplyTranslationLanguage">Translation shown under replies</label></div>
+                <select id="reply-ai-translation-language">
+                  <option value="fr" data-i18n="draftLanguageFrench">French</option>
+                  <option value="en" data-i18n="draftLanguageEnglish">English</option>
+                  <option value="es" data-i18n="draftLanguageSpanish">Spanish</option>
+                  <option value="de" data-i18n="draftLanguageGerman">German</option>
+                  <option value="ja" data-i18n="draftLanguageJapanese">Japanese</option>
                 </select>
+                <p class="field-note" data-i18n="optionsReplyTranslationLanguageHint">Replies always follow the visible post language. When that differs, Xtension shows a translation in this language without inserting it into X.</p>
               </div>
             </div>
             <div class="setting-row">

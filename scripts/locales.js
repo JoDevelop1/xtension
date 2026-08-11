@@ -648,6 +648,7 @@ const replyFeatureDefaultMessages = {
   replySuggestionsLoadingStance: "Choosing a clear stance...",
   replySuggestionsLoadingWriting: "Writing postable replies...",
   replySuggestionsLoadingFinalizing: "Checking tone and facts...",
+  replySuggestionTranslationLabel: "Translation in {language}",
   replyStyleReaction: "Human reaction",
   replyStyleShort: "Short impact",
   replyStyleMedium: "Medium argument",
@@ -769,7 +770,6 @@ const replyFeatureDefaultMessages = {
   replyAiReconnectFailed: "Could not open the sign-in window. Make sure Xtension Bridge is running in your Windows session, then try again.",
   replyAiOptionsUnavailable: "Open the extension options to connect your ChatGPT account.",
   toastReplySuggestionsFailed: "Unable to generate reply suggestions.",
-  replySourceLanguageUnavailable: "X did not expose the original post language. Show the original post once, or choose a fixed output language in Xtension.",
   replySuggestionLoadingPrepare: "Preparing the prompt...",
   replySuggestionLoadingSend: "Sending request to the AI...",
   replySuggestionLoadingWrite: "AI is writing this reply...",
@@ -789,15 +789,13 @@ const replyFeatureDefaultMessages = {
   optionsEnableAi: "Enable draft tools",
   optionsReplyStyle: "Suggested reply style",
   optionsReplyStyleAuto: "Auto, varied",
-  optionsReplyLanguage: "Draft language",
-  optionsReplyLanguageTweet: "Use the post language",
-  optionsReplyLanguageUi: "Use my browser language",
+  optionsReplyTranslationLanguage: "Translation shown under replies",
+  optionsReplyTranslationLanguageHint: "Replies always follow the visible post language. When that differs, Xtension shows a translation in this language without inserting it into X.",
   optionsGeneratePrompt: "Generation style prompt",
   optionsHelpGeneratePrompt: "The Generate button writes a post from the instruction you type in the composer. This style prompt is always applied on top: use it for tone, length, number of lines, etc.",
   optionsHelpEnable: "When enabled, Xtension can correct, translate, reformulate, and generate text and images in the X/Twitter composer through your connected OpenAI Codex account.",
   optionsHelpReplyCount: "Xtension shows this many reply suggestions when you open the reply composer.",
   optionsHelpReplyStyle: "Auto asks the selected provider for varied, useful replies. Other modes push it toward one specific tone.",
-  optionsHelpReplyLanguage: "Use the post language for natural drafts, or force your browser language when you always want the result in your own language.",
   optionsHelpBridgeUrl: "The extension connects only to the Xtension Codex connector at http://127.0.0.1:47623.",
   optionsHelpBridgeToken: "Optional local shared token. It is not an OpenAI API key.",
   optionsSave: "Save settings",
@@ -916,6 +914,7 @@ Object.assign(replyFeatureMessages.fr, {
   replySuggestionsLoadingStance: "Choix d'une position claire...",
   replySuggestionsLoadingWriting: "Rédaction des réponses...",
   replySuggestionsLoadingFinalizing: "Vérification du ton et des faits...",
+  replySuggestionTranslationLabel: "Traduction en {language}",
   replyStyleReaction: "Réaction humaine",
   replyStyleShort: "Court impactant",
   replyStyleMedium: "Argument moyen",
@@ -1030,7 +1029,6 @@ Object.assign(replyFeatureMessages.fr, {
   replyAiReconnectFailed: "Impossible d'ouvrir la fenêtre de connexion. Vérifiez que Xtension Bridge tourne dans votre session Windows, puis réessayez.",
   replyAiOptionsUnavailable: "Ouvrez les options de l'extension pour connecter votre compte ChatGPT.",
   toastReplySuggestionsFailed: "Impossible de générer les réponses proposées.",
-  replySourceLanguageUnavailable: "X n'a pas fourni la langue d'origine du post. Affichez une fois le post original ou choisissez une langue de sortie fixe dans Xtension.",
   replySuggestionLoadingPrepare: "Préparation du prompt...",
   replySuggestionLoadingSend: "Envoi de la requête à l'IA...",
   replySuggestionLoadingWrite: "Rédaction de cette réponse...",
@@ -1050,15 +1048,13 @@ Object.assign(replyFeatureMessages.fr, {
   optionsEnableAi: "Activer les outils de brouillon",
   optionsReplyStyle: "Style des réponses proposées",
   optionsReplyStyleAuto: "Auto, varié",
-  optionsReplyLanguage: "Langue du brouillon",
-  optionsReplyLanguageTweet: "Utiliser la langue du post",
-  optionsReplyLanguageUi: "Utiliser la langue de mon navigateur",
+  optionsReplyTranslationLanguage: "Traduction affichée sous les réponses",
+  optionsReplyTranslationLanguageHint: "Les réponses suivent toujours la langue du post visible. Si elle diffère, Xtension affiche une traduction dans cette langue sans l'insérer dans X.",
   optionsGeneratePrompt: "Style de génération",
   optionsHelpGeneratePrompt: "Le bouton Générer rédige un post à partir de l'instruction que vous tapez dans le compositeur. Ce style s'applique toujours en plus : servez-vous-en pour le ton, la longueur, le nombre de lignes, etc.",
   optionsHelpEnable: "Quand ce réglage est actif, Xtension peut corriger, traduire, reformuler et générer du texte et des images dans le compositeur X/Twitter via votre compte OpenAI Codex connecté.",
   optionsHelpReplyCount: "Xtension affiche ce nombre de propositions quand vous ouvrez le compositeur de réponse.",
   optionsHelpReplyStyle: "Auto demande au fournisseur choisi des réponses variées et utiles. Les autres modes l'orientent vers un ton précis.",
-  optionsHelpReplyLanguage: "Utilisez la langue du post pour un résultat naturel, ou la langue du navigateur si vous voulez toujours le résultat dans votre langue.",
   optionsHelpBridgeUrl: "L'extension se connecte uniquement au connecteur Codex d'Xtension sur http://127.0.0.1:47623.",
   optionsHelpBridgeToken: "Token local partagé optionnel. Ce n'est pas une clé API OpenAI.",
   optionsSave: "Enregistrer les réglages",
@@ -1185,7 +1181,6 @@ Object.assign(replyFeatureMessages.de, {
   toastGenerateEmpty: "Schreibe zuerst Anweisungen für die Antwort.",
   toastGenerateFailed: "Diese Antwort konnte nicht generiert werden.",
   toastGenerateUnchanged: "Die generierte Antwort hat den Entwurf nicht geändert.",
-  replySourceLanguageUnavailable: "X hat die Originalsprache des Beitrags nicht bereitgestellt. Zeige den Originalbeitrag einmal an oder wähle in Xtension eine feste Ausgabesprache.",
   optionsBridgeUrl: "Bridge-URL",
   optionsBridgeToken: "Bridge-Token",
   optionsHelpBridgeToken: "Optionales gemeinsames Token. Wenn die Bridge mit XTENSION_BRIDGE_TOKEN gestartet wurde, hier denselben Wert eingeben.",
@@ -1239,7 +1234,6 @@ Object.assign(replyFeatureMessages.es, {
   toastGenerateEmpty: "Escribe instrucciones antes de generar una respuesta.",
   toastGenerateFailed: "No se pudo generar esta respuesta.",
   toastGenerateUnchanged: "La respuesta generada no cambió el borrador.",
-  replySourceLanguageUnavailable: "X no proporcionó el idioma original de la publicación. Muestra una vez la publicación original o elige un idioma de salida fijo en Xtension.",
   optionsBridgeUrl: "URL del bridge",
   optionsBridgeToken: "Token del bridge",
   optionsHelpBridgeToken: "Token compartido opcional. Si el bridge se inicia con XTENSION_BRIDGE_TOKEN, introduce aquí el mismo valor.",
@@ -1293,13 +1287,30 @@ Object.assign(replyFeatureMessages.ja, {
   toastGenerateEmpty: "生成する前に指示を入力してください。",
   toastGenerateFailed: "この返信を生成できませんでした。",
   toastGenerateUnchanged: "生成された返信は下書きを変更しませんでした。",
-  replySourceLanguageUnavailable: "X から投稿の元の言語を取得できませんでした。元の投稿を一度表示するか、Xtension で出力言語を固定してください。",
   optionsBridgeUrl: "Bridge URL",
   optionsBridgeToken: "ブリッジトークン",
   optionsHelpBridgeToken: "任意の共有トークンです。ブリッジをXTENSION_BRIDGE_TOKEN付きで起動した場合は、同じ値をここに入力します。",
   optionsBridgeTestOk: "ブリッジは動作中です。プロバイダー検出: {provider}。",
   optionsBridgeTestFailed: "ブリッジテストに失敗しました。",
   optionsBridgeProviderMissing: "{provider} はブリッジで検出されませんでした。"
+});
+
+Object.assign(replyFeatureMessages.de, {
+  replySuggestionTranslationLabel: "Übersetzung auf {language}",
+  optionsReplyTranslationLanguage: "Übersetzung unter Antworten",
+  optionsReplyTranslationLanguageHint: "Antworten verwenden immer die Sprache des sichtbaren Beitrags. Falls sie abweicht, zeigt Xtension darunter eine Übersetzung in dieser Sprache an, ohne sie in X einzufügen."
+});
+
+Object.assign(replyFeatureMessages.es, {
+  replySuggestionTranslationLabel: "Traducción al {language}",
+  optionsReplyTranslationLanguage: "Traducción mostrada bajo las respuestas",
+  optionsReplyTranslationLanguageHint: "Las respuestas siempre usan el idioma de la publicación visible. Si es distinto, Xtension muestra debajo una traducción en este idioma sin insertarla en X."
+});
+
+Object.assign(replyFeatureMessages.ja, {
+  replySuggestionTranslationLabel: "{language}への翻訳",
+  optionsReplyTranslationLanguage: "返信の下に表示する翻訳言語",
+  optionsReplyTranslationLanguageHint: "返信は常に表示中の投稿と同じ言語で作成されます。言語が異なる場合、Xtension は X に挿入せず、この言語の翻訳を下に表示します。"
 });
 
 for (const [locale, messages] of Object.entries(replyFeatureMessages)) {

@@ -4,7 +4,7 @@ const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
 const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 
-const REPLY_AI_CONFIG_VERSION = 22;
+const REPLY_AI_CONFIG_VERSION = 23;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
 // Les réponses X sont courtes et bien délimitées. Le mode low est le meilleur
@@ -12,7 +12,8 @@ const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
 // tout en restant réglable dans les options.
 const DEFAULT_CODEX_REASONING_EFFORT = "low";
 const CODEX_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
-const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
+const DEFAULT_REPLY_TRANSLATION_LANGUAGE = "fr";
+const REPLY_TRANSLATION_LANGUAGES = new Set(["fr", "en", "es", "de", "ja"]);
 const DEFAULT_REPLY_STYLE = "auto";
 const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
 
@@ -69,7 +70,7 @@ const DEFAULT_REPLY_AI_CONFIG = {
   bridgeToken: "",
   codexModel: DEFAULT_CODEX_MODEL,
   codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
-  replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
+  replyTranslationLanguage: DEFAULT_REPLY_TRANSLATION_LANGUAGE,
   replyStyle: DEFAULT_REPLY_STYLE,
   replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
   generatePrompt: DEFAULT_GENERATE_PROMPT
@@ -586,7 +587,7 @@ function logAiRoute(config, operation, details = {}) {
     route: "codex-app-server",
     bridgeConfigured: Boolean(normalizeCodexBridgeUrl(config?.codexBridgeUrl)),
     bridgeTokenPresent: Boolean(config?.bridgeToken),
-    replyLanguageMode: normalizeReplyLanguageMode(config?.replyLanguageMode),
+    replyTranslationLanguage: normalizeReplyTranslationLanguage(config?.replyTranslationLanguage),
     ...details
   }).catch(() => {});
 }
@@ -834,15 +835,6 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
     throw error;
   }
 
-  if (normalizeReplyLanguageMode(config.replyLanguageMode) !== "ui"
-      && context?.translationDetected
-      && !context?.originalTextRestored
-      && !cleanText(context?.tweetLanguage || "")) {
-    const error = new Error("X did not expose the original post language. Show the original post once, or choose a fixed output language in Xtension.");
-    error.code = "source_language_unavailable";
-    throw error;
-  }
-
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -868,7 +860,8 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
     },
     body: JSON.stringify({
       locale: cleanText(locale || ""),
-      targetLanguage: getReplyTargetLanguage(config, context?.tweetLanguage || "", locale),
+      targetLanguage: getReplyTargetLanguage(context?.tweetLanguage || ""),
+      translationLanguage: normalizeReplyTranslationLanguage(config.replyTranslationLanguage),
       context: context || {},
       systemPrompt: profile.prompt,
       replyProfile: { index: profileIndex, label: profile.label },
@@ -895,6 +888,10 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
     styleId: "custom",
     style: profile.label,
     text,
+    translation: sanitizeGeneratedReplyText(data?.translation || data?.reply?.translation || ""),
+    translationLanguage: normalizeReplyTranslationLanguage(
+      data?.translationLanguage || data?.reply?.translationLanguage || config.replyTranslationLanguage
+    ),
     profileIndex,
     profileLabel: profile.label
   };
@@ -1020,7 +1017,7 @@ function normalizeReplyAiConfig(config) {
   if (previousConfigVersion < 21 && cleanText(rawConfig.codexReasoningEffort || "") === "medium") {
     normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
   }
-  normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
+  normalized.replyTranslationLanguage = normalizeReplyTranslationLanguage(normalized.replyTranslationLanguage);
   normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
   normalized.replyPromptProfiles = previousConfigVersion < 22 && (
     usesLegacyReplyPromptProfilesV20(rawConfig.replyPromptProfiles)
@@ -1041,6 +1038,7 @@ function normalizeReplyAiConfig(config) {
   delete normalized.model;
   delete normalized.apiKey;
   delete normalized.gpu;
+  delete normalized.replyLanguageMode;
 
   return normalized;
 }
@@ -1389,11 +1387,7 @@ function buildBridgeAuthHeaders(config) {
   return token ? { "x-xtension-bridge-token": token } : {};
 }
 
-function getReplyTargetLanguage(config, tweetLanguage, uiLocale) {
-  if (normalizeReplyLanguageMode(config.replyLanguageMode) === "ui") {
-    return cleanText(uiLocale || "unknown");
-  }
-
+function getReplyTargetLanguage(tweetLanguage) {
   return cleanText(tweetLanguage || "unknown");
 }
 
@@ -1611,6 +1605,7 @@ function normalizeDraftTransformOperation(value) {
   return allowed.has(operation) ? operation : "correct";
 }
 
-function normalizeReplyLanguageMode(value) {
-  return cleanText(value).toLowerCase() === "ui" ? "ui" : DEFAULT_REPLY_LANGUAGE_MODE;
+function normalizeReplyTranslationLanguage(value) {
+  const language = cleanText(value).toLowerCase().split(/[-_]/)[0];
+  return REPLY_TRANSLATION_LANGUAGES.has(language) ? language : DEFAULT_REPLY_TRANSLATION_LANGUAGE;
 }

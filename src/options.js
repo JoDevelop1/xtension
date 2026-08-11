@@ -9,7 +9,7 @@
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
   const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
 
-  const REPLY_AI_CONFIG_VERSION = 22;
+  const REPLY_AI_CONFIG_VERSION = 23;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
   const DEFAULT_CODEX_REASONING_EFFORT = "low";
@@ -19,7 +19,8 @@
     { model: "gpt-5.6-terra", displayName: "GPT-5.6 Terra", supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
     { model: "gpt-5.6-luna", displayName: "GPT-5.6 Luna", supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"] }
   ];
-  const DEFAULT_REPLY_LANGUAGE_MODE = "tweet";
+  const DEFAULT_REPLY_TRANSLATION_LANGUAGE = "fr";
+  const REPLY_TRANSLATION_LANGUAGES = new Set(["fr", "en", "es", "de", "ja"]);
   const DEFAULT_REPLY_STYLE = "auto";
   const LEGACY_GENERATE_PROMPT_V20 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
   const LEGACY_GENERATE_PROMPT_V21 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise. When the post contains more than one sentence or idea, use two short paragraphs separated by exactly one blank line; otherwise use one line. Never return a dense block.";
@@ -47,7 +48,7 @@
     bridgeToken: "",
     codexModel: DEFAULT_CODEX_MODEL,
     codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
-    replyLanguageMode: DEFAULT_REPLY_LANGUAGE_MODE,
+    replyTranslationLanguage: DEFAULT_REPLY_TRANSLATION_LANGUAGE,
     replyStyle: DEFAULT_REPLY_STYLE,
     replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
     generatePrompt: DEFAULT_GENERATE_PROMPT
@@ -57,7 +58,7 @@
   const enabledInput = document.querySelector("#reply-ai-enabled");
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
-  const replyLanguageModeInput = document.querySelector("#reply-ai-language-mode");
+  const replyTranslationLanguageInput = document.querySelector("#reply-ai-translation-language");
   const replyStyleInput = document.querySelector("#reply-ai-style");
   const generatePromptInput = document.querySelector("#reply-ai-generate-prompt");
   const promptResetButton = document.querySelector("#reply-ai-prompt-reset");
@@ -181,8 +182,8 @@
       codexModelInput.value = config.codexModel || DEFAULT_CODEX_MODEL;
     }
     applyReasoningOptions(config.codexModel, config.codexReasoningEffort);
-    if (replyLanguageModeInput) {
-      replyLanguageModeInput.value = config.replyLanguageMode || DEFAULT_REPLY_LANGUAGE_MODE;
+    if (replyTranslationLanguageInput) {
+      replyTranslationLanguageInput.value = config.replyTranslationLanguage || DEFAULT_REPLY_TRANSLATION_LANGUAGE;
     }
     if (replyStyleInput) {
       replyStyleInput.value = config.replyStyle || DEFAULT_REPLY_STYLE;
@@ -728,7 +729,7 @@
       bridgeToken: cleanText(bridgeTokenInput?.value || ""),
       codexModel: normalizeCodexModel(codexModelInput?.value || DEFAULT_CODEX_MODEL),
       codexReasoningEffort: normalizeReasoningEffort(codexReasoningInput?.value || DEFAULT_CODEX_REASONING_EFFORT),
-      replyLanguageMode: normalizeReplyLanguageMode(replyLanguageModeInput?.value),
+      replyTranslationLanguage: normalizeReplyTranslationLanguage(replyTranslationLanguageInput?.value),
       replyStyle: normalizeReplyStyle(replyStyleInput?.value),
       replyPromptProfiles: getPromptProfileInputs(),
       generatePrompt: cleanText(generatePromptInput?.value || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT
@@ -751,7 +752,7 @@
     if (previousConfigVersion < 21 && cleanText(rawConfig.codexReasoningEffort || "") === "medium") {
       normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
     }
-    normalized.replyLanguageMode = normalizeReplyLanguageMode(normalized.replyLanguageMode);
+    normalized.replyTranslationLanguage = normalizeReplyTranslationLanguage(normalized.replyTranslationLanguage);
     normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
     normalized.replyPromptProfiles = previousConfigVersion < 22 && (
       usesLegacyReplyPromptProfilesV20(rawConfig.replyPromptProfiles)
@@ -768,7 +769,7 @@
     // API-key fields users may have stored in an earlier development build.
     [
       "provider", "codexModelPreset", "prompt", "replyCount",
-      "baseUrl", "model", "apiKey", "gpu"
+      "baseUrl", "model", "apiKey", "gpu", "replyLanguageMode"
     ].forEach((key) => delete normalized[key]);
     return normalized;
   }
@@ -870,8 +871,9 @@
     }
   }
 
-  function normalizeReplyLanguageMode(value) {
-    return cleanText(value).toLowerCase() === "ui" ? "ui" : DEFAULT_REPLY_LANGUAGE_MODE;
+  function normalizeReplyTranslationLanguage(value) {
+    const language = cleanText(value).toLowerCase().split(/[-_]/)[0];
+    return REPLY_TRANSLATION_LANGUAGES.has(language) ? language : DEFAULT_REPLY_TRANSLATION_LANGUAGE;
   }
 
   function normalizeReplyStyle(value) {

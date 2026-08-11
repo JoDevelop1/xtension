@@ -48,7 +48,7 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "22");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "23");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
 });
 
@@ -79,31 +79,32 @@ test("generation prompts request an unbounded number of airy paragraphs without 
   assert.match(bridge, /Keep exactly the same number of lines and the same line-break positions as the draft/);
 });
 
-test("auto reply language reads the original language from X translation banners", () => {
+test("reply language follows only the post text currently displayed by X", () => {
   const content = read("src/content.js");
-  const start = content.indexOf("  function findTranslationSourceLanguage");
-  const end = content.indexOf("\n  async function waitForOriginalTweetText", start);
+  const start = content.indexOf("  function resolveDisplayedTweetLanguage");
+  const end = content.indexOf("\n  function collectReplyLinkCards", start);
   assert.ok(start >= 0 && end > start);
-  const findTranslationSourceLanguage = new Function(
-    "cleanText",
-    `${content.slice(start, end)}\nreturn findTranslationSourceLanguage;`
-  )((value) => String(value || "").replace(/\s+/g, " ").trim());
+  const normalizeLanguageCode = (value) => String(value || "").toLowerCase().split(/[-_]/)[0];
+  const resolveWithAttribute = new Function(
+    "normalizeLanguageCode",
+    "findTweetLanguage",
+    "inferDraftLanguage",
+    `${content.slice(start, end)}\nreturn resolveDisplayedTweetLanguage;`
+  )(normalizeLanguageCode, () => "ja", () => "en");
+  const resolveWithInference = new Function(
+    "normalizeLanguageCode",
+    "findTweetLanguage",
+    "inferDraftLanguage",
+    `${content.slice(start, end)}\nreturn resolveDisplayedTweetLanguage;`
+  )(normalizeLanguageCode, () => "", (value) => /bonjour/i.test(value) ? "fr" : "");
 
-  assert.equal(findTranslationSourceLanguage({ innerText: "Translated from French by Grok  Show original" }), "fr");
-  assert.equal(findTranslationSourceLanguage({ innerText: "Traduit de l’anglais par Grok  Afficher l’original" }), "en");
-  assert.equal(findTranslationSourceLanguage({ innerText: "Aus dem Spanischen übersetzt  Original anzeigen" }), "es");
-  assert.equal(findTranslationSourceLanguage({
-    innerText: "Translated by Grok  Show original",
-    querySelectorAll: () => [{
-      getAttribute: (name) => name === "aria-label" ? "Translated from French by Grok" : ""
-    }]
-  }), "fr");
-  assert.equal(findTranslationSourceLanguage({ innerText: "Simple English tweet without a translation banner" }), "");
-  assert.match(content, /querySelectorAll\('button, \[role="button"\]'\)/);
-  assert.match(content, /originalTextState\?\.sourceLanguage\s+\|\| findTweetLanguage/);
+  assert.equal(resolveWithAttribute({}, {}, "English-looking text"), "ja");
+  assert.equal(resolveWithInference({}, {}, "Bonjour à tous"), "fr");
+  assert.equal(resolveWithInference({}, {}, "12345"), "");
+  assert.doesNotMatch(content, /ensureOriginalTweetTextVisible|findTranslationSourceLanguage|findShowOriginalTweetButton/);
+  assert.doesNotMatch(content, /translationDetected|originalTextRestored|source_language_unavailable/);
   assert.match(content, /contextText \? "unknown"/);
-  assert.match(content, /translationDetected: Boolean\(originalTextState\?\.translationDetected\)/);
-  assert.match(content, /originalTextRestored: Boolean\(originalTextState\?\.restored\)/);
+  assert.match(content, /tweetLanguageSource: explicitTweetLanguage \? "tweet_lang"/);
 });
 
 test("reply dialogs use the closest preceding post instead of the first post in a thread", () => {
@@ -124,66 +125,45 @@ test("reply dialogs use the closest preceding post instead of the first post in 
     findClosestPrecedingReplyTweet([firstPost, repliedToComment, laterPost], editor),
     repliedToComment
   );
-  assert.match(content, /translationDetected[\s\S]{0,420}source_language_unavailable/);
   assert.doesNotMatch(content, /target\?\._xtensionReplyContext/);
 });
 
-test("auto language never treats an un-restored X translation as the source language", async () => {
+test("suggestions include a user-language translation without inserting it into X", () => {
   const content = read("src/content.js");
-  const sourceStart = content.indexOf("  function resolveTweetSourceLanguage");
-  const sourceEnd = content.indexOf("\n  function collectReplyLinkCards", sourceStart);
-  assert.ok(sourceStart >= 0 && sourceEnd > sourceStart);
-  const resolveTweetSourceLanguage = new Function(
-    "normalizeLanguageCode",
-    "findTweetLanguage",
-    "inferDraftLanguage",
-    `${content.slice(sourceStart, sourceEnd)}\nreturn resolveTweetSourceLanguage;`
-  )(
-    (value) => String(value || "").toLowerCase(),
-    () => "en",
-    () => "en"
-  );
-  assert.equal(resolveTweetSourceLanguage({}, {}, "Translated English", {
-    translationDetected: true,
-    restored: false,
-    sourceLanguage: ""
-  }), "");
-  assert.equal(resolveTweetSourceLanguage({}, {}, "Translated English", {
-    translationDetected: true,
-    restored: false,
-    sourceLanguage: "fr"
-  }), "fr");
+  const background = read("src/background.js");
+  const options = read("src/options.js");
+  const html = read("src/options.html");
+  const bridge = read("scripts/xtension-ai-bridge.js");
 
-  const targetStart = content.indexOf("  async function getDraftActionTargetLanguage");
-  const targetEnd = content.indexOf("\n  // Renvoie un message", targetStart);
-  assert.ok(targetStart >= 0 && targetEnd > targetStart);
-  const getDraftActionTargetLanguage = new Function(
-    "getDraftGenerationLanguage",
-    "cleanText",
-    "inferDraftLanguage",
-    "getUiLocale",
-    "localizedText",
-    `${content.slice(targetStart, targetEnd)}\nreturn getDraftActionTargetLanguage;`
-  )(
-    async () => "auto",
-    (value) => String(value || "").replace(/\s+/g, " ").trim(),
-    (value) => /bonjour/i.test(value) ? "fr" : "en",
-    () => "en",
-    (_key, fallback) => fallback
+  assert.match(html, /id="reply-ai-translation-language"[\s\S]{0,180}<option value="fr"/);
+  assert.match(options, /DEFAULT_REPLY_TRANSLATION_LANGUAGE = "fr"/);
+  assert.match(background, /translationLanguage: normalizeReplyTranslationLanguage\(config\.replyTranslationLanguage\)/);
+  assert.match(bridge, /<XTENSION_REPLY>[\s\S]{0,260}<XTENSION_TRANSLATION>/);
+  assert.match(bridge, /fullText \|\|= this\.findAgentMessageText\(turn\.items\)/);
+  assert.match(bridge, /Array\.isArray\(item\.content\)/);
+  assert.match(content, /renderReplySuggestionTranslation\(option, suggestion\)/);
+  assert.match(content, /injectReplyDraft\([^,]+, suggestion\.text\)/);
+  assert.doesNotMatch(content, /injectReplyDraft\([^,]+, suggestion\.translation\)/);
+
+  const parseStart = bridge.indexOf("function parseReplyTranslationResult");
+  const parseEnd = bridge.indexOf("\nasync function translateReplyForDisplay", parseStart);
+  assert.ok(parseStart >= 0 && parseEnd > parseStart);
+  const parseReplyTranslationResult = new Function(
+    "cleanDraftText",
+    `${bridge.slice(parseStart, parseEnd)}\nreturn parseReplyTranslationResult;`
+  )((value) => String(value || "").trim());
+  assert.deepEqual(
+    parseReplyTranslationResult('{"reply":"こんにちは","translation":"Bonjour"}'),
+    { reply: "こんにちは", translation: "Bonjour" }
   );
-  await assert.rejects(() => getDraftActionTargetLanguage("generate", {
-    tweetText: "Translated English",
-    tweetLanguage: "",
-    translationDetected: true,
-    originalTextRestored: false
-  }, ""), (error) => error?.code === "source_language_unavailable");
-  assert.equal(await getDraftActionTargetLanguage("generate", {
-    tweetText: "Bonjour à tous",
-    tweetLanguage: "fr",
-    translationDetected: true,
-    originalTextRestored: true
-  }, ""), "fr");
-  assert.match(read("src/background.js"), /context\?\.translationDetected[\s\S]{0,280}source_language_unavailable/);
+  assert.deepEqual(
+    parseReplyTranslationResult("<XTENSION_REPLY>\nこんにちは\n</XTENSION_REPLY>\n<XTENSION_TRANSLATION>\nBonjour\n</XTENSION_TRANSLATION>"),
+    { reply: "こんにちは", translation: "Bonjour" }
+  );
+  assert.deepEqual(
+    parseReplyTranslationResult("Plain reply fallback"),
+    { reply: "Plain reply fallback", translation: "" }
+  );
 });
 
 test("options warm up and retry the connector automatically on page load", () => {

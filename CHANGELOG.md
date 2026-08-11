@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.18
+
+- Simplifies automatic reply language: Xtension now uses only the post text currently displayed by X, taking its `lang` attribute first and text inference as a fallback. It no longer reads translation banners or clicks **Show original**.
+- Replaces the former reply-output language override with a dedicated translation-display language in settings, defaulting to French for existing and new installations.
+- Shows a faithful translation under every suggested reply written in another language. Selecting the suggestion inserts only the original reply into X.
+
 ## v0.6.17
 
 - Makes Auto language follow the original post rather than the X account language when X displays an automatic translation. Xtension reads X's source-language banner, recognizes localized **Show original** controls anywhere in the post, and waits for the original text before collecting context.
