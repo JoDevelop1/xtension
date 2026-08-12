@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -48,7 +49,7 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "23");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "24");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
 });
 
@@ -126,6 +127,77 @@ test("reply dialogs use the closest preceding post instead of the first post in 
     repliedToComment
   );
   assert.doesNotMatch(content, /target\?\._xtensionReplyContext/);
+});
+
+test("X relationship data is exposed as a minimal following map for timeline badges", async () => {
+  const attributes = new Map();
+  const document = {
+    documentElement: {
+      setAttribute: (name, value) => attributes.set(name, value)
+    },
+    addEventListener: () => {},
+    dispatchEvent: () => {},
+    querySelectorAll: () => []
+  };
+  function XMLHttpRequest() {}
+  XMLHttpRequest.prototype.open = function open() {};
+  XMLHttpRequest.prototype.send = function send() {};
+  XMLHttpRequest.prototype.addEventListener = function addEventListener() {};
+  const response = {
+    ok: true,
+    url: "https://x.com/i/api/graphql/example/HomeTimeline",
+    headers: { get: () => "application/json" },
+    clone: () => ({
+      json: async () => ({
+        data: {
+          followed: {
+            core: { screen_name: "FollowedAuthor" },
+            relationship_perspectives: { following: true }
+          },
+          stranger: {
+            legacy: { screen_name: "OtherAuthor", following: false }
+          },
+          unknown: {
+            core: { screen_name: "UnknownAuthor" }
+          }
+        }
+      })
+    })
+  };
+  const context = vm.createContext({
+    window: {
+      location: { href: "https://x.com/home" },
+      fetch: async () => response,
+      XMLHttpRequest
+    },
+    document,
+    Event: class Event { constructor(type) { this.type = type; } },
+    URL,
+    queueMicrotask,
+    console
+  });
+  vm.runInContext(read("src/main-world.js"), context);
+  await context.window.fetch("https://x.com/i/api/graphql/example/HomeTimeline");
+  await new Promise((resolve) => setImmediate(resolve));
+  const followingMap = JSON.parse(attributes.get("data-xtension-following-map"));
+  assert.deepEqual({ ...followingMap }, { followedauthor: true, otherauthor: false });
+  assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
+});
+
+test("social reply adapters cover the requested platforms and never submit posts", () => {
+  const build = read("scripts/build.js");
+  const social = read("src/social.js");
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  for (const platform of ["reddit", "facebook", "instagram", "threads", "linkedin", "bluesky", "youtube"]) {
+    assert.match(social, new RegExp(`id: "${platform}"`));
+  }
+  for (const hostname of ["reddit.com", "facebook.com", "instagram.com", "threads.net", "linkedin.com", "bsky.app", "youtube.com"]) {
+    assert.match(build, new RegExp(hostname.replace(".", "\\.")));
+  }
+  assert.match(social, /Nothing is published automatically/);
+  assert.doesNotMatch(social, /\.click\(\)|requestSubmit|\.submit\(\)/);
+  assert.match(bridge, /getContextPlatformName\(context\)/);
+  assert.match(bridge, /Write exactly one postable reply for/);
 });
 
 test("suggestions include a user-language translation without inserting it into X", () => {

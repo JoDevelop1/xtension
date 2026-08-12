@@ -1100,6 +1100,7 @@ async function runTransform(payload, operation, onDelta) {
 
 async function runReply(payload) {
   const context = payload?.context && typeof payload.context === "object" ? payload.context : {};
+  const platformName = getContextPlatformName(context);
   const locale = cleanText(payload?.locale || "en");
   const targetLanguage = cleanText(payload?.targetLanguage || context.tweetLanguage || locale || "unknown");
   const translationLanguage = normalizeReplyTranslationLanguage(payload?.translationLanguage);
@@ -1113,7 +1114,7 @@ async function runReply(payload) {
     profileName
   });
   const prompt = [
-    "Write exactly one postable X/Twitter reply.",
+    `Write exactly one postable reply for ${platformName}.`,
     targetLanguage && targetLanguage !== "unknown"
       ? `Write the reply in this language: ${targetLanguage}.`
       : "Detect the language of context.tweetText and write the reply in that same language.",
@@ -1129,7 +1130,7 @@ async function runReply(payload) {
     "<XTENSION_TRANSLATION>",
     "the translation text, or empty when the reply is already in the translation language",
     "</XTENSION_TRANSLATION>",
-    "Keep the reply visually airy for X/Twitter. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence reply may remain one paragraph.",
+    `Follow ${platformName}'s visible conventions and length limits. Keep the reply visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence reply may remain one paragraph.`,
     "Never use Unicode code point U+2014; use a comma or another suitable punctuation mark instead.",
     "Do not invent facts that are absent from the visible context.",
     "",
@@ -1197,9 +1198,10 @@ function parseReplyTranslationResult(value) {
 
 async function translateReplyForDisplay(text, translationLanguage, payload) {
   const sameLanguageMarker = "XTENSION_SAME_LANGUAGE";
+  const platformName = getContextPlatformName(payload?.context);
   const result = cleanDraftText(await codex.runTurn({
     prompt: [
-      `Translate the following X/Twitter reply into ${translationLanguage}.`,
+      `Translate the following ${platformName} reply into ${translationLanguage}.`,
       `If it is already written in ${translationLanguage}, return exactly ${sameLanguageMarker}.`,
       "Otherwise return only the faithful translation, preserving paragraph breaks. Do not add a label, quotes, markdown, or explanation.",
       "Never use Unicode code point U+2014; use a comma or another suitable punctuation mark instead.",
@@ -1220,6 +1222,11 @@ function normalizeLanguageCode(value) {
 function normalizeReplyTranslationLanguage(value) {
   const language = normalizeLanguageCode(value);
   return ["fr", "en", "es", "de", "ja"].includes(language) ? language : "fr";
+}
+
+function getContextPlatformName(context) {
+  const value = cleanText(context?.platformName || context?.platform?.name || context?.platform || "");
+  return value.slice(0, 80) || "X/Twitter";
 }
 
 function applyReplyPromptVariables(value, variables) {
@@ -1267,6 +1274,7 @@ function normalizeCodexReasoningEffort(value) {
 }
 
 function buildDraftTransformPrompt(operation, text, targetLanguage, context, generatePrompt) {
+  const platformName = getContextPlatformName(context);
   const shared = [
     `Target language: ${targetLanguage}.`,
     "Preserve the meaning, tone, register, emojis, mentions, hashtags, URLs, and line breaks unless the operation explicitly asks to write a new post.",
@@ -1276,7 +1284,7 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
 
   if (operation === "correct") {
     instructions = [
-      "Correct the X/Twitter draft in the target language.",
+      `Correct the ${platformName} draft in the target language.`,
       "Fix spelling, grammar, syntax, punctuation, capitalization, agreement, conjugation, spacing, SMS abbreviations, and phonetic spelling.",
       "Never change the meaning, especially negations. Keep every idea and every piece of content; do not summarize or omit anything.",
       "Keep exactly the same number of lines and the same line-break positions as the draft. Never merge lines.",
@@ -1284,16 +1292,16 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
     ];
   } else if (operation === "translate") {
     instructions = [
-      "Translate the X/Twitter draft into the target language.",
+      `Translate the ${platformName} draft into the target language.`,
       "Correct obvious spelling and grammar mistakes while preserving the intended meaning and tone.",
       "Keep mentions, hashtags, URLs, emojis, and line breaks. Do not add facts or commentary."
     ];
   } else {
     instructions = [
-      "Write the X/Twitter post requested by the user's instruction below.",
+      `Write the ${platformName} post or reply requested by the user's instruction below.`,
       "Produce the post itself, not a correction or a description of the instruction.",
       "Use a natural, human voice with a clear point of view. Do not invent specific fake facts, names, numbers, or quotes.",
-      "Keep the post visually airy for X/Twitter. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the post needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph."
+      `Follow ${platformName}'s visible conventions and length limits. Keep the post visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the post needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.`
     ];
     const style = cleanText(generatePrompt || "");
     if (style) {

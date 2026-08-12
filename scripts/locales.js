@@ -78,7 +78,7 @@ const localeMessages = {
   },
   de: {
     extensionName: "Xtension",
-    extensionDescription: "X/Twitter-Beiträge als PDF exportieren und Entwürfe mit dem eigenen ChatGPT-Konto korrigieren, übersetzen und erstellen.",
+    extensionDescription: "KI-Antworten auf X/Twitter, Reddit, Facebook, Instagram und weiteren sozialen Plattformen erstellen und X-Beiträge als PDF exportieren.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Als PDF herunterladen",
     toastPreparingPdf: "PDF wird vorbereitet...",
@@ -102,7 +102,7 @@ const localeMessages = {
   },
   en: {
     extensionName: "Xtension",
-    extensionDescription: "Export X/Twitter posts as PDF, and correct, translate, reformulate or generate drafts with your own ChatGPT account.",
+    extensionDescription: "Generate AI replies on X/Twitter, Reddit, Facebook, Instagram and other social platforms, and export X posts as PDF.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Download as PDF",
     toastPreparingPdf: "Preparing the PDF...",
@@ -126,7 +126,7 @@ const localeMessages = {
   },
   es: {
     extensionName: "Xtension",
-    extensionDescription: "Exporta publicaciones de X/Twitter a PDF y corrige, traduce o genera borradores con tu propia cuenta de ChatGPT.",
+    extensionDescription: "Genera respuestas con IA en X/Twitter, Reddit, Facebook, Instagram y otras redes sociales, y exporta publicaciones de X a PDF.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Descargar como PDF",
     toastPreparingPdf: "Preparando el PDF...",
@@ -174,7 +174,7 @@ const localeMessages = {
   },
   fr: {
     extensionName: "Xtension",
-    extensionDescription: "Exportez vos publications X/Twitter en PDF, et corrigez, traduisez ou générez vos brouillons avec votre compte ChatGPT.",
+    extensionDescription: "Générez des réponses IA sur X/Twitter, Reddit, Facebook, Instagram et d'autres réseaux, et exportez les posts X en PDF.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Telecharger en PDF",
     toastPreparingPdf: "Preparation du PDF...",
@@ -246,7 +246,7 @@ const localeMessages = {
   },
   ja: {
     extensionName: "Xtension",
-    extensionDescription: "X/Twitter の投稿を PDF に書き出し、自分の ChatGPT アカウントで下書きの校正・翻訳・生成ができます。",
+    extensionDescription: "X/Twitter、Reddit、Facebook、Instagram などで AI 返信を生成し、X の投稿を PDF に書き出せます。",
     actionTitle: "Xtension",
     menuDownloadPdf: "PDF としてダウンロード",
     toastPreparingPdf: "PDF を準備しています...",
@@ -640,6 +640,18 @@ const replyFeatureMessages = {
 };
 
 const replyFeatureDefaultMessages = {
+  followingBadgeFollowing: "Following",
+  followingBadgeNotFollowing: "Not following",
+  followingBadgeFollowingAria: "You follow {handle}",
+  followingBadgeNotFollowingAria: "You do not follow {handle}",
+  socialReplyGenerationFailed: "Unable to generate replies.",
+  socialReplyDraftRequired: "Write an instruction or a draft first.",
+  socialReplyWorking: "AI is writing...",
+  socialReplyInsertFailed: "The site did not accept the generated text.",
+  socialReplyInserted: "Draft inserted. Review it before publishing.",
+  socialReplyContextMissing: "No post was found next to this reply field.",
+  socialReplyChoose: "Choose a reply to insert it. Nothing is published automatically.",
+  socialReplyOpenSettings: "Open Xtension settings?",
   replySuggestionsTitle: "Suggested replies",
   replySuggestionsClose: "Close suggested replies",
   replySuggestionsPreparing: "Reading the post...",
@@ -775,11 +787,11 @@ const replyFeatureDefaultMessages = {
   replySuggestionLoadingWrite: "AI is writing this reply...",
   replySuggestionLoadingReceive: "Receiving the reply...",
   replySuggestionLoadingCheck: "Checking the reply...",
-  popupSubtitle: "X/Twitter tools and AI settings",
+  popupSubtitle: "AI tools for social replies",
   popupOpenSettings: "Open settings",
-  popupNote: "PDF export and reply tools appear directly inside X/Twitter.",
+  popupNote: "Reply tools appear on supported social platforms; PDF export remains available on X/Twitter.",
   optionsTitle: "Xtension",
-  optionsDescription: "Connect ChatGPT, choose the Codex model, and set the reasoning effort used by Xtension on X/Twitter.",
+  optionsDescription: "Connect ChatGPT, choose the Codex model, and set the reasoning effort used by Xtension across supported social platforms.",
   optionsTabReplies: "Replies",
   optionsTabBridge: "AI Bridge",
   optionsTabPrompt: "Prompt",
@@ -790,10 +802,10 @@ const replyFeatureDefaultMessages = {
   optionsReplyStyle: "Suggested reply style",
   optionsReplyStyleAuto: "Auto, varied",
   optionsReplyTranslationLanguage: "Translation shown under replies",
-  optionsReplyTranslationLanguageHint: "Replies always follow the visible post language. When that differs, Xtension shows a translation in this language without inserting it into X.",
+  optionsReplyTranslationLanguageHint: "Replies always follow the visible post language. When that differs, Xtension shows a translation in this language without inserting it into the platform editor.",
   optionsGeneratePrompt: "Generation style prompt",
   optionsHelpGeneratePrompt: "The Generate button writes a post from the instruction you type in the composer. This style prompt is always applied on top: use it for tone, length, number of lines, etc.",
-  optionsHelpEnable: "When enabled, Xtension can correct, translate, reformulate, and generate text and images in the X/Twitter composer through your connected OpenAI Codex account.",
+  optionsHelpEnable: "When enabled, Xtension can correct, translate, reformulate, and generate text in supported social reply editors through your connected OpenAI Codex account. Image generation remains available on X/Twitter.",
   optionsHelpReplyCount: "Xtension shows this many reply suggestions when you open the reply composer.",
   optionsHelpReplyStyle: "Auto asks the selected provider for varied, useful replies. Other modes push it toward one specific tone.",
   optionsHelpBridgeUrl: "The extension connects only to the Xtension Codex connector at http://127.0.0.1:47623.",
@@ -810,7 +822,7 @@ const replyFeatureDefaultMessages = {
   optionsLogsTitle: "Diagnostic logs",
   optionsLogsHeading: "Last AI operations",
   optionsLogsHint: "Xtension keeps only the latest diagnostic entries in browser extension storage.",
-  optionsHelpLogs: "Logs show Codex routing, durations, and errors. They do not include tokens or full tweet, draft, or audio content.",
+  optionsHelpLogs: "Logs show Codex routing, durations, and errors. They do not include tokens or full post, draft, or audio content.",
   optionsLogsRefresh: "Refresh logs",
   optionsLogsCopy: "Copy logs",
   optionsLogsClear: "Clear logs",
@@ -906,6 +918,18 @@ for (const [locale, messages] of Object.entries(replyStyleTranslations)) {
 }
 
 Object.assign(replyFeatureMessages.fr, {
+  followingBadgeFollowing: "Abonné",
+  followingBadgeNotFollowing: "Non abonné",
+  followingBadgeFollowingAria: "Vous êtes abonné à {handle}",
+  followingBadgeNotFollowingAria: "Vous n'êtes pas abonné à {handle}",
+  socialReplyGenerationFailed: "Impossible de générer les réponses.",
+  socialReplyDraftRequired: "Écrivez d'abord une consigne ou un brouillon.",
+  socialReplyWorking: "L'IA rédige...",
+  socialReplyInsertFailed: "La plateforme n'a pas accepté le texte généré.",
+  socialReplyInserted: "Brouillon inséré. Vérifiez-le avant de publier.",
+  socialReplyContextMissing: "Aucun post n'a été trouvé près de ce champ de réponse.",
+  socialReplyChoose: "Choisissez une réponse pour l'insérer. Rien n'est publié automatiquement.",
+  socialReplyOpenSettings: "Ouvrir les réglages de Xtension ?",
   replySuggestionsTitle: "Réponses proposées",
   replySuggestionsClose: "Fermer les réponses proposées",
   replySuggestionsPreparing: "Lecture du post...",
@@ -1034,11 +1058,11 @@ Object.assign(replyFeatureMessages.fr, {
   replySuggestionLoadingWrite: "Rédaction de cette réponse...",
   replySuggestionLoadingReceive: "Réception de la réponse...",
   replySuggestionLoadingCheck: "Vérification de la réponse...",
-  popupSubtitle: "Outils X/Twitter et réglages IA",
+  popupSubtitle: "Outils IA pour les réponses sociales",
   popupOpenSettings: "Ouvrir les réglages",
-  popupNote: "L'export PDF et les outils de réponse apparaissent directement dans X/Twitter.",
+  popupNote: "Les outils de réponse apparaissent sur les plateformes prises en charge ; l'export PDF reste disponible sur X/Twitter.",
   optionsTitle: "Xtension",
-  optionsDescription: "Connectez ChatGPT, choisissez le modèle Codex et définissez l'effort de raisonnement utilisé par Xtension sur X/Twitter.",
+  optionsDescription: "Connectez ChatGPT, choisissez le modèle Codex et définissez l'effort de raisonnement utilisé par Xtension sur les plateformes sociales prises en charge.",
   optionsTabReplies: "Réponses",
   optionsTabBridge: "Bridge IA",
   optionsTabPrompt: "Prompt",
@@ -1049,10 +1073,10 @@ Object.assign(replyFeatureMessages.fr, {
   optionsReplyStyle: "Style des réponses proposées",
   optionsReplyStyleAuto: "Auto, varié",
   optionsReplyTranslationLanguage: "Traduction affichée sous les réponses",
-  optionsReplyTranslationLanguageHint: "Les réponses suivent toujours la langue du post visible. Si elle diffère, Xtension affiche une traduction dans cette langue sans l'insérer dans X.",
+  optionsReplyTranslationLanguageHint: "Les réponses suivent toujours la langue du post visible. Si elle diffère, Xtension affiche une traduction dans cette langue sans l'insérer dans le champ de la plateforme.",
   optionsGeneratePrompt: "Style de génération",
   optionsHelpGeneratePrompt: "Le bouton Générer rédige un post à partir de l'instruction que vous tapez dans le compositeur. Ce style s'applique toujours en plus : servez-vous-en pour le ton, la longueur, le nombre de lignes, etc.",
-  optionsHelpEnable: "Quand ce réglage est actif, Xtension peut corriger, traduire, reformuler et générer du texte et des images dans le compositeur X/Twitter via votre compte OpenAI Codex connecté.",
+  optionsHelpEnable: "Quand ce réglage est actif, Xtension peut corriger, traduire, reformuler et générer du texte dans les champs de réponse des plateformes prises en charge via votre compte OpenAI Codex connecté. La génération d'images reste disponible sur X/Twitter.",
   optionsHelpReplyCount: "Xtension affiche ce nombre de propositions quand vous ouvrez le compositeur de réponse.",
   optionsHelpReplyStyle: "Auto demande au fournisseur choisi des réponses variées et utiles. Les autres modes l'orientent vers un ton précis.",
   optionsHelpBridgeUrl: "L'extension se connecte uniquement au connecteur Codex d'Xtension sur http://127.0.0.1:47623.",
@@ -1069,7 +1093,7 @@ Object.assign(replyFeatureMessages.fr, {
   optionsLogsTitle: "Logs de diagnostic",
   optionsLogsHeading: "Dernières opérations IA",
   optionsLogsHint: "Xtension conserve uniquement les dernières entrées de diagnostic dans le stockage de l'extension.",
-  optionsHelpLogs: "Les logs indiquent le routage Codex, les durées et les erreurs. Ils ne contiennent ni token ni texte complet du tweet, du brouillon ou de l'audio.",
+  optionsHelpLogs: "Les logs indiquent le routage Codex, les durées et les erreurs. Ils ne contiennent ni token ni texte complet du post, du brouillon ou de l'audio.",
   optionsLogsRefresh: "Actualiser les logs",
   optionsLogsCopy: "Copier les logs",
   optionsLogsClear: "Effacer les logs",
@@ -1134,6 +1158,27 @@ Object.assign(replyFeatureMessages.fr, {
   optionsCodexLoginHint: "Le connecteur réutilise la connexion officielle Codex de ce compte Windows. Xtension ne demande ni ne stocke de clé API.",
   optionsEngineStatusUnknown: "Inconnu. Testez la connexion Codex pour vérifier.",
   optionsRuntimeUnavailable: "Le runtime de l'extension est indisponible."
+});
+
+Object.assign(replyFeatureMessages.de, {
+  followingBadgeFollowing: "Gefolgt",
+  followingBadgeNotFollowing: "Nicht gefolgt",
+  followingBadgeFollowingAria: "Du folgst {handle}",
+  followingBadgeNotFollowingAria: "Du folgst {handle} nicht"
+});
+
+Object.assign(replyFeatureMessages.es, {
+  followingBadgeFollowing: "Siguiendo",
+  followingBadgeNotFollowing: "No sigues",
+  followingBadgeFollowingAria: "Sigues a {handle}",
+  followingBadgeNotFollowingAria: "No sigues a {handle}"
+});
+
+Object.assign(replyFeatureMessages.ja, {
+  followingBadgeFollowing: "フォロー中",
+  followingBadgeNotFollowing: "未フォロー",
+  followingBadgeFollowingAria: "{handle} をフォローしています",
+  followingBadgeNotFollowingAria: "{handle} をフォローしていません"
 });
 
 Object.assign(replyFeatureMessages.de, {

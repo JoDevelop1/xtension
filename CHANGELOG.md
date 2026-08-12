@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.19
+
+- Shows a direct **Following** or **Not following** badge beside each known X/Twitter timeline author by reusing relationship data already present in X's GraphQL timeline responses. Unknown states remain unlabelled, and no per-profile hover or extra request is required.
+- Adds a shared AI reply toolbar and contextual reply suggestions to Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube. Correction, translation, generation, and suggested-reply insertion use the same local Codex connector as X/Twitter.
+- Keeps publication under user control on every platform: generated text is inserted into the visible editor, but Xtension never clicks or submits the platform's publish button.
+- Adapts default prompts to the active platform while preserving customized prompts, and keeps native Windows `SendInput` as the preferred insertion path when the installed connector supports it.
+
 ## v0.6.18
 
 - Simplifies automatic reply language: Xtension now uses only the post text currently displayed by X, taking its `lang` attribute first and text inference as a fallback. It no longer reads translation banners or clicks **Show original**.

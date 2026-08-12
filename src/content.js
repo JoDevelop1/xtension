@@ -13,6 +13,10 @@
   const PDF_MENU_ICON_PATH = "pdf-menu-icon.png";
   const REPLY_BUTTON_SELECTOR = "[data-xtension-reply-button]";
   const REPLY_BUTTON_ATTRIBUTE = "data-xtension-reply-button";
+  const FOLLOWING_BADGE_SELECTOR = "[data-xtension-following-badge]";
+  const FOLLOWING_BADGE_ATTRIBUTE = "data-xtension-following-badge";
+  const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
+  const FOLLOWING_MAP_EVENT = "xtension-following-map";
   const DRAFT_ACTIONS_SELECTOR = "[data-xtension-draft-actions]";
   const DRAFT_ACTIONS_ATTRIBUTE = "data-xtension-draft-actions";
   const DRAFT_ACTIONS_HOST_SELECTOR = "[data-xtension-draft-actions-host]";
@@ -164,6 +168,7 @@
   let lastEnhancedPathname = "";
   let statusPageScrollToken = 0;
   let lastReplyImageReference = null;
+  const followingStatusByHandle = new Map();
 
   function start() {
     if (extensionContextInvalidated) {
@@ -180,6 +185,8 @@
     document.addEventListener("input", scheduleEnhancement, true);
     document.addEventListener("pointerup", handleDraftActionPointerUp, true);
     document.addEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.addEventListener(FOLLOWING_MAP_EVENT, handleFollowingMapUpdate, false);
+    handleFollowingMapUpdate();
     enhancePage();
 
     pageObserver?.disconnect();
@@ -275,22 +282,88 @@
     cleanupReplyButtonsOutsidePrimaryTimeline();
     document.querySelectorAll('article[data-testid="tweet"] [data-testid="User-Name"]').forEach((userName) => {
       cleanupLegacyReplyButtonInjection(userName);
-      if (userName.querySelector(REPLY_BUTTON_SELECTOR)) {
-        return;
-      }
-
       const tweet = userName.closest('article[data-testid="tweet"]');
       if (!isPrimaryTweetForReplyTools(tweet)) {
         return;
       }
 
-      const host = createReplyButtonHost(userName);
-      if (!host || host.querySelector(REPLY_BUTTON_SELECTOR)) {
+      const host = userName.querySelector('[data-xtension-reply-host="name-row"]')
+        || createReplyButtonHost(userName);
+      if (!host) {
         return;
       }
 
-      host.append(createReplyButton(tweet));
+      enhanceFollowingIndicator(tweet, host);
+      if (!host.querySelector(REPLY_BUTTON_SELECTOR)) {
+        host.append(createReplyButton(tweet));
+      }
     });
+  }
+
+  function handleFollowingMapUpdate() {
+    const raw = document.documentElement?.getAttribute?.(FOLLOWING_MAP_ATTRIBUTE) || "";
+    if (!raw) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      let changed = false;
+      for (const [rawHandle, following] of Object.entries(parsed || {})) {
+        const handle = cleanHandle(rawHandle).toLowerCase();
+        if (!handle || typeof following !== "boolean" || followingStatusByHandle.get(handle) === following) {
+          continue;
+        }
+        followingStatusByHandle.set(handle, following);
+        changed = true;
+      }
+      if (changed) {
+        scheduleEnhancement();
+      }
+    } catch (error) {
+      logXtensionError("handleFollowingMapUpdate", error);
+    }
+  }
+
+  function enhanceFollowingIndicator(tweet, host) {
+    const handle = cleanHandle(getTweetStatusContext(tweet)?.author || findHandleInTweet(tweet)).toLowerCase();
+    const existing = host.querySelector(FOLLOWING_BADGE_SELECTOR);
+    const viewerHandle = getVisibleViewerHandle();
+    const state = followingStatusByHandle.get(handle);
+
+    // L'absence de donnees reste distincte de « non abonne ». Cela evite un faux
+    // verdict pendant le tout premier instant de chargement ou sur son propre compte.
+    if (!handle || handle === viewerHandle || typeof state !== "boolean") {
+      existing?.remove?.();
+      return;
+    }
+
+    const badge = existing || document.createElement("span");
+    const label = state
+      ? localizedText("followingBadgeFollowing", "Following")
+      : localizedText("followingBadgeNotFollowing", "Not following");
+    const accessibleLabel = state
+      ? localizedTemplate("followingBadgeFollowingAria", { handle: `@${handle}` }, "You follow {handle}")
+      : localizedTemplate("followingBadgeNotFollowingAria", { handle: `@${handle}` }, "You do not follow {handle}");
+    badge.setAttribute(FOLLOWING_BADGE_ATTRIBUTE, state ? "following" : "not-following");
+    badge.setAttribute("aria-label", accessibleLabel);
+    badge.title = accessibleLabel;
+    badge.textContent = `${state ? "✓" : "○"} ${label}`;
+    if (!existing) {
+      host.prepend(badge);
+    }
+  }
+
+  function getVisibleViewerHandle() {
+    const accountSwitcher = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+    const text = cleanText(accountSwitcher?.textContent || "");
+    const textMatch = text.match(/@([A-Za-z0-9_]{1,20})/);
+    if (textMatch) {
+      return textMatch[1].toLowerCase();
+    }
+    const profileLink = Array.from(accountSwitcher?.querySelectorAll?.("a[href]") || []).find((link) => {
+      return /^\/[A-Za-z0-9_]{1,20}\/?$/.test(link.getAttribute("href") || "");
+    });
+    return cleanHandle(profileLink?.getAttribute("href") || "").replace(/^\/+|\/+$/g, "").toLowerCase();
   }
 
   function enhanceCorrectionButtons() {
@@ -9181,13 +9254,14 @@
     document.removeEventListener("input", scheduleEnhancement, true);
     document.removeEventListener("pointerup", handleDraftActionPointerUp, true);
     document.removeEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
+    document.removeEventListener(FOLLOWING_MAP_EVENT, handleFollowingMapUpdate, false);
     cleanupXtensionInjectedUi();
   }
 
   function cleanupXtensionInjectedUi() {
     document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
     document.querySelectorAll(".xtension-draft-language-menu").forEach((menu) => menu.remove());
-    document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast, [data-xtension-imagegen-overlay]`).forEach((node) => node.remove());
+    document.querySelectorAll(`${MENU_ITEM_SELECTOR}, ${REPLY_BUTTON_SELECTOR}, ${FOLLOWING_BADGE_SELECTOR}, ${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host, .xtension-toast, [data-xtension-imagegen-overlay]`).forEach((node) => node.remove());
     document.querySelectorAll(`[${XTENSION_OVERLAY_ROOT_ATTRIBUTE}]`).forEach((root) => root.remove());
   }
 

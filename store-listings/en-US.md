@@ -2,11 +2,11 @@
 
 ## Short summary
 
-Export X/Twitter posts as PDF, and write better with your own ChatGPT account.
+Generate AI replies across social platforms with your own ChatGPT account, plus PDF export on X.
 
 ## Description
 
-Xtension adds a focused set of user-invoked productivity tools directly to the X/Twitter posts and composers where you read, save, and write content.
+Xtension adds user-invoked AI reply tools to X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube. X/Twitter also includes local PDF export, ImageGen and direct Following / Not following badges in the timeline.
 
 **1. PDF export — entirely local**
 
@@ -22,14 +22,14 @@ Open the `...` menu on an X article, tweet or thread and choose **Download as PD
 
 **2. AI writing tools — through your own ChatGPT account**
 
-When you enable the draft tools, a compact toolbar appears in the X/Twitter composer:
+When you enable the draft tools, a compact toolbar appears beside supported social reply editors:
 
 - **Correction** — fixes grammar, spelling and syntax while keeping your voice.
 - **Translation** — translates your draft into the output language you choose.
 - **Reformulation** — rewrites your draft to be clearer or more impactful.
-- **Generate** — turns an instruction into a finished post; on an empty draft under a tweet, it writes a contextual reply instead.
-- **Reply suggestions** — ready-to-post replies in several angles (human reaction, short impact, concrete argument, positive agreement, contextual humour, sharp angle, useful context, question), plus three prompts you can customize.
-- **Image generation** — describe an image and attach it to your post, with square, landscape and portrait formats, style presets, framing and mood options.
+- **Generate** — turns an instruction into a finished post or reply adapted to the visible platform.
+- **Reply suggestions** — three contextual responses generated independently from customizable prompts.
+- **Image generation on X/Twitter** — describe an image and attach it to your post, with square, landscape and portrait formats, style presets, framing and mood options.
 - **Undo / Redo** — every AI edit is reversible from the composer toolbar.
 - **Model control** — choose any Codex model available to your ChatGPT account and set the reasoning effort per request.
 
@@ -40,14 +40,15 @@ The extension interface is available in English, French, German, Spanish and Jap
 Permissions:
 
 - `x.com` / `twitter.com`: add Xtension actions to the X/Twitter menu and composer, and read only the visible content you selected.
+- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube: add the AI toolbar beside recognized post/comment editors and read the nearby visible post when you use reply assistance. Private-message routes are excluded.
 - `pbs.twimg.com`: fetch the public X/Twitter images, avatars, card images and video preview thumbnails referenced by the selected content.
 - `localhost:47623` / `127.0.0.1:47623`: connect the optional AI tools to the Codex Connector running on your own computer. The extension itself cannot execute local commands.
 - `storage`: save your settings in the browser.
 
-Xtension does not collect personal data, does not send content to a developer-owned server, contains no analytics or tracking, and does not modify your X/Twitter account. It contains no microphone or audio-capture code. The full source code is published under the Apache License 2.0 at https://github.com/JoDevelop1/xtension
+Xtension does not collect personal data, does not send content to a developer-owned server, and contains no analytics or tracking. It inserts generated text as a draft and never presses the final publish button. It contains no microphone or audio-capture code. The full source code is published under the Apache License 2.0 at https://github.com/JoDevelop1/xtension
 
 Xtension is an independent project. It is not affiliated with X Corp., OpenAI, Microsoft, Google, Mozilla or Apple.
 
 ## Keywords
 
-X, Twitter, PDF, export, thread, article, AI, ChatGPT, Codex, writing, correction, translation, reply
+X, Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, YouTube, PDF, AI, ChatGPT, Codex, writing, translation, reply

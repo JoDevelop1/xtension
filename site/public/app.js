@@ -15,10 +15,10 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.12 · Chrome · Edge · Firefox',
-  heroTitle: 'Écrivez mieux sur X/Twitter,<br />avec votre propre compte ChatGPT.',
+  heroEyebrow: 'Version 0.6.19 · Chrome · Edge · Firefox',
+  heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
   heroLead:
-    "Xtension ajoute une barre d'outils compacte à la zone de rédaction de X/Twitter : corriger, traduire, reformuler, générer des réponses et créer des images — plus un export PDF soigné de n'importe quel article, tweet ou fil. Les requêtes passent par votre propre session ChatGPT/Codex authentifiée. Aucune clé d'API. Aucun serveur du développeur. Aucun compte à créer.",
+    "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et un indicateur Abonné directement dans la timeline. Rien n'est publié automatiquement.",
   heroCtaDownload: 'Télécharger Xtension',
   heroCtaSource: 'Lire le code source',
 
@@ -63,10 +63,10 @@ const FR = {
     "Réécrit votre brouillon pour le rendre plus clair ou plus percutant, dans la limite de caractères d'un message.",
   f10Title: 'Générer',
   f10Body:
-    "Transforme une consigne en message fini. Sur un brouillon vide sous un tweet, l'outil rédige plutôt une réponse contextuelle. Le style d'écriture est piloté par une consigne que vous contrôlez.",
+    "Transforme une consigne en message fini adapté à la plateforme visible. Sur un brouillon vide, l'outil propose plutôt des réponses contextuelles. Le style d'écriture est piloté par une consigne que vous contrôlez.",
   f11Title: 'Suggestions de réponses',
   f11Body:
-    'Un panneau propose des réponses prêtes à publier sous plusieurs angles : réaction humaine, impact court, argument concret, accord positif, humour contextuel, angle incisif, contexte utile, question — plus trois consignes personnalisables.',
+    "Un panneau propose trois réponses adaptées au post visible sur X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky ou YouTube. Un clic les insère comme brouillon ; vous gardez le contrôle de l'envoi.",
   f12Title: "Génération d'images",
   f12Body:
     "Décrivez une image et joignez-la à votre message. Formats carré, paysage et portrait (1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3), préréglages de style (photoréaliste, illustration, infographie, 3D), cadrage et ambiance. La première image du message peut servir de référence visuelle.",
@@ -86,7 +86,7 @@ const FR = {
     "Une extension de navigateur ne peut pas lancer un processus de bureau, et elle ne peut pas détenir un jeton de rafraîchissement OAuth en sécurité. Les fonctions IA passent donc par un petit connecteur local que vous installez une fois sous Windows.",
   step1Title: "L'extension",
   step1Body:
-    "Ne s'exécute que sur <code>x.com</code> et <code>twitter.com</code>. Elle lit le message que vous avez sélectionné ou le brouillon que vous avez tapé, et rien d'autre.",
+    "Ne s'exécute que sur les plateformes sociales prises en charge. Elle lit le post visible près du champ de réponse ou le brouillon sur lequel vous agissez ; les routes de messages privés sont exclues.",
   step2Title: 'Le connecteur local',
   step2Body:
     "Un petit programme signé qui écoute sur <code>127.0.0.1:47623</code>, joignable uniquement depuis votre propre machine. Il démarre le Codex App Server officiel dans votre session Windows, refuse les approbations d'outils et utilise des fils éphémères en lecture seule.",
@@ -108,10 +108,11 @@ const FR = {
   pd4: "Enregistre vos réglages dans le stockage d'extension du navigateur, sur votre machine.",
   privacyNotTitle: 'Ce que Xtension ne fait jamais',
   pn1: 'Aucune donnée envoyée à un serveur appartenant au développeur.',
-  pn2: "Aucun mot de passe, cookie ou jeton d'authentification X/Twitter lu.",
+  pn2: "Aucun mot de passe, cookie ou jeton d'authentification des plateformes lu.",
   pn3: 'Aucun accès à vos messages privés.',
   pn4: "Aucun historique de navigation, aucune analyse d'audience, aucun pistage, aucune publicité.",
   pn5: "Aucune clé d'API OpenAI demandée ni stockée.",
+  pn6: "Aucune publication automatique : Xtension insère un brouillon, jamais un clic sur Publier.",
 
   secTitle: 'Propriétés de sécurité vérifiables',
   sec1: "<strong>Boucle locale uniquement.</strong> Le connecteur écoute sur <code>127.0.0.1</code>. Il n'est joignable ni depuis votre réseau local, ni depuis Internet.",
@@ -126,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.12',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.19',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -143,7 +144,7 @@ const FR = {
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · 82 Mo · v0.6.12 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.19 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',
@@ -191,8 +192,8 @@ function applyLanguage(lang) {
   const label = document.getElementById('lang-label');
   if (label) label.textContent = french ? 'EN' : 'FR';
   document.title = french
-    ? 'Xtension — outils de rédaction IA et export PDF pour X/Twitter'
-    : 'Xtension — AI writing tools and PDF export for X/Twitter';
+    ? 'Xtension — réponses IA sur vos plateformes sociales'
+    : 'Xtension — AI replies across social platforms';
 }
 
 function initialLanguage() {

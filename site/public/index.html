@@ -3,18 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Xtension — AI writing tools and PDF export for X/Twitter</title>
+    <title>Xtension — AI replies across social platforms</title>
     <meta
       name="description"
-      content="Xtension is a browser extension for X/Twitter: PDF export of articles and threads, plus draft correction, translation, reformulation, reply suggestions and image generation through your own ChatGPT/Codex account. No API key, no developer server."
+      content="Generate and review AI replies on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube through your own ChatGPT/Codex account. Xtension inserts drafts and never publishes automatically."
     />
     <link rel="icon" href="/icon-32.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icon-128.png" />
     <link rel="stylesheet" href="/styles.css" />
-    <meta property="og:title" content="Xtension — AI writing tools and PDF export for X/Twitter" />
+    <meta property="og:title" content="Xtension — AI replies across social platforms" />
     <meta
       property="og:description"
-      content="PDF export, correction, translation, reformulation, reply suggestions and image generation on X/Twitter — powered by your own ChatGPT/Codex account."
+      content="AI correction, translation, generation and contextual reply suggestions across supported social platforms — powered by your own ChatGPT/Codex account."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://xtension.jodevelop.com/" />
@@ -53,16 +53,16 @@
         <div class="wrap">
           <p class="eyebrow">
             <span class="dot"></span>
-            <span data-i18n="heroEyebrow">Version 0.6.12 · Chrome · Edge · Firefox</span>
+            <span data-i18n="heroEyebrow">Version 0.6.19 · Chrome · Edge · Firefox</span>
           </p>
           <h1 data-i18n="heroTitle">
-            Write better on X/Twitter,<br />with your own ChatGPT account.
+            Reply better across social platforms,<br />with your own ChatGPT account.
           </h1>
           <p class="lead" data-i18n="heroLead">
-            Xtension adds a compact toolbar to the X/Twitter composer: correct, translate,
-            reformulate, generate replies and create images — plus a clean PDF export for any
-            article, tweet or thread. Requests go through your own authenticated ChatGPT/Codex
-            session. No API key. No developer server. No account to create.
+            Xtension adds AI reply tools to X/Twitter, Reddit, Facebook, Instagram, Threads,
+            LinkedIn, Bluesky and YouTube. Correct, translate, generate and insert contextual
+            suggestions as drafts. X also keeps ImageGen, PDF export and direct Following badges.
+            Nothing is published automatically.
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="#download" data-i18n="heroCtaDownload">
@@ -170,16 +170,17 @@
             <article class="card">
               <h4 data-i18n="f10Title">Generate</h4>
               <p data-i18n="f10Body">
-                Turn an instruction into a finished post. On an empty draft under a tweet, it writes
-                a contextual reply instead. The writing style is driven by a prompt you control.
+                Turn an instruction into a finished post adapted to the visible platform. On an
+                empty reply draft, it proposes contextual replies instead. The writing style is
+                driven by a prompt you control.
               </p>
             </article>
             <article class="card">
               <h4 data-i18n="f11Title">Reply suggestions</h4>
               <p data-i18n="f11Body">
-                A panel proposes ready-to-post replies in several angles: human reaction, short
-                impact, concrete argument, positive agreement, contextual humour, sharp angle,
-                useful context, question — plus three prompts you can customize.
+                A panel proposes three replies adapted to the visible post on X/Twitter, Reddit,
+                Facebook, Instagram, Threads, LinkedIn, Bluesky or YouTube. One click inserts a
+                draft; you remain in control of sending it.
               </p>
             </article>
             <article class="card">
@@ -232,8 +233,8 @@
               <span class="step-num">1</span>
               <h3 data-i18n="step1Title">The extension</h3>
               <p data-i18n="step1Body">
-                Runs only on <code>x.com</code> and <code>twitter.com</code>. It reads the post you
-                selected or the draft you typed, and nothing else.
+                Runs only on supported social platforms. It reads the visible post next to the reply
+                field or the draft you act on; private-message routes are excluded.
               </p>
             </li>
             <li>
@@ -300,10 +301,11 @@
               <h3 data-i18n="privacyNotTitle">What Xtension never does</h3>
               <ul class="cross">
                 <li data-i18n="pn1">No data sent to a server owned by the developer.</li>
-                <li data-i18n="pn2">No X/Twitter password, cookie or authentication token read.</li>
+                <li data-i18n="pn2">No platform password, cookie or authentication token read.</li>
                 <li data-i18n="pn3">No access to your private messages.</li>
                 <li data-i18n="pn4">No browsing history, no analytics, no tracking, no ads.</li>
                 <li data-i18n="pn5">No OpenAI API key requested or stored.</li>
+                <li data-i18n="pn6">No automatic publication: Xtension inserts a draft and never presses Publish.</li>
               </ul>
             </div>
           </div>
@@ -360,19 +362,19 @@
 
           <h3 class="group-title" data-i18n="dlStep1">1 · The browser extension</h3>
           <div class="dl-grid">
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.12/xtension-chrome-v0.6.12.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.19/xtension-chrome-v0.6.19.zip">
               <span class="dl-name">Chrome</span>
-              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.12</span>
+              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.19</span>
               <span class="dl-action" data-i18n="dlZip">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.12/xtension-edge-v0.6.12.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.19/xtension-edge-v0.6.19.zip">
               <span class="dl-name">Edge</span>
-              <span class="dl-meta">v0.6.12</span>
+              <span class="dl-meta">v0.6.19</span>
               <span class="dl-action" data-i18n="dlZip2">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.12/xtension-firefox-v0.6.12.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.19/xtension-firefox-v0.6.19.zip">
               <span class="dl-name">Firefox</span>
-              <span class="dl-meta">v0.6.12</span>
+              <span class="dl-meta">v0.6.19</span>
               <span class="dl-action" data-i18n="dlZip3">Download .zip</span>
             </a>
           </div>
@@ -410,7 +412,7 @@
           </p>
           <a class="btn btn-primary btn-lg" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe">
             <span data-i18n="dlConnectorBtn">Download XtensionBridgeSetup.exe</span>
-            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · 82 MB · v0.6.12 · from GitHub</span>
+            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · v0.6.19 · from GitHub</span>
           </a>
 
           <div class="checksums">
@@ -429,24 +431,24 @@
               <tbody>
                 <tr>
                   <td>XtensionBridgeSetup.exe</td>
-                  <td><code>71af5cef5307992160d4efa1506343195f31622b0bb937e8f5db0c317b7268c7</code></td>
+                  <td><code>c6cffabd1d509836e6af5b3d1a215d44e8da7b3edcd598b7d5bd1b4e33814a96</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-chrome-v0.6.12.zip</td>
-                  <td><code>efc3797afbb1b4c97387c8b40429be71033b1966120b0a55149d2f21f9f2bcf7</code></td>
+                  <td>xtension-chrome-v0.6.19.zip</td>
+                  <td><code>6497794b23acf854e823d96c2621b7cb5c0146d8a6e315eb9b11f9a7ecff8d58</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-edge-v0.6.12.zip</td>
-                  <td><code>efc3797afbb1b4c97387c8b40429be71033b1966120b0a55149d2f21f9f2bcf7</code></td>
+                  <td>xtension-edge-v0.6.19.zip</td>
+                  <td><code>6497794b23acf854e823d96c2621b7cb5c0146d8a6e315eb9b11f9a7ecff8d58</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-firefox-v0.6.12.zip</td>
-                  <td><code>15a96d1ff8572c5c288ecf9e9de6ff1aa05509789151a96877b0cfa25e92328a</code></td>
+                  <td>xtension-firefox-v0.6.19.zip</td>
+                  <td><code>e92e754c06e8049fed4c775df12112fc650008901c4ac6b9f805a5afc483d973</code></td>
                 </tr>
               </tbody>
             </table>
             <p class="fineprint">
-              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.12/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
+              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.19/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
               ·
               <a href="/version.json" data-i18n="versionJson">version.json</a>
             </p>

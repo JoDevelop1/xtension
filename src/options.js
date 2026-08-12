@@ -9,7 +9,7 @@
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
   const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
 
-  const REPLY_AI_CONFIG_VERSION = 23;
+  const REPLY_AI_CONFIG_VERSION = 24;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
   const DEFAULT_CODEX_REASONING_EFFORT = "low";
@@ -24,7 +24,8 @@
   const DEFAULT_REPLY_STYLE = "auto";
   const LEGACY_GENERATE_PROMPT_V20 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
   const LEGACY_GENERATE_PROMPT_V21 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise. When the post contains more than one sentence or idea, use two short paragraphs separated by exactly one blank line; otherwise use one line. Never return a dense block.";
-  const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
+  const LEGACY_GENERATE_PROMPT_V23 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
+  const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural social-media post or reply with a clear point of view. Follow the visible platform's conventions and length limits. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
   const LEGACY_REPLY_PROMPT_PROFILES_V20 = [
     { label: "Short impact", prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement." },
     { label: "Medium argument", prompt: "Write one natural X/Twitter reply in one sentence, ideally 100 to 210 characters, with one concrete reason or consequence." },
@@ -35,10 +36,15 @@
     { label: "Medium argument", prompt: "Write one natural X/Twitter reply as two short sentences in two short paragraphs separated by exactly one blank line, ideally 120 to 230 characters, with one concrete reason or consequence. Never return a dense block." },
     { label: "Longer argument", prompt: "Write one specific X/Twitter reply in two or three short paragraphs separated by exactly one blank line, ideally 180 to 320 characters, with a fuller argument and no filler. Never return a dense block." }
   ];
-  const DEFAULT_REPLY_PROMPT_PROFILES = [
+  const LEGACY_REPLY_PROMPT_PROFILES_V23 = [
     { label: "Short impact", prompt: "Write one very short, punchy and direct X/Twitter reply, ideally 45 to 110 characters. Take one clear side from the visible context and avoid generic agreement." },
     { label: "Medium argument", prompt: "Write one natural X/Twitter reply, ideally 120 to 230 characters, with one concrete reason or consequence. Keep it visually airy: give each distinct sentence or idea its own very short paragraph, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count." },
     { label: "Longer argument", prompt: "Write one specific X/Twitter reply, ideally 180 to 320 characters, with a fuller argument and no filler. Keep it visually airy: put each distinct sentence, idea, reaction, or transition in its own very short paragraph, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count." }
+  ];
+  const DEFAULT_REPLY_PROMPT_PROFILES = [
+    { label: "Short impact", prompt: "Write one very short, punchy and direct social-media reply. Follow the visible platform's conventions, take one clear side from the context, and avoid generic agreement." },
+    { label: "Medium argument", prompt: "Write one natural social-media reply with one concrete reason or consequence. Follow the visible platform's conventions and length limits. Keep it visually airy: give each distinct sentence or idea its own very short paragraph, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count." },
+    { label: "Longer argument", prompt: "Write one specific social-media reply with a fuller argument and no filler. Follow the visible platform's conventions and length limits. Keep it visually airy: put each distinct sentence, idea, reaction, or transition in its own very short paragraph, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count." }
   ];
 
   const DEFAULT_CONFIG = {
@@ -754,14 +760,19 @@
     }
     normalized.replyTranslationLanguage = normalizeReplyTranslationLanguage(normalized.replyTranslationLanguage);
     normalized.replyStyle = normalizeReplyStyle(normalized.replyStyle);
-    normalized.replyPromptProfiles = previousConfigVersion < 22 && (
-      usesLegacyReplyPromptProfilesV20(rawConfig.replyPromptProfiles)
-      || usesLegacyReplyPromptProfilesV21(rawConfig.replyPromptProfiles)
-    )
+    normalized.replyPromptProfiles = (
+      previousConfigVersion < 22 && (
+        usesLegacyReplyPromptProfiles(rawConfig.replyPromptProfiles, LEGACY_REPLY_PROMPT_PROFILES_V20)
+        || usesLegacyReplyPromptProfiles(rawConfig.replyPromptProfiles, LEGACY_REPLY_PROMPT_PROFILES_V21)
+      )
+    ) || (previousConfigVersion < 24 && usesLegacyReplyPromptProfiles(rawConfig.replyPromptProfiles, LEGACY_REPLY_PROMPT_PROFILES_V23))
       ? cloneDefaultReplyPromptProfiles()
       : normalizeReplyPromptProfiles(normalized.replyPromptProfiles, rawConfig.prompt);
     normalized.generatePrompt = cleanText(normalized.generatePrompt || DEFAULT_GENERATE_PROMPT) || DEFAULT_GENERATE_PROMPT;
-    if (previousConfigVersion < 22 && [LEGACY_GENERATE_PROMPT_V20, LEGACY_GENERATE_PROMPT_V21].includes(cleanText(rawConfig.generatePrompt || ""))) {
+    if (
+      (previousConfigVersion < 22 && [LEGACY_GENERATE_PROMPT_V20, LEGACY_GENERATE_PROMPT_V21].includes(cleanText(rawConfig.generatePrompt || "")))
+      || (previousConfigVersion < 24 && cleanText(rawConfig.generatePrompt || "") === LEGACY_GENERATE_PROMPT_V23)
+    ) {
       normalized.generatePrompt = DEFAULT_GENERATE_PROMPT;
     }
 
@@ -778,22 +789,11 @@
     return DEFAULT_REPLY_PROMPT_PROFILES.map((profile) => ({ ...profile }));
   }
 
-  function usesLegacyReplyPromptProfilesV20(value) {
-    if (!Array.isArray(value) || value.length < LEGACY_REPLY_PROMPT_PROFILES_V20.length) {
+  function usesLegacyReplyPromptProfiles(value, legacyProfiles) {
+    if (!Array.isArray(value) || !Array.isArray(legacyProfiles) || value.length < legacyProfiles.length) {
       return false;
     }
-    return LEGACY_REPLY_PROMPT_PROFILES_V20.every((legacy, index) => {
-      const profile = value[index] && typeof value[index] === "object" ? value[index] : {};
-      return cleanText(profile.label || profile.name || "") === legacy.label
-        && cleanDraftText(profile.prompt || "") === legacy.prompt;
-    });
-  }
-
-  function usesLegacyReplyPromptProfilesV21(value) {
-    if (!Array.isArray(value) || value.length < LEGACY_REPLY_PROMPT_PROFILES_V21.length) {
-      return false;
-    }
-    return LEGACY_REPLY_PROMPT_PROFILES_V21.every((legacy, index) => {
+    return legacyProfiles.every((legacy, index) => {
       const profile = value[index] && typeof value[index] === "object" ? value[index] : {};
       return cleanText(profile.label || profile.name || "") === legacy.label
         && cleanDraftText(profile.prompt || "") === legacy.prompt;

@@ -2,11 +2,13 @@
 
 **Website: [xtension.jodevelop.com](https://xtension.jodevelop.com)** — feature overview, downloads and published checksums.
 
-Xtension is a browser extension built to improve the X/Twitter experience with practical tools. The current AI feature set includes optional OpenAI Codex-assisted correction, translation, reformulation, and reply generation inside the X/Twitter composer.
+Xtension is a browser extension for AI-assisted social replies. OpenAI Codex-assisted correction, translation, reformulation, and contextual reply suggestions work on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube. X/Twitter also keeps its PDF export, ImageGen integration, and direct timeline following-status badges.
+
+Generated text is inserted as a draft. Xtension never clicks a platform's final publish or submit control, so the user reviews and sends every reply.
 
 Voice dictation was removed in 0.6.7. ChatGPT-managed Codex exposes no transcription model, so the feature could not work; rather than ship a microphone code path that never produced a result, the extension no longer contains any audio capture code at all.
 
-AI requests use the user's authenticated OpenAI Codex account. The user chooses an available Codex model and reasoning effort in Xtension; `gpt-5.6-luna` with maximum reasoning is the default.
+AI requests use the user's authenticated OpenAI Codex account. The user chooses an available Codex model and reasoning effort in Xtension; `gpt-5.6-luna` with low reasoning is the default for short social-writing tasks.
 
 Xtension is free software, released under the [Apache License 2.0](LICENSE).
 
@@ -131,9 +133,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.18.zip`
-- `dist/xtension-edge-v0.6.18.zip`
-- `dist/xtension-firefox-v0.6.18.zip`
+- `dist/xtension-chrome-v0.6.19.zip`
+- `dist/xtension-edge-v0.6.19.zip`
+- `dist/xtension-firefox-v0.6.19.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`
@@ -144,8 +146,9 @@ See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while s
 
 ## Permissions
 
-- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: inject the action into X/Twitter article, tweet, and thread menus.
+- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter draft tools, PDF export, reply suggestions, and timeline following-status badges.
+- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the AI toolbar only beside recognized post/comment editors and read the nearby visible post when the user requests or opens reply suggestions.
 - `https://pbs.twimg.com/*`: fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the selected content.
 - `http://localhost:47623/*`, `http://127.0.0.1:47623/*`: connect to the Xtension Codex Connector running on the user's computer on the default loopback port.
 
-The extension is limited to X/Twitter for page injection. AI request data is sent from the extension to the local connector and then to OpenAI through the user's ChatGPT/Codex session; the extension itself cannot execute local commands.
+AI request data is sent from the extension to the local connector and then to OpenAI through the user's ChatGPT/Codex session; the extension itself cannot execute local commands. It does not request access to unrelated websites, private-message routes are excluded from multi-platform reply enhancement, and it never submits a reply automatically.

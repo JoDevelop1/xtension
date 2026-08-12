@@ -15,6 +15,16 @@ const contentMatches = [
   "https://twitter.com/*",
   "https://*.twitter.com/*"
 ];
+const socialContentMatches = [
+  "https://*.reddit.com/*",
+  "https://*.facebook.com/*",
+  "https://*.instagram.com/*",
+  "https://*.threads.net/*",
+  "https://*.threads.com/*",
+  "https://*.linkedin.com/*",
+  "https://bsky.app/*",
+  "https://*.youtube.com/*"
+];
 const hostPermissions = [
   "http://localhost:47623/*",
   "http://127.0.0.1:47623/*",
@@ -38,6 +48,12 @@ const shared = {
       matches: contentMatches,
       js: ["content.js"],
       css: ["content.css"],
+      run_at: "document_idle"
+    },
+    {
+      matches: socialContentMatches,
+      js: ["social.js"],
+      css: ["social.css"],
       run_at: "document_idle"
     }
   ],
@@ -154,7 +170,7 @@ function copyDirectory(from, to) {
 }
 
 function copyExtensionFiles(targetDir) {
-  const files = ["background.js", "content.js", "main-world.js", "content.css", "options.html", "options.js", "options.css"];
+  const files = ["background.js", "content.js", "main-world.js", "content.css", "social.js", "social.css", "options.html", "options.js", "options.css"];
 
   for (const file of files) {
     copyFile(path.join(src, file), path.join(targetDir, file));

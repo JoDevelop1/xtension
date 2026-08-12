@@ -1,14 +1,14 @@
 {
   "name": "xtension",
-  "version": "0.6.18",
-  "description": "Browser extension for X/Twitter draft tools powered by the user's OpenAI Codex account.",
+  "version": "0.6.19",
+  "description": "Browser extension for AI-assisted social replies powered by the user's OpenAI Codex account.",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/build.js",
     "build:assets": "python scripts/generate_assets.py",
     "build:full": "npm run build:assets && npm run build",
-    "check": "node --check src/content.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/version.js && node --check scripts/xtension-ai-bridge.js && npm test",
+    "check": "node --check src/content.js && node --check src/social.js && node --check src/main-world.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/version.js && node --check scripts/xtension-ai-bridge.js && npm test",
     "test": "node --test tests/*.test.js",
     "bridge": "node scripts/xtension-ai-bridge.js",
     "bridge:build": "npx --yes @yao-pkg/pkg@6.22.0 scripts/xtension-ai-bridge.js --targets node22-win-x64 --output dist/bridge/XtensionBridge.exe",

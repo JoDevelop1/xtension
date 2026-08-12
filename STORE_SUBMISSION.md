@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.18.zip
+dist/xtension-chrome-v0.6.19.zip
 ```
 
 Assets to provide:
@@ -59,7 +59,7 @@ Use these values in the **Privacy practices** tab.
 Single purpose description:
 
 ```text
-Xtension provides user-invoked productivity tools directly on X/Twitter posts: saving selected visible content as a local PDF and helping the user write, translate, correct, or illustrate a post or reply in the X/Twitter composer.
+Xtension provides user-invoked social-writing tools on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube: it helps the user write, translate, correct, and review replies, while X/Twitter also supports local PDF export and image generation. Xtension inserts drafts but never submits them.
 ```
 
 Remote code justification:
@@ -71,7 +71,7 @@ Xtension does not load or execute remotely hosted code. All JavaScript, CSS, ico
 Host permission justification:
 
 ```text
-The x.com and twitter.com matches are required to inject Xtension actions into X/Twitter pages and read only the visible content selected by the user. The pbs.twimg.com permission is required to fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by selected content for local PDF generation. The localhost:47623 and 127.0.0.1:47623 permissions allow users to connect optional AI tools to the Codex Connector running on their own computer on the default loopback port. This does not let the extension execute local commands directly; Codex execution requires the separate user-installed connector process.
+The x.com and twitter.com matches are required for X/Twitter draft tools, PDF export, and direct following-status badges. The Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube matches add the AI toolbar beside recognized post or comment editors and read the nearby visible post only when reply assistance is used. Private-message routes are excluded. The pbs.twimg.com permission fetches public X/Twitter media referenced by selected content for local PDF or image tools. The localhost:47623 and 127.0.0.1:47623 permissions connect optional AI tools to the Codex Connector on the user's computer. This does not let the extension execute local commands directly.
 ```
 
 Bridge download disclosure:
@@ -89,7 +89,7 @@ Xtension does not request the nativeMessaging permission. Optional AI tools comm
 Data usage certification:
 
 ```text
-Xtension does not collect, sell, transmit, or store personal data on a developer-owned server. PDF export processes visible X/Twitter content locally in the browser. AI tools are optional; when enabled, visible X/Twitter context, user draft text, and images are sent to the local Codex Connector and then to OpenAI through the user's ChatGPT account. No OpenAI API key is stored in extension storage.
+Xtension does not collect, sell, transmit, or store personal data on a developer-owned server. PDF export processes visible X/Twitter content locally in the browser. AI tools are optional; when used, nearby visible post context, user draft text, and selected images are sent to the local Codex Connector and then to OpenAI through the user's ChatGPT account. No OpenAI API key is stored in extension storage, and Xtension never submits a reply automatically.
 ```
 
 ## Microsoft Edge Add-ons
@@ -102,7 +102,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.18.zip
+dist/xtension-edge-v0.6.19.zip
 ```
 
 Assets to provide:
@@ -123,7 +123,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.18.zip
+dist/xtension-firefox-v0.6.19.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:
@@ -174,9 +174,9 @@ See:
 - Verify that AI tools fail clearly when Xtension Bridge is not running.
 - Verify that the Codex Connector detects the installed Codex CLI and the connected ChatGPT account.
 - Verify that `XtensionBridge.exe`, `XtensionBridgeHost.exe`, and `XtensionBridgeSetup.exe` are signed before publishing the Windows installer.
-- Verify that the browser manifest requests only `storage`, the exact default bridge hosts, and public X/Twitter media host access.
-- Verify correction, translation, generation, and reply suggestions through Xtension Bridge.
-- Verify that the extension activates only in X/Twitter and related public media domains.
+- Verify that the browser manifest requests only `storage`, the documented social-platform page matches, the exact default bridge hosts, and public X/Twitter media host access.
+- Verify correction, translation, generation, and reply suggestions through Xtension Bridge on X/Twitter and at least one supported non-X platform.
+- Verify the toolbar on Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube, including that private-message routes are excluded and no final publish control is activated.
 - Verify that `_locales/` is present in every generated browser package.
 - Verify that `dist/*.zip` contain no `getUserMedia`, `MediaRecorder`, or `dictation` occurrence.
 - Verify that the connector answers 403 to `curl http://127.0.0.1:47623/health` (no `Origin` header) and 200 to `curl http://127.0.0.1:47623/ping`.

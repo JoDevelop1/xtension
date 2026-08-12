@@ -1,0 +1,210 @@
+[data-xtension-social-host] {
+  align-items: center !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  justify-content: flex-end !important;
+  margin: 6px 0 !important;
+  min-height: 30px !important;
+  padding: 0 4px !important;
+  position: relative !important;
+  width: 100% !important;
+  z-index: 9 !important;
+}
+
+[data-xtension-social-action] {
+  align-items: center !important;
+  appearance: none !important;
+  background: rgba(29, 155, 240, 0.1) !important;
+  border: 1px solid rgba(29, 155, 240, 0.42) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  color: rgb(20, 122, 190) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  font: 700 12px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  justify-content: center !important;
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+  white-space: nowrap !important;
+}
+
+[data-xtension-social-action]:hover {
+  background: rgba(29, 155, 240, 0.18) !important;
+}
+
+[data-xtension-social-action]:disabled {
+  cursor: wait !important;
+  opacity: 0.62 !important;
+}
+
+[data-xtension-social-panel] {
+  background: rgb(255, 255, 255) !important;
+  border: 1px solid rgba(15, 20, 25, 0.16) !important;
+  border-radius: 18px !important;
+  bottom: 18px !important;
+  box-shadow: 0 14px 44px rgba(15, 20, 25, 0.26) !important;
+  box-sizing: border-box !important;
+  color: rgb(15, 20, 25) !important;
+  display: block !important;
+  font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  max-height: min(620px, calc(100vh - 36px)) !important;
+  max-width: calc(100vw - 36px) !important;
+  overflow: auto !important;
+  padding: 14px !important;
+  position: fixed !important;
+  right: 18px !important;
+  text-align: left !important;
+  width: 390px !important;
+  z-index: 2147483646 !important;
+}
+
+[data-xtension-social-panel] header {
+  align-items: center !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  margin: 0 0 8px !important;
+}
+
+[data-xtension-social-panel] header strong {
+  color: inherit !important;
+  font: 800 15px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+[data-xtension-social-panel] header button {
+  appearance: none !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  font: 400 25px/28px system-ui, sans-serif !important;
+  height: 30px !important;
+  padding: 0 !important;
+  width: 30px !important;
+}
+
+[data-xtension-social-status] {
+  color: rgb(83, 100, 113) !important;
+  font: 13px/18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  margin: 0 0 10px !important;
+}
+
+[data-xtension-social-list] {
+  display: grid !important;
+  gap: 9px !important;
+}
+
+.xtension-social-suggestion {
+  background: rgba(15, 20, 25, 0.035) !important;
+  border: 1px solid rgba(15, 20, 25, 0.1) !important;
+  border-radius: 13px !important;
+  box-sizing: border-box !important;
+  color: inherit !important;
+  min-height: 48px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.xtension-social-suggestion.is-loading,
+.xtension-social-suggestion.is-error {
+  color: rgb(83, 100, 113) !important;
+  font: 13px/18px system-ui, sans-serif !important;
+  padding: 13px !important;
+}
+
+.xtension-social-suggestion.is-loading {
+  animation: xtension-social-pulse 1.2s ease-in-out infinite alternate !important;
+}
+
+.xtension-social-suggestion > button {
+  appearance: none !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  display: block !important;
+  font: 500 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  margin: 0 !important;
+  padding: 13px !important;
+  text-align: left !important;
+  white-space: pre-wrap !important;
+  width: 100% !important;
+}
+
+.xtension-social-suggestion > button:hover {
+  background: rgba(29, 155, 240, 0.1) !important;
+}
+
+.xtension-social-suggestion > small {
+  border-top: 1px solid rgba(15, 20, 25, 0.08) !important;
+  color: rgb(83, 100, 113) !important;
+  display: block !important;
+  font: 12px/17px system-ui, sans-serif !important;
+  padding: 9px 13px !important;
+  white-space: pre-wrap !important;
+}
+
+[data-xtension-social-toast] {
+  background: rgb(15, 20, 25) !important;
+  border-radius: 999px !important;
+  bottom: 22px !important;
+  box-shadow: 0 8px 28px rgba(15, 20, 25, 0.28) !important;
+  color: white !important;
+  font: 700 13px/18px system-ui, sans-serif !important;
+  left: 50% !important;
+  max-width: min(540px, calc(100vw - 36px)) !important;
+  padding: 10px 16px !important;
+  position: fixed !important;
+  text-align: center !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483647 !important;
+}
+
+[data-xtension-social-toast="success"] {
+  background: rgb(0, 120, 84) !important;
+}
+
+[data-xtension-social-toast="error"] {
+  background: rgb(190, 36, 55) !important;
+}
+
+@keyframes xtension-social-pulse {
+  from { opacity: 0.52; }
+  to { opacity: 1; }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-xtension-social-panel] {
+    background: rgb(21, 32, 43) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: rgb(239, 243, 244) !important;
+  }
+
+  [data-xtension-social-status],
+  .xtension-social-suggestion > small {
+    color: rgb(139, 152, 165) !important;
+  }
+
+  .xtension-social-suggestion {
+    background: rgba(255, 255, 255, 0.055) !important;
+    border-color: rgba(255, 255, 255, 0.13) !important;
+  }
+}
+
+@media (max-width: 540px) {
+  [data-xtension-social-panel] {
+    bottom: 8px !important;
+    left: 8px !important;
+    max-height: calc(100vh - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    right: 8px !important;
+    width: auto !important;
+  }
+
+  [data-xtension-social-action] {
+    font-size: 11px !important;
+    padding: 3px 8px !important;
+  }
+}

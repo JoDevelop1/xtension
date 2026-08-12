@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr" data-xtension-test-platform="reddit">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xtension social reply harness</title>
+  <link rel="stylesheet" href="../src/social.css">
+  <style>
+    body { background: #f4f6f8; color: #18212b; font: 16px/1.5 system-ui; margin: 0; padding: 40px; }
+    main { margin: 0 auto; max-width: 760px; }
+    article { background: #fff; border: 1px solid #d7dde3; border-radius: 16px; padding: 22px; }
+    [slot="authorName"] { color: #52606d; display: block; font-weight: 700; margin-bottom: 8px; }
+    [slot="title"] { font-size: 21px; font-weight: 800; }
+    [slot="text-body"] { margin: 12px 0 20px; }
+    form { border-top: 1px solid #e5e8eb; margin-top: 20px; padding-top: 18px; }
+    textarea { border: 1px solid #9aa8b4; border-radius: 10px; box-sizing: border-box; font: inherit; min-height: 110px; padding: 12px; width: 100%; }
+    button[type="submit"] { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Banc d'essai multi-plateforme</h1>
+    <article data-testid="post-container">
+      <a slot="authorName" href="/user/alice">u/alice</a>
+      <div slot="title">Faut-il rendre les transports publics gratuits ?</div>
+      <div slot="text-body" lang="fr">La gratuité simplifie l'accès, mais son financement doit rester transparent et durable.</div>
+      <form id="reply-form">
+        <label for="reply">Votre réponse</label>
+        <textarea id="reply" name="comment" placeholder="Ajouter un commentaire"></textarea>
+        <button type="submit">Publier</button>
+      </form>
+    </article>
+    <output id="result"></output>
+  </main>
+  <script>
+    window.__xtensionHarnessErrors = [];
+    window.addEventListener("error", (event) => {
+      window.__xtensionHarnessErrors.push(`${event.message} @ ${event.filename}:${event.lineno}`);
+    });
+    window.__xtensionHarnessSubmitted = false;
+    document.getElementById("reply-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      window.__xtensionHarnessSubmitted = true;
+    });
+
+    const messages = {
+      replySuggestionsTitle: "Réponses proposées",
+      replySuggestionsClose: "Fermer",
+      replySuggestionsPreparing: "Lecture du post...",
+      replySuggestionsLoading: "Génération des réponses...",
+      suggestionsButtonLabel: "Réponses proposées",
+      correctionButtonLabel: "Correction",
+      translationButtonLabel: "Traduction",
+      generateButtonLabel: "Générer",
+      socialReplyChoose: "Choisissez une réponse. Rien n'est publié automatiquement.",
+      socialReplyInserted: "Brouillon inséré. Vérifiez-le avant de publier."
+    };
+    globalThis.chrome = {
+      i18n: {
+        getMessage: (key) => messages[key] || "",
+        getUILanguage: () => "fr-FR"
+      },
+      storage: {
+        local: {
+          get: (key, callback) => callback({ [key]: false }),
+          set: (value, callback) => callback?.()
+        }
+      },
+      runtime: {
+        get lastError() { return null; },
+        sendMessage(message, callback) {
+          let response = { ok: true };
+          if (message.type === "xtension-native-type-capability") {
+            response = { ok: true, available: false };
+          } else if (message.type === "xtension-get-reply-prompt-profiles") {
+            response = { ok: true, profiles: [
+              { index: 0, label: "Court" },
+              { index: 1, label: "Moyen" },
+              { index: 2, label: "Argumenté" }
+            ] };
+          } else if (message.type === "xtension-generate-reply-suggestion-profile") {
+            response = { ok: true, reply: {
+              text: `Réponse ${message.profileIndex + 1} pour Reddit`,
+              translation: ""
+            } };
+          }
+          queueMicrotask(() => callback?.(response));
+        }
+      }
+    };
+  </script>
+  <script src="../src/social.js"></script>
+</body>
+</html>

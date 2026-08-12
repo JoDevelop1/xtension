@@ -23,6 +23,187 @@
 (() => {
   "use strict";
 
+  const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
+  const FOLLOWING_MAP_EVENT = "xtension-following-map";
+  const followingByHandle = new Map();
+  let followingMapPublishQueued = false;
+
+  // Les reponses GraphQL de X contiennent deja la relation entre le compte
+  // connecte et les auteurs presents dans la timeline. On ne conserve que le
+  // pseudonyme et le booleen `following`, jamais le contenu des publications.
+  // Le content-script peut ainsi afficher l'etat sans provoquer le hover card
+  // (et donc sans requete supplementaire par auteur).
+  function normalizeHandle(value) {
+    return String(value || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase();
+  }
+
+  function readFollowingState(value) {
+    const candidates = [
+      value?.relationship_perspectives?.following,
+      value?.legacy?.following,
+      value?.result?.relationship_perspectives?.following,
+      value?.result?.legacy?.following,
+      value?.following
+    ];
+    return candidates.find((candidate) => typeof candidate === "boolean");
+  }
+
+  function readRelationshipHandle(value) {
+    const candidates = [
+      value?.core?.screen_name,
+      value?.legacy?.screen_name,
+      value?.result?.core?.screen_name,
+      value?.result?.legacy?.screen_name,
+      value?.screen_name
+    ];
+    return normalizeHandle(candidates.find((candidate) => typeof candidate === "string"));
+  }
+
+  function collectFollowingRelationships(payload) {
+    if (!payload || typeof payload !== "object") {
+      return false;
+    }
+
+    const stack = [payload];
+    const visited = new WeakSet();
+    let changed = false;
+    let inspected = 0;
+
+    // Une timeline peut etre volumineuse. Cette limite laisse une marge large
+    // tout en evitant qu'une reponse inattendue monopolise le thread principal.
+    while (stack.length && inspected < 180000) {
+      const value = stack.pop();
+      if (!value || typeof value !== "object" || visited.has(value)) {
+        continue;
+      }
+      visited.add(value);
+      inspected += 1;
+
+      const handle = readRelationshipHandle(value);
+      const following = readFollowingState(value);
+      if (handle && typeof following === "boolean" && followingByHandle.get(handle) !== following) {
+        followingByHandle.set(handle, following);
+        changed = true;
+      }
+
+      if (Array.isArray(value)) {
+        for (let index = value.length - 1; index >= 0; index -= 1) {
+          if (value[index] && typeof value[index] === "object") {
+            stack.push(value[index]);
+          }
+        }
+      } else {
+        for (const child of Object.values(value)) {
+          if (child && typeof child === "object") {
+            stack.push(child);
+          }
+        }
+      }
+    }
+
+    if (changed) {
+      scheduleFollowingMapPublish();
+    }
+    return changed;
+  }
+
+  function scheduleFollowingMapPublish() {
+    if (followingMapPublishQueued) {
+      return;
+    }
+    followingMapPublishQueued = true;
+    queueMicrotask(() => {
+      followingMapPublishQueued = false;
+      try {
+        const entries = Array.from(followingByHandle.entries()).slice(-1000);
+        document.documentElement?.setAttribute?.(FOLLOWING_MAP_ATTRIBUTE, JSON.stringify(Object.fromEntries(entries)));
+        document.dispatchEvent(new Event(FOLLOWING_MAP_EVENT));
+      } catch (error) {
+        // best-effort : l'enrichissement de la timeline ne doit jamais affecter X.
+      }
+    });
+  }
+
+  function isRelationshipResponseUrl(value) {
+    try {
+      const url = new URL(String(value?.url || value || ""), window.location.href);
+      return /(^|\.)((x|twitter)\.com)$/i.test(url.hostname)
+        && /\/(?:i\/api\/)?graphql\//i.test(url.pathname);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function inspectFetchResponse(response, requestedUrl) {
+    if (!response?.ok || !isRelationshipResponseUrl(response.url || requestedUrl)) {
+      return;
+    }
+    const contentType = String(response.headers?.get?.("content-type") || "");
+    if (contentType && !/json/i.test(contentType)) {
+      return;
+    }
+    response.clone().json().then(collectFollowingRelationships).catch(() => {});
+  }
+
+  function installRelationshipFetchObserver() {
+    const originalFetch = window.fetch;
+    if (typeof originalFetch !== "function" || originalFetch.__xtensionFollowingObserver) {
+      return;
+    }
+
+    const observedFetch = new Proxy(originalFetch, {
+      apply(target, thisArgument, args) {
+        const requestedUrl = args[0];
+        return Reflect.apply(target, thisArgument, args).then((response) => {
+          inspectFetchResponse(response, requestedUrl);
+          return response;
+        });
+      }
+    });
+    Object.defineProperty(observedFetch, "__xtensionFollowingObserver", { value: true });
+    window.fetch = observedFetch;
+  }
+
+  function installRelationshipXhrObserver() {
+    const prototype = window.XMLHttpRequest?.prototype;
+    if (!prototype || prototype.open?.__xtensionFollowingObserver) {
+      return;
+    }
+    const originalOpen = prototype.open;
+    const originalSend = prototype.send;
+
+    function observedOpen(method, url, ...rest) {
+      this.__xtensionFollowingUrl = url;
+      return Reflect.apply(originalOpen, this, [method, url, ...rest]);
+    }
+    Object.defineProperty(observedOpen, "__xtensionFollowingObserver", { value: true });
+    prototype.open = observedOpen;
+    prototype.send = function observedSend(...args) {
+      if (isRelationshipResponseUrl(this.__xtensionFollowingUrl)) {
+        this.addEventListener("load", () => {
+          try {
+            if (this.status < 200 || this.status >= 300) {
+              return;
+            }
+            const payload = this.responseType === "json"
+              ? this.response
+              : JSON.parse(String(this.responseText || ""));
+            collectFollowingRelationships(payload);
+          } catch (error) {
+            // best-effort
+          }
+        }, { once: true });
+      }
+      return Reflect.apply(originalSend, this, args);
+    };
+  }
+
+  installRelationshipFetchObserver();
+  installRelationshipXhrObserver();
+
   // Remonte la fibre React depuis l'élément éditeur jusqu'aux props du composant
   // DraftEditor (celui qui porte editorState + onChange).
   function findDraftProps(element) {
