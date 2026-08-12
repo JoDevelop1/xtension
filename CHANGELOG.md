@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.20
+
+- Keeps the X/Twitter relationship badge and **Reply** button on the same author line for long verified display names, including the `Gaëtan Caillot (Bambino)` layout reported from the home timeline.
+- Selects X's complete author row before injecting controls, and lets native name/handle text shrink instead of wrapping Xtension controls onto a second line.
+
 ## v0.6.19
 
 - Shows a direct **Following** or **Not following** badge beside each known X/Twitter timeline author by reusing relationship data already present in X's GraphQL timeline responses. Unknown states remain unlabelled, and no per-profile hover or extra request is required.

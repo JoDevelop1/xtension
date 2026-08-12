@@ -184,6 +184,32 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
 });
 
+test("long verified X display names keep follow and reply controls on the author line", () => {
+  const content = read("src/content.js");
+  const css = read("src/content.css");
+  const start = content.indexOf("  function findDisplayNameRow");
+  const end = content.indexOf("\n  function isAuthorNameFlexRow", start);
+  assert.ok(start >= 0 && end > start);
+
+  const userName = { contains: () => true };
+  const outerNameGroup = { parentElement: userName };
+  const verifiedNameRow = { parentElement: outerNameGroup };
+  const nameContainer = { parentElement: verifiedNameRow };
+  const findDisplayNameRow = new Function(
+    "isAuthorNameFlexRow",
+    "findReplyMetadataFlexItem",
+    `${content.slice(start, end)}\nreturn findDisplayNameRow;`
+  )(
+    (element) => element === verifiedNameRow || element === userName,
+    (_scope, row) => row === userName ? { textContent: "@bambino_ · 2h" } : null
+  );
+
+  assert.equal(findDisplayNameRow(nameContainer, userName), userName);
+  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,180}flex-wrap: nowrap !important/);
+  assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: auto !important/);
+  assert.doesNotMatch(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
+});
+
 test("social reply adapters cover the requested platforms and never submit posts", () => {
   const build = read("scripts/build.js");
   const social = read("src/social.js");

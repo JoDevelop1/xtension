@@ -1898,15 +1898,19 @@
 
     for (let depth = 0; current?.parentElement && userName.contains(current.parentElement) && depth < 8; depth += 1) {
       const parent = current.parentElement;
-      if (parent === userName) {
-        break;
-      }
-
       if (isAuthorNameFlexRow(parent)) {
         best = parent;
         if (findReplyMetadataFlexItem(userName, parent, nameContainer)) {
           return parent;
         }
+      }
+
+      // `data-testid="User-Name"` est lui-même la ligne qui réunit le nom et
+      // les métadonnées dans certaines variantes de X. Il faut donc l'évaluer
+      // avant de terminer la remontée. Sinon, avec un nom long ou vérifié, les
+      // contrôles sont injectés dans la sous-ligne du nom et passent dessous.
+      if (parent === userName) {
+        break;
       }
 
       current = parent;
