@@ -184,7 +184,7 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
 });
 
-test("Laurent Alexandre's long verified name keeps compact follow and reply controls on the author line", () => {
+test("a long verified name keeps compact controls above the handle metadata", () => {
   const content = read("src/content.js");
   const css = read("src/content.css");
   const start = content.indexOf("  function findDisplayNameRow");
@@ -205,9 +205,10 @@ test("Laurent Alexandre's long verified name keeps compact follow and reply cont
   );
 
   assert.equal(findDisplayNameRow(nameContainer, userName), userName);
-  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,180}flex-wrap: nowrap !important/);
-  assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: auto !important/);
-  assert.doesNotMatch(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
+  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,220}flex-wrap: wrap !important/);
+  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,220}height: auto !important/);
+  assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
+  assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,240}width: 100% !important/);
   assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
   assert.match(content, /state \? "✓" : "✕"/);
   assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);

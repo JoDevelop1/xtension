@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.22
+
+- Moves the X/Twitter `@handle · time` metadata onto its own second line beneath the display name and Xtension controls.
+- Keeps the display name, relationship badge, and green **Reply** button together and vertically aligned on the first line, including long verified names.
+
 ## v0.6.21
 
 - Replaces the longer negative relationship label with the compact red **✕ Following** state, while retaining the blue **✓ Following** state for accounts you follow. The full positive/negative meaning remains available in the tooltip and accessible label.

@@ -62,7 +62,7 @@
           <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
           <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
         </span>
-        <div class="metadata" data-xtension-reply-metadata="true">@dr_l_alexandre · 2 h</div>
+        <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata">@dr_l_alexandre · 2 h</div>
       </div>
       <p class="post">Cette strat est en train de tout changer en ecom 🤯</p>
     </article>
@@ -70,20 +70,28 @@
     <script>
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const elements = Object.fromEntries(
-          ["name", "badge", "reply"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
+          ["name", "badge", "reply", "metadata"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
+        );
+        const topRowElements = Object.fromEntries(
+          ["name", "badge", "reply"].map((key) => [key, elements[key]])
+        );
+        const rects = Object.fromEntries(
+          Object.entries(elements).map(([key, element]) => [key, element.getBoundingClientRect()])
         );
         const centers = Object.fromEntries(
-          Object.entries(elements).map(([key, element]) => {
-            const rect = element.getBoundingClientRect();
+          Object.entries(topRowElements).map(([key]) => {
+            const rect = rects[key];
             return [key, Math.round((rect.top + rect.bottom) * 10) / 20];
           })
         );
         const spread = Math.max(...Object.values(centers)) - Math.min(...Object.values(centers));
+        const metadataBelow = rects.metadata.top >= Math.max(rects.name.bottom, rects.badge.bottom, rects.reply.bottom) - 0.5;
         const colors = {
           badge: getComputedStyle(elements.badge).color,
           reply: getComputedStyle(elements.reply).backgroundColor
         };
-        const result = { centers, spread, aligned: spread <= 2, colors };
+        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, colors };
+        result.aligned = result.topRowAligned && result.metadataBelow;
         document.body.setAttribute("data-layout-aligned", String(result.aligned));
         document.getElementById("result").textContent = JSON.stringify(result);
         document.title = `Xtension timeline layout: ${result.aligned ? "PASS" : "FAIL"}`;

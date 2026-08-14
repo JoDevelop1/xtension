@@ -117,10 +117,12 @@
 }
 
 [data-xtension-reply-name-row] {
+  align-content: flex-start !important;
   align-items: center !important;
-  flex-wrap: nowrap !important;
+  flex-wrap: wrap !important;
+  height: auto !important;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible !important;
 }
 
 [data-xtension-reply-name-row] > :not([data-xtension-reply-host]):not([data-xtension-reply-metadata]) {
@@ -130,11 +132,13 @@
 }
 
 [data-xtension-reply-metadata] {
-  flex: 1 1 auto !important;
-  flex-basis: auto !important;
+  flex: 0 0 100% !important;
+  flex-basis: 100% !important;
   margin-left: 0 !important;
   min-width: 0;
+  order: 2;
   overflow: hidden;
+  width: 100% !important;
 }
 
 [data-xtension-reply-button]::before {
