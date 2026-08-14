@@ -55,14 +55,14 @@
     <article data-testid="tweet">
       <div data-testid="User-Name" data-xtension-reply-name-row="true">
         <div class="name-group">
-          <span class="display-name" data-layout="name">Gaëtan Caillot (Bambino)</span>
+          <span class="display-name" data-layout="name">Docteur Laurent Alexandre</span>
           <span class="verified" aria-label="Compte certifié">●</span>
         </div>
         <span data-xtension-reply-host="name-row">
-          <span data-xtension-following-badge="not-following" data-layout="badge">○ Non abonné</span>
+          <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
           <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
         </span>
-        <div class="metadata" data-xtension-reply-metadata="true">@bambino_media · 2 h</div>
+        <div class="metadata" data-xtension-reply-metadata="true">@dr_l_alexandre · 2 h</div>
       </div>
       <p class="post">Cette strat est en train de tout changer en ecom 🤯</p>
     </article>
@@ -79,7 +79,11 @@
           })
         );
         const spread = Math.max(...Object.values(centers)) - Math.min(...Object.values(centers));
-        const result = { centers, spread, aligned: spread <= 2 };
+        const colors = {
+          badge: getComputedStyle(elements.badge).color,
+          reply: getComputedStyle(elements.reply).backgroundColor
+        };
+        const result = { centers, spread, aligned: spread <= 2, colors };
         document.body.setAttribute("data-layout-aligned", String(result.aligned));
         document.getElementById("result").textContent = JSON.stringify(result);
         document.title = `Xtension timeline layout: ${result.aligned ? "PASS" : "FAIL"}`;

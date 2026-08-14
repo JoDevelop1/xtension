@@ -21,7 +21,7 @@
 [data-xtension-reply-button] {
   align-items: center;
   appearance: none;
-  background: #e0245e;
+  background: #138a55;
   border: 0;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(15, 20, 25, 0.22);
@@ -47,13 +47,13 @@
 }
 
 [data-xtension-reply-button]:hover {
-  background: #c81e52;
+  background: #0f7046;
   box-shadow: 0 2px 6px rgba(15, 20, 25, 0.26);
   transform: translateY(-1px);
 }
 
 [data-xtension-reply-button]:focus-visible {
-  box-shadow: 0 0 0 3px rgba(224, 36, 94, 0.28), 0 1px 3px rgba(15, 20, 25, 0.22);
+  box-shadow: 0 0 0 3px rgba(19, 138, 85, 0.3), 0 1px 3px rgba(15, 20, 25, 0.22);
   outline: none;
 }
 
@@ -91,6 +91,12 @@
   color: rgb(29, 155, 240);
 }
 
+[data-xtension-following-badge="not-following"] {
+  background: rgba(244, 33, 46, 0.1);
+  border-color: rgba(244, 33, 46, 0.46);
+  color: rgb(210, 18, 34);
+}
+
 @media (prefers-color-scheme: dark) {
   [data-xtension-following-badge] {
     border-color: rgba(139, 152, 165, 0.5);
@@ -101,6 +107,12 @@
     background: rgba(29, 155, 240, 0.18);
     border-color: rgba(29, 155, 240, 0.58);
     color: rgb(142, 205, 248);
+  }
+
+  [data-xtension-following-badge="not-following"] {
+    background: rgba(244, 33, 46, 0.16);
+    border-color: rgba(244, 33, 46, 0.58);
+    color: rgb(255, 129, 137);
   }
 }
 

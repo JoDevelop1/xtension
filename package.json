@@ -1,6 +1,6 @@
 {
   "name": "xtension",
-  "version": "0.6.20",
+  "version": "0.6.21",
   "description": "Browser extension for AI-assisted social replies powered by the user's OpenAI Codex account.",
   "private": true,
   "license": "Apache-2.0",

@@ -184,7 +184,7 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
 });
 
-test("long verified X display names keep follow and reply controls on the author line", () => {
+test("Laurent Alexandre's long verified name keeps compact follow and reply controls on the author line", () => {
   const content = read("src/content.js");
   const css = read("src/content.css");
   const start = content.indexOf("  function findDisplayNameRow");
@@ -208,6 +208,10 @@ test("long verified X display names keep follow and reply controls on the author
   assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,180}flex-wrap: nowrap !important/);
   assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: auto !important/);
   assert.doesNotMatch(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
+  assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
+  assert.match(content, /state \? "✓" : "✕"/);
+  assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);
+  assert.match(css, /\[data-xtension-reply-button\][\s\S]{0,240}background: #138a55/);
 });
 
 test("social reply adapters cover the requested platforms and never submit posts", () => {

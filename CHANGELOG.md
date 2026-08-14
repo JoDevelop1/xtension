@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.21
+
+- Replaces the longer negative relationship label with the compact red **✕ Following** state, while retaining the blue **✓ Following** state for accounts you follow. The full positive/negative meaning remains available in the tooltip and accessible label.
+- Changes the inline X/Twitter **Reply** button from pink to green so it is visually distinct from the relationship badge.
+- Regression-tests the exact `Docteur Laurent Alexandre` author row and keeps the display name, relationship badge, and Reply button vertically aligned on one line.
+
 ## v0.6.20
 
 - Keeps the X/Twitter relationship badge and **Reply** button on the same author line for long verified display names, including the `Gaëtan Caillot (Bambino)` layout reported from the home timeline.

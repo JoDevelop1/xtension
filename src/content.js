@@ -338,16 +338,16 @@
     }
 
     const badge = existing || document.createElement("span");
-    const label = state
-      ? localizedText("followingBadgeFollowing", "Following")
-      : localizedText("followingBadgeNotFollowing", "Not following");
+    // Le symbole et la couleur portent l'etat. Garder le meme libelle court dans
+    // les deux cas evite que « Non abonne » repousse les actions sur une 2e ligne.
+    const label = localizedText("followingBadgeFollowing", "Following");
     const accessibleLabel = state
       ? localizedTemplate("followingBadgeFollowingAria", { handle: `@${handle}` }, "You follow {handle}")
       : localizedTemplate("followingBadgeNotFollowingAria", { handle: `@${handle}` }, "You do not follow {handle}");
     badge.setAttribute(FOLLOWING_BADGE_ATTRIBUTE, state ? "following" : "not-following");
     badge.setAttribute("aria-label", accessibleLabel);
     badge.title = accessibleLabel;
-    badge.textContent = `${state ? "✓" : "○"} ${label}`;
+    badge.textContent = `${state ? "✓" : "✕"} ${label}`;
     if (!existing) {
       host.prepend(badge);
     }
