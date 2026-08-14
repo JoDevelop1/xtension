@@ -124,9 +124,13 @@
   height: auto !important;
   min-width: 0;
   overflow: visible !important;
-  padding-right: 104px !important;
+  padding-right: 0 !important;
   position: relative !important;
   width: 100% !important;
+}
+
+[data-xtension-reply-name-row][data-xtension-reply-timestamp-placement="row"] {
+  padding-right: 104px !important;
 }
 
 [data-xtension-reply-name-row] > :not([data-xtension-reply-host]):not([data-xtension-reply-metadata]):not([data-xtension-reply-timestamp-proxy]) {
@@ -164,28 +168,38 @@
   display: none !important;
 }
 
-[data-xtension-reply-name-row] > [data-xtension-reply-timestamp-proxy="true"] {
+[data-xtension-reply-timestamp-proxy="true"] {
   align-items: center !important;
   color: rgb(83, 100, 113) !important;
   display: inline-flex !important;
   height: 20px;
   justify-content: flex-end;
-  margin: 0 !important;
   padding: 0 !important;
-  position: absolute !important;
-  right: 0;
-  top: 0;
   white-space: nowrap;
 }
 
+[data-xtension-reply-name-row] > [data-xtension-reply-timestamp-proxy="true"][data-xtension-reply-timestamp-placement="row"] {
+  margin: 0 !important;
+  position: absolute !important;
+  right: 0;
+  top: 0;
+}
+
+[data-xtension-reply-header-row="true"] > [data-xtension-reply-timestamp-proxy="true"][data-xtension-reply-timestamp-placement="actions"] {
+  align-self: flex-start !important;
+  flex: 0 0 auto !important;
+  margin: 0 4px 0 6px !important;
+  position: static !important;
+}
+
 [data-xtension-reply-name-row] [data-xtension-reply-handle="true"]:hover,
-[data-xtension-reply-name-row] > [data-xtension-reply-timestamp-proxy="true"]:hover {
+[data-xtension-reply-timestamp-proxy="true"]:hover {
   text-decoration: underline !important;
 }
 
 @media (prefers-color-scheme: dark) {
   [data-xtension-reply-name-row] [data-xtension-reply-handle="true"],
-  [data-xtension-reply-name-row] > [data-xtension-reply-timestamp-proxy="true"] {
+  [data-xtension-reply-timestamp-proxy="true"] {
     color: rgb(139, 152, 165) !important;
   }
 }

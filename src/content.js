@@ -431,6 +431,9 @@
     document.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => button.remove());
     document.querySelectorAll('[data-xtension-reply-host="inline"], [data-xtension-reply-host="name-row"]').forEach((node) => node.remove());
     document.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((node) => node.remove());
+    document.querySelectorAll('[data-xtension-reply-header-row="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-header-row");
+    });
     document.querySelectorAll(`${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host`).forEach(removeDraftActionHost);
     document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
     cleanupOrphanDraftLanguageMenus();
@@ -450,6 +453,7 @@
     });
     document.querySelectorAll('[data-xtension-reply-name-row="true"]').forEach((node) => {
       node.removeAttribute("data-xtension-reply-name-row");
+      node.removeAttribute("data-xtension-reply-timestamp-placement");
     });
   }
 
@@ -1826,10 +1830,12 @@
       if (!node.querySelector(REPLY_BUTTON_SELECTOR)) {
         node.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((proxy) => proxy.remove());
         node.removeAttribute("data-xtension-reply-name-row");
+        node.removeAttribute("data-xtension-reply-timestamp-placement");
       }
     });
     userName.querySelectorAll('[data-xtension-reply-host="name-row"]').forEach((node) => {
       if (!node.querySelector(REPLY_BUTTON_SELECTOR)) {
+        removeReplyTimestampProxyForHost(node);
         node.remove();
       }
     });
@@ -1839,6 +1845,7 @@
     const host = button?.closest?.('[data-xtension-reply-host]');
     const row = host?.closest?.('[data-xtension-reply-name-row="true"]');
     button?.remove?.();
+    removeReplyTimestampProxyForHost(host);
     if (host?.getAttribute("data-xtension-reply-host") === "inline" || host?.getAttribute("data-xtension-reply-host") === "name-row") {
       host.remove();
     } else if (host) {
@@ -1847,6 +1854,7 @@
     if (row && !row.querySelector(REPLY_BUTTON_SELECTOR)) {
       row.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((node) => node.remove());
       row.removeAttribute("data-xtension-reply-name-row");
+      row.removeAttribute("data-xtension-reply-timestamp-placement");
       row.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
         node.removeAttribute("data-xtension-reply-metadata");
       });
@@ -1856,6 +1864,26 @@
         node.removeAttribute("data-xtension-reply-separator");
       });
     }
+  }
+
+  function removeReplyTimestampProxyForHost(host) {
+    const owner = host?.getAttribute?.("data-xtension-reply-timestamp-owner") || "";
+    if (!owner) {
+      return;
+    }
+
+    document.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((proxy) => {
+      if (proxy.getAttribute("data-xtension-reply-timestamp-owner") !== owner) {
+        return;
+      }
+      const parent = proxy.parentElement;
+      proxy.remove();
+      if (parent?.getAttribute?.("data-xtension-reply-header-row") === "true"
+        && !parent.querySelector?.('[data-xtension-reply-timestamp-proxy="true"]')) {
+        parent.removeAttribute("data-xtension-reply-header-row");
+      }
+    });
+    host.removeAttribute("data-xtension-reply-timestamp-owner");
   }
 
   function isPrimaryTweetForReplyTools(tweet) {
@@ -1996,6 +2024,50 @@
     return timestampHost && userName.contains(timestampHost) ? timestampHost : null;
   }
 
+  function findReplyTimestampActionPlacement(userName) {
+    const tweet = userName?.closest?.('article[data-testid="tweet"]');
+    if (!tweet) {
+      return null;
+    }
+
+    const nameRect = userName.getBoundingClientRect();
+    const menuButtons = Array.from(tweet.querySelectorAll('[data-testid="caret"]')).filter((button) => {
+      return button.closest?.('article[data-testid="tweet"]') === tweet && isVisibleElement(button);
+    });
+    for (const menuButton of menuButtons) {
+      const menuRect = menuButton.getBoundingClientRect();
+      if (Math.abs(menuRect.top - nameRect.top) > 24) {
+        continue;
+      }
+
+      let header = userName.parentElement;
+      for (let depth = 0; header && tweet.contains(header) && depth < 5; depth += 1) {
+        if (header.contains(menuButton)) {
+          const nameItem = getDirectChildContaining(header, userName);
+          const menuItem = getDirectChildContaining(header, menuButton);
+          const style = getComputedStyle(header);
+          if (nameItem && menuItem && nameItem !== menuItem
+            && style.display === "flex" && style.flexDirection !== "column") {
+            const children = Array.from(header.children || []);
+            const nameIndex = children.indexOf(nameItem);
+            const menuIndex = children.indexOf(menuItem);
+            if (nameIndex >= 0 && menuIndex > nameIndex) {
+              return {
+                parent: header,
+                before: children[nameIndex + 1] || menuItem,
+                type: "actions"
+              };
+            }
+          }
+          break;
+        }
+        header = header.parentElement;
+      }
+    }
+
+    return null;
+  }
+
   function syncReplyTimestampProxy(userName, host) {
     const row = host?.closest?.('[data-xtension-reply-name-row="true"]');
     const metadata = row?.querySelector?.('[data-xtension-reply-metadata="true"]');
@@ -2004,11 +2076,22 @@
     }
 
     const timestampHost = markReplyMetadataParts(userName, metadata);
-    const existing = Array.from(row.children || []).find((node) => {
-      return node.getAttribute?.("data-xtension-reply-timestamp-proxy") === "true";
+    const owner = host.getAttribute("data-xtension-reply-timestamp-owner")
+      || globalThis.crypto?.randomUUID?.()
+      || `xtension-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    host.setAttribute("data-xtension-reply-timestamp-owner", owner);
+    const existing = Array.from(document.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]')).find((node) => {
+      return node.getAttribute("data-xtension-reply-timestamp-owner") === owner;
+    });
+    // Nettoie la copie v0.6.24 éventuellement restée dans la ligne après un
+    // rechargement à chaud de l'extension.
+    row.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((node) => {
+      if (node !== existing && !node.getAttribute("data-xtension-reply-timestamp-owner")) {
+        node.remove();
+      }
     });
     if (!timestampHost) {
-      existing?.remove?.();
+      removeReplyTimestampProxyForHost(host);
       return;
     }
 
@@ -2018,21 +2101,36 @@
       || (source.matches?.("time") ? source.getAttribute?.("datetime") : "")
       || "";
     const signature = JSON.stringify([cleanText(source.textContent), href, datetime]);
-    if (existing?.getAttribute?.("data-xtension-reply-timestamp-signature") === signature) {
-      return;
+    const placement = findReplyTimestampActionPlacement(userName) || {
+      parent: row,
+      before: metadata,
+      type: "row"
+    };
+    const previousParent = existing?.parentElement || null;
+    let proxy = existing;
+    if (existing?.getAttribute?.("data-xtension-reply-timestamp-signature") !== signature) {
+      // Le texte n'est jamais reformate : la copie garde exactement le lien et
+      // le <time> fournis par X, puis se resynchronise lorsque X les actualise.
+      proxy = source.cloneNode(true);
+      proxy.removeAttribute?.("data-xtension-reply-timestamp");
+      proxy.setAttribute("data-xtension-reply-timestamp-proxy", "true");
+      proxy.setAttribute("data-xtension-reply-timestamp-signature", signature);
+      proxy.setAttribute("data-xtension-reply-timestamp-owner", owner);
+      existing?.remove?.();
     }
 
-    // Le timestamp natif vit dans la ligne de metadonnees, dont X masque tout
-    // debordement. Une copie directe dans la ligne d'auteur reste donc visible
-    // tout a droite, tandis que le lien et le <time> d'origine sont conserves.
-    const proxy = source.cloneNode(true);
-    proxy.removeAttribute?.("data-xtension-reply-timestamp");
-    proxy.setAttribute("data-xtension-reply-timestamp-proxy", "true");
-    proxy.setAttribute("data-xtension-reply-timestamp-signature", signature);
-    if (existing) {
-      existing.replaceWith(proxy);
-    } else {
-      row.insertBefore(proxy, metadata);
+    proxy.setAttribute("data-xtension-reply-timestamp-placement", placement.type);
+    row.setAttribute("data-xtension-reply-timestamp-placement", placement.type);
+    if (placement.type === "actions") {
+      placement.parent.setAttribute("data-xtension-reply-header-row", "true");
+    }
+    if (proxy.parentElement !== placement.parent || proxy.nextSibling !== placement.before) {
+      placement.parent.insertBefore(proxy, placement.before || null);
+    }
+    if (previousParent && previousParent !== placement.parent
+      && previousParent.getAttribute?.("data-xtension-reply-header-row") === "true"
+      && !previousParent.querySelector?.('[data-xtension-reply-timestamp-proxy="true"]')) {
+      previousParent.removeAttribute("data-xtension-reply-header-row");
     }
   }
 

@@ -19,11 +19,17 @@
         padding: 12px 16px;
         width: 600px;
       }
+      .tweet-header {
+        align-items: flex-start;
+        display: flex;
+        width: 520px;
+      }
       [data-testid="User-Name"] {
         align-items: center;
         display: flex;
+        flex: 1 1 auto;
         height: 24px;
-        width: 520px;
+        width: auto;
       }
       .name-group {
         align-items: center;
@@ -51,23 +57,38 @@
         overflow: hidden;
         width: 100%;
       }
+      .tweet-actions {
+        align-items: center;
+        display: inline-flex;
+        flex: 0 0 auto;
+        height: 20px;
+      }
+      .tweet-actions button {
+        background: transparent;
+        border: 0;
+        height: 20px;
+        padding: 0 4px;
+      }
       .post { margin: 4px 0 0; }
       output { display: block; margin-top: 16px; white-space: pre; }
     </style>
   </head>
   <body>
     <article data-testid="tweet">
-      <div data-testid="User-Name" data-xtension-reply-name-row="true">
-        <div class="name-group">
-          <span class="display-name" data-layout="name">Docteur Laurent Alexandre</span>
-          <span class="verified" aria-label="Compte certifié">●</span>
+      <div class="tweet-header" data-xtension-reply-header-row="true">
+        <div data-testid="User-Name" data-xtension-reply-name-row="true" data-xtension-reply-timestamp-placement="actions">
+          <div class="name-group">
+            <span class="display-name" data-layout="name">Docteur Laurent Alexandre</span>
+            <span class="verified" aria-label="Compte certifié">●</span>
+          </div>
+          <span data-xtension-reply-host="name-row">
+            <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
+            <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
+          </span>
+          <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata"><div class="native-metadata-clip"><a href="/dr_l_alexandre" data-xtension-reply-handle="true" data-layout="handle">@dr_l_alexandre</a><span data-xtension-reply-separator="true">·</span><a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp="true" data-layout="native-timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a></div></div>
         </div>
-        <span data-xtension-reply-host="name-row">
-          <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
-          <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
-        </span>
-        <a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp-proxy="true" data-layout="timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a>
-        <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata"><div class="native-metadata-clip"><a href="/dr_l_alexandre" data-xtension-reply-handle="true" data-layout="handle">@dr_l_alexandre</a><span data-xtension-reply-separator="true">·</span><a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp="true" data-layout="native-timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a></div></div>
+        <a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp-proxy="true" data-xtension-reply-timestamp-placement="actions" data-layout="timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a>
+        <div class="tweet-actions" data-layout="actions"><button type="button" aria-label="Grok">◒</button><button type="button" data-testid="caret" aria-label="Plus">•••</button></div>
       </div>
       <p class="post">Cette strat est en train de tout changer en ecom 🤯</p>
     </article>
@@ -75,7 +96,7 @@
     <script>
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const elements = Object.fromEntries(
-          ["name", "badge", "reply", "metadata", "handle", "timestamp", "native-timestamp"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
+          ["name", "badge", "reply", "metadata", "handle", "timestamp", "native-timestamp", "actions"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
         );
         const topRowElements = Object.fromEntries(
           ["name", "badge", "reply", "timestamp"].map((key) => [key, elements[key]])
@@ -92,8 +113,8 @@
         const spread = Math.max(...Object.values(centers)) - Math.min(...Object.values(centers));
         const metadataBelow = rects.handle.top >= Math.max(rects.name.bottom, rects.badge.bottom, rects.reply.bottom) - 0.5;
         const handleFlushLeft = Math.abs(rects.handle.left - rects.name.left) <= 0.5;
-        const rowRect = document.querySelector('[data-xtension-reply-name-row="true"]').getBoundingClientRect();
-        const timestampFlushRight = Math.abs(rects.timestamp.right - rowRect.right) <= 0.5;
+        const timestampAdjacentToActions = rects.timestamp.right <= rects.actions.left
+          && rects.actions.left - rects.timestamp.right <= 4.5;
         const nativeTimestampHidden = getComputedStyle(elements["native-timestamp"]).display === "none";
         const colors = {
           badge: getComputedStyle(elements.badge).color,
@@ -101,8 +122,8 @@
           handle: getComputedStyle(elements.handle).color,
           timestamp: getComputedStyle(elements.timestamp).color
         };
-        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampFlushRight, nativeTimestampHidden, colors };
-        result.aligned = result.topRowAligned && result.metadataBelow && result.handleFlushLeft && result.timestampFlushRight && result.nativeTimestampHidden;
+        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampAdjacentToActions, nativeTimestampHidden, colors };
+        result.aligned = result.topRowAligned && result.metadataBelow && result.handleFlushLeft && result.timestampAdjacentToActions && result.nativeTimestampHidden;
         document.body.setAttribute("data-layout-aligned", String(result.aligned));
         document.getElementById("result").textContent = JSON.stringify(result);
         document.title = `Xtension timeline layout: ${result.aligned ? "PASS" : "FAIL"}`;

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.25
+
+- Places the exact native X/Twitter post time or date immediately before the Grok and overflow-menu action group, instead of leaving it at the earlier edge of the author-name block.
+- Keeps the timestamp text, link, and `<time>` value supplied by X unchanged and resynchronizes the visible copy when X updates it.
+- Retains the far-right author-row fallback for quoted posts and other cards that do not expose the Grok/menu action group.
+
 ## v0.6.24
 
 - Restores the X/Twitter post time or date at the far right of the first author line. The visible timestamp is now mirrored outside X's clipped metadata container, while preserving its native post link and keeping the original timestamp as the synchronized source.

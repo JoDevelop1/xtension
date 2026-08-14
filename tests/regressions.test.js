@@ -209,14 +209,16 @@ test("a long verified name keeps controls left, timestamp right, and handle flus
   assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,320}position: relative !important/);
   assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
   assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-timestamp="true"\][\s\S]{0,100}display: none !important/);
-  assert.match(css, /\[data-xtension-reply-name-row\] > \[data-xtension-reply-timestamp-proxy="true"\][\s\S]{0,300}right: 0/);
+  assert.match(css, /\[data-xtension-reply-name-row\] > \[data-xtension-reply-timestamp-proxy="true"\]\[data-xtension-reply-timestamp-placement="row"\][\s\S]{0,300}right: 0/);
+  assert.match(css, /\[data-xtension-reply-header-row="true"\] > \[data-xtension-reply-timestamp-proxy="true"\]\[data-xtension-reply-timestamp-placement="actions"\][\s\S]{0,240}margin: 0 4px 0 6px !important/);
   assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-separator="true"\][\s\S]{0,100}display: none !important/);
   assert.match(content, /markReplyMetadataParts\(userName, placement\.metadata\)/);
   assert.match(content, /currentRow\?\.contains\?\.\(node\)/);
   assert.match(content, /data-xtension-reply-handle/);
   assert.match(content, /data-xtension-reply-timestamp/);
   assert.match(content, /syncReplyTimestampProxy\(userName, host\)/);
-  assert.match(content, /const proxy = source\.cloneNode\(true\)/);
+  assert.match(content, /proxy = source\.cloneNode\(true\)/);
+  assert.match(content, /findReplyTimestampActionPlacement\(userName\)/);
   assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
   assert.match(content, /state \? "✓" : "✕"/);
   assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);
@@ -267,15 +269,19 @@ test("recurring timeline cleanup preserves metadata layout markers on the active
   assert.deepEqual(removed, []);
 });
 
-test("the timestamp is cloned outside X's clipped metadata container", () => {
+test("the exact X timestamp is inserted immediately before the action cluster", () => {
   const content = read("src/content.js");
-  const start = content.indexOf("  function markReplyMetadataParts");
+  const start = content.indexOf("  function syncReplyTimestampProxy");
   const end = content.indexOf("\n  function findDisplayNameElement", start);
   assert.ok(start >= 0 && end > start);
 
   const proxyAttributes = new Map();
   const proxy = {
+    nextSibling: null,
+    parentElement: null,
+    textContent: "2 h",
     getAttribute: (name) => proxyAttributes.get(name) || null,
+    remove: () => {},
     removeAttribute: (name) => proxyAttributes.delete(name),
     setAttribute: (name, value) => proxyAttributes.set(name, value)
   };
@@ -289,41 +295,104 @@ test("the timestamp is cloned outside X's clipped metadata container", () => {
     closest: () => source,
     getAttribute: (name) => sourceAttributes.get(name) || null,
     querySelector: (selector) => selector === "time" ? time : null,
-    setAttribute: (name, value) => sourceAttributes.set(name, value),
     textContent: "2 h"
   };
-  const handle = {
-    closest: () => handle,
-    setAttribute: () => {},
-    textContent: "@brestho"
-  };
   const metadata = {
-    contains: () => true,
-    querySelector: (selector) => selector === "time" ? time : null,
-    querySelectorAll: (selector) => selector === "a, span, div" ? [handle] : []
-  };
-  let inserted = null;
-  const row = {
-    children: [],
-    insertBefore: (node, before) => { inserted = { node, before }; },
-    querySelector: () => metadata
-  };
-  const host = { closest: () => row };
-  const userName = {
-    contains: () => true,
     querySelector: (selector) => selector === "time" ? time : null
   };
+  let inserted = null;
+  const rowAttributes = new Map();
+  const row = {
+    children: [],
+    querySelector: () => metadata,
+    querySelectorAll: () => [],
+    setAttribute: (name, value) => rowAttributes.set(name, value)
+  };
+  const actionGroup = {};
+  const headerAttributes = new Map();
+  const header = {
+    insertBefore: (node, before) => {
+      inserted = { node, before };
+      node.parentElement = header;
+      node.nextSibling = before;
+    },
+    setAttribute: (name, value) => headerAttributes.set(name, value)
+  };
+  const hostAttributes = new Map();
+  const host = {
+    closest: () => row,
+    getAttribute: (name) => hostAttributes.get(name) || null,
+    setAttribute: (name, value) => hostAttributes.set(name, value)
+  };
+  const userName = {};
+  const fakeDocument = { querySelectorAll: () => [] };
   const syncReplyTimestampProxy = new Function(
+    "markReplyMetadataParts",
+    "findReplyTimestampActionPlacement",
     "cleanText",
+    "document",
     `${content.slice(start, end)}\nreturn syncReplyTimestampProxy;`
-  )((text) => String(text || "").trim());
+  )(
+    () => source,
+    () => ({ parent: header, before: actionGroup, type: "actions" }),
+    (text) => String(text || "").trim(),
+    fakeDocument
+  );
 
   syncReplyTimestampProxy(userName, host);
 
-  assert.equal(sourceAttributes.get("data-xtension-reply-timestamp"), "true");
-  assert.deepEqual(inserted, { node: proxy, before: metadata });
+  assert.deepEqual(inserted, { node: proxy, before: actionGroup });
+  assert.equal(proxy.textContent, "2 h");
   assert.equal(proxyAttributes.get("data-xtension-reply-timestamp-proxy"), "true");
+  assert.equal(proxyAttributes.get("data-xtension-reply-timestamp-placement"), "actions");
   assert.match(proxyAttributes.get("data-xtension-reply-timestamp-signature"), /brestho\/status\/1/);
+  assert.equal(rowAttributes.get("data-xtension-reply-timestamp-placement"), "actions");
+  assert.equal(headerAttributes.get("data-xtension-reply-header-row"), "true");
+});
+
+test("the timestamp action placement selects the slot before Grok and the menu", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function findReplyTimestampActionPlacement");
+  const end = content.indexOf("\n  function syncReplyTimestampProxy", start);
+  assert.ok(start >= 0 && end > start);
+
+  const tweet = {
+    contains: () => true,
+    querySelectorAll: () => [menuButton]
+  };
+  const header = {
+    children: [],
+    contains: (node) => node === menuButton,
+    parentElement: tweet
+  };
+  const actionGroup = { parentElement: header };
+  const userName = {
+    parentElement: header,
+    closest: () => tweet,
+    getBoundingClientRect: () => ({ top: 100 })
+  };
+  const menuButton = {
+    closest: () => tweet,
+    getBoundingClientRect: () => ({ top: 101 }),
+    parentElement: actionGroup
+  };
+  header.children = [userName, actionGroup];
+  const findReplyTimestampActionPlacement = new Function(
+    "isVisibleElement",
+    "getDirectChildContaining",
+    "getComputedStyle",
+    `${content.slice(start, end)}\nreturn findReplyTimestampActionPlacement;`
+  )(
+    () => true,
+    (_parent, child) => child === userName ? userName : actionGroup,
+    () => ({ display: "flex", flexDirection: "row" })
+  );
+
+  assert.deepEqual(findReplyTimestampActionPlacement(userName), {
+    parent: header,
+    before: actionGroup,
+    type: "actions"
+  });
 });
 
 test("social reply adapters cover the requested platforms and never submit posts", () => {
