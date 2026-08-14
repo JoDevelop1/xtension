@@ -208,12 +208,15 @@ test("a long verified name keeps controls left, timestamp right, and handle flus
   assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,220}flex-wrap: wrap !important/);
   assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,320}position: relative !important/);
   assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
-  assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-timestamp="true"\][\s\S]{0,300}right: 0/);
+  assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-timestamp="true"\][\s\S]{0,100}display: none !important/);
+  assert.match(css, /\[data-xtension-reply-name-row\] > \[data-xtension-reply-timestamp-proxy="true"\][\s\S]{0,300}right: 0/);
   assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-separator="true"\][\s\S]{0,100}display: none !important/);
   assert.match(content, /markReplyMetadataParts\(userName, placement\.metadata\)/);
   assert.match(content, /currentRow\?\.contains\?\.\(node\)/);
   assert.match(content, /data-xtension-reply-handle/);
   assert.match(content, /data-xtension-reply-timestamp/);
+  assert.match(content, /syncReplyTimestampProxy\(userName, host\)/);
+  assert.match(content, /const proxy = source\.cloneNode\(true\)/);
   assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
   assert.match(content, /state \? "✓" : "✕"/);
   assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);
@@ -262,6 +265,65 @@ test("recurring timeline cleanup preserves metadata layout markers on the active
 
   cleanupLegacyReplyButtonInjection(userName);
   assert.deepEqual(removed, []);
+});
+
+test("the timestamp is cloned outside X's clipped metadata container", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function markReplyMetadataParts");
+  const end = content.indexOf("\n  function findDisplayNameElement", start);
+  assert.ok(start >= 0 && end > start);
+
+  const proxyAttributes = new Map();
+  const proxy = {
+    getAttribute: (name) => proxyAttributes.get(name) || null,
+    removeAttribute: (name) => proxyAttributes.delete(name),
+    setAttribute: (name, value) => proxyAttributes.set(name, value)
+  };
+  const sourceAttributes = new Map([["href", "/brestho/status/1"]]);
+  const time = {
+    closest: () => source,
+    getAttribute: (name) => name === "datetime" ? "2026-08-14T11:40:00Z" : null
+  };
+  const source = {
+    cloneNode: () => proxy,
+    closest: () => source,
+    getAttribute: (name) => sourceAttributes.get(name) || null,
+    querySelector: (selector) => selector === "time" ? time : null,
+    setAttribute: (name, value) => sourceAttributes.set(name, value),
+    textContent: "2 h"
+  };
+  const handle = {
+    closest: () => handle,
+    setAttribute: () => {},
+    textContent: "@brestho"
+  };
+  const metadata = {
+    contains: () => true,
+    querySelector: (selector) => selector === "time" ? time : null,
+    querySelectorAll: (selector) => selector === "a, span, div" ? [handle] : []
+  };
+  let inserted = null;
+  const row = {
+    children: [],
+    insertBefore: (node, before) => { inserted = { node, before }; },
+    querySelector: () => metadata
+  };
+  const host = { closest: () => row };
+  const userName = {
+    contains: () => true,
+    querySelector: (selector) => selector === "time" ? time : null
+  };
+  const syncReplyTimestampProxy = new Function(
+    "cleanText",
+    `${content.slice(start, end)}\nreturn syncReplyTimestampProxy;`
+  )((text) => String(text || "").trim());
+
+  syncReplyTimestampProxy(userName, host);
+
+  assert.equal(sourceAttributes.get("data-xtension-reply-timestamp"), "true");
+  assert.deepEqual(inserted, { node: proxy, before: metadata });
+  assert.equal(proxyAttributes.get("data-xtension-reply-timestamp-proxy"), "true");
+  assert.match(proxyAttributes.get("data-xtension-reply-timestamp-signature"), /brestho\/status\/1/);
 });
 
 test("social reply adapters cover the requested platforms and never submit posts", () => {

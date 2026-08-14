@@ -293,6 +293,7 @@
         return;
       }
 
+      syncReplyTimestampProxy(userName, host);
       enhanceFollowingIndicator(tweet, host);
       if (!host.querySelector(REPLY_BUTTON_SELECTOR)) {
         host.append(createReplyButton(tweet));
@@ -429,6 +430,7 @@
   function cleanupReplyToolsForUnsupportedPage() {
     document.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => button.remove());
     document.querySelectorAll('[data-xtension-reply-host="inline"], [data-xtension-reply-host="name-row"]').forEach((node) => node.remove());
+    document.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((node) => node.remove());
     document.querySelectorAll(`${DRAFT_ACTIONS_HOST_SELECTOR}, .xtension-draft-actions-host`).forEach(removeDraftActionHost);
     document.querySelectorAll(REPLY_SUGGESTIONS_PANEL_SELECTOR).forEach(removeReplySuggestionsPanel);
     cleanupOrphanDraftLanguageMenus();
@@ -1822,6 +1824,7 @@
     });
     userName.querySelectorAll('[data-xtension-reply-name-row="true"]').forEach((node) => {
       if (!node.querySelector(REPLY_BUTTON_SELECTOR)) {
+        node.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((proxy) => proxy.remove());
         node.removeAttribute("data-xtension-reply-name-row");
       }
     });
@@ -1842,6 +1845,7 @@
       host.removeAttribute("data-xtension-reply-host");
     }
     if (row && !row.querySelector(REPLY_BUTTON_SELECTOR)) {
+      row.querySelectorAll('[data-xtension-reply-timestamp-proxy="true"]').forEach((node) => node.remove());
       row.removeAttribute("data-xtension-reply-name-row");
       row.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
         node.removeAttribute("data-xtension-reply-metadata");
@@ -1989,6 +1993,47 @@
       return cleanText(element.textContent) === "·" && !element.querySelector("time");
     });
     separator?.setAttribute?.("data-xtension-reply-separator", "true");
+    return timestampHost && userName.contains(timestampHost) ? timestampHost : null;
+  }
+
+  function syncReplyTimestampProxy(userName, host) {
+    const row = host?.closest?.('[data-xtension-reply-name-row="true"]');
+    const metadata = row?.querySelector?.('[data-xtension-reply-metadata="true"]');
+    if (!row || !metadata) {
+      return;
+    }
+
+    const timestampHost = markReplyMetadataParts(userName, metadata);
+    const existing = Array.from(row.children || []).find((node) => {
+      return node.getAttribute?.("data-xtension-reply-timestamp-proxy") === "true";
+    });
+    if (!timestampHost) {
+      existing?.remove?.();
+      return;
+    }
+
+    const source = timestampHost.closest?.("a[href]") || timestampHost;
+    const href = source.getAttribute?.("href") || "";
+    const datetime = source.querySelector?.("time")?.getAttribute?.("datetime")
+      || (source.matches?.("time") ? source.getAttribute?.("datetime") : "")
+      || "";
+    const signature = JSON.stringify([cleanText(source.textContent), href, datetime]);
+    if (existing?.getAttribute?.("data-xtension-reply-timestamp-signature") === signature) {
+      return;
+    }
+
+    // Le timestamp natif vit dans la ligne de metadonnees, dont X masque tout
+    // debordement. Une copie directe dans la ligne d'auteur reste donc visible
+    // tout a droite, tandis que le lien et le <time> d'origine sont conserves.
+    const proxy = source.cloneNode(true);
+    proxy.removeAttribute?.("data-xtension-reply-timestamp");
+    proxy.setAttribute("data-xtension-reply-timestamp-proxy", "true");
+    proxy.setAttribute("data-xtension-reply-timestamp-signature", signature);
+    if (existing) {
+      existing.replaceWith(proxy);
+    } else {
+      row.insertBefore(proxy, metadata);
+    }
   }
 
   function findDisplayNameElement(userName) {

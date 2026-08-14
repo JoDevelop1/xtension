@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.24
+
+- Restores the X/Twitter post time or date at the far right of the first author line. The visible timestamp is now mirrored outside X's clipped metadata container, while preserving its native post link and keeping the original timestamp as the synchronized source.
+- Keeps only the `@handle` on the second line, flush left and without a leading gap.
+- Adds a regression fixture that reproduces X's nested overflow clipping so a hidden timestamp can no longer pass the layout test.
+
 ## v0.6.23
 
 - Keeps the X/Twitter post time or date at the far right of the first author line, aligned with the display name, relationship badge, and **Reply** button.

@@ -47,6 +47,10 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .native-metadata-clip {
+        overflow: hidden;
+        width: 100%;
+      }
       .post { margin: 4px 0 0; }
       output { display: block; margin-top: 16px; white-space: pre; }
     </style>
@@ -62,7 +66,8 @@
           <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
           <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
         </span>
-        <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata"><a href="/dr_l_alexandre" data-xtension-reply-handle="true" data-layout="handle">@dr_l_alexandre</a><span data-xtension-reply-separator="true">·</span><a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp="true" data-layout="timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a></div>
+        <a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp-proxy="true" data-layout="timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a>
+        <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata"><div class="native-metadata-clip"><a href="/dr_l_alexandre" data-xtension-reply-handle="true" data-layout="handle">@dr_l_alexandre</a><span data-xtension-reply-separator="true">·</span><a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp="true" data-layout="native-timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a></div></div>
       </div>
       <p class="post">Cette strat est en train de tout changer en ecom 🤯</p>
     </article>
@@ -70,7 +75,7 @@
     <script>
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const elements = Object.fromEntries(
-          ["name", "badge", "reply", "metadata", "handle", "timestamp"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
+          ["name", "badge", "reply", "metadata", "handle", "timestamp", "native-timestamp"].map((key) => [key, document.querySelector(`[data-layout="${key}"]`)])
         );
         const topRowElements = Object.fromEntries(
           ["name", "badge", "reply", "timestamp"].map((key) => [key, elements[key]])
@@ -89,14 +94,15 @@
         const handleFlushLeft = Math.abs(rects.handle.left - rects.name.left) <= 0.5;
         const rowRect = document.querySelector('[data-xtension-reply-name-row="true"]').getBoundingClientRect();
         const timestampFlushRight = Math.abs(rects.timestamp.right - rowRect.right) <= 0.5;
+        const nativeTimestampHidden = getComputedStyle(elements["native-timestamp"]).display === "none";
         const colors = {
           badge: getComputedStyle(elements.badge).color,
           reply: getComputedStyle(elements.reply).backgroundColor,
           handle: getComputedStyle(elements.handle).color,
           timestamp: getComputedStyle(elements.timestamp).color
         };
-        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampFlushRight, colors };
-        result.aligned = result.topRowAligned && result.metadataBelow && result.handleFlushLeft && result.timestampFlushRight;
+        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampFlushRight, nativeTimestampHidden, colors };
+        result.aligned = result.topRowAligned && result.metadataBelow && result.handleFlushLeft && result.timestampFlushRight && result.nativeTimestampHidden;
         document.body.setAttribute("data-layout-aligned", String(result.aligned));
         document.getElementById("result").textContent = JSON.stringify(result);
         document.title = `Xtension timeline layout: ${result.aligned ? "PASS" : "FAIL"}`;
