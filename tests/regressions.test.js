@@ -184,7 +184,7 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
 });
 
-test("a long verified name keeps compact controls above the handle metadata", () => {
+test("a long verified name keeps controls left, timestamp right, and handle flush below", () => {
   const content = read("src/content.js");
   const css = read("src/content.css");
   const start = content.indexOf("  function findDisplayNameRow");
@@ -206,13 +206,62 @@ test("a long verified name keeps compact controls above the handle metadata", ()
 
   assert.equal(findDisplayNameRow(nameContainer, userName), userName);
   assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,220}flex-wrap: wrap !important/);
-  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,220}height: auto !important/);
+  assert.match(css, /\[data-xtension-reply-name-row\][\s\S]{0,320}position: relative !important/);
   assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,180}flex-basis: 100% !important/);
-  assert.match(css, /\[data-xtension-reply-metadata\][\s\S]{0,240}width: 100% !important/);
+  assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-timestamp="true"\][\s\S]{0,300}right: 0/);
+  assert.match(css, /\[data-xtension-reply-name-row\] \[data-xtension-reply-separator="true"\][\s\S]{0,100}display: none !important/);
+  assert.match(content, /markReplyMetadataParts\(userName, placement\.metadata\)/);
+  assert.match(content, /currentRow\?\.contains\?\.\(node\)/);
+  assert.match(content, /data-xtension-reply-handle/);
+  assert.match(content, /data-xtension-reply-timestamp/);
   assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
   assert.match(content, /state \? "✓" : "✕"/);
   assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);
   assert.match(css, /\[data-xtension-reply-button\][\s\S]{0,240}background: #138a55/);
+});
+
+test("recurring timeline cleanup preserves metadata layout markers on the active author row", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function cleanupLegacyReplyButtonInjection");
+  const end = content.indexOf("\n  function removeReplyButtonAndHost", start);
+  assert.ok(start >= 0 && end > start);
+
+  const removed = [];
+  const button = { closest: () => host };
+  const metadata = {
+    getAttribute: (name) => name === "data-xtension-reply-metadata" ? "true" : null,
+    removeAttribute: (name) => removed.push(name)
+  };
+  const row = {
+    contains: (node) => node === metadata,
+    querySelector: () => button,
+    removeAttribute: (name) => removed.push(name)
+  };
+  const host = {
+    closest: () => row,
+    getAttribute: (name) => name === "data-xtension-reply-host" ? "name-row" : null,
+    querySelector: () => button,
+    remove: () => removed.push("host")
+  };
+  const userName = {
+    querySelector: () => host,
+    querySelectorAll: (selector) => {
+      if (selector === "reply-button") return [button];
+      if (selector.includes('[data-xtension-reply-host="inline"]')) return [metadata];
+      if (selector === '[data-xtension-reply-name-row="true"]') return [row];
+      if (selector === '[data-xtension-reply-host="name-row"]') return [host];
+      return [];
+    },
+    removeAttribute: () => {}
+  };
+  const cleanupLegacyReplyButtonInjection = new Function(
+    "REPLY_BUTTON_SELECTOR",
+    "removeReplyButtonAndHost",
+    `${content.slice(start, end)}\nreturn cleanupLegacyReplyButtonInjection;`
+  )("reply-button", () => {});
+
+  cleanupLegacyReplyButtonInjection(userName);
+  assert.deepEqual(removed, []);
 });
 
 test("social reply adapters cover the requested platforms and never submit posts", () => {

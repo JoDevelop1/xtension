@@ -119,10 +119,14 @@
 [data-xtension-reply-name-row] {
   align-content: flex-start !important;
   align-items: center !important;
+  box-sizing: border-box !important;
   flex-wrap: wrap !important;
   height: auto !important;
   min-width: 0;
   overflow: visible !important;
+  padding-right: 104px !important;
+  position: relative !important;
+  width: 100% !important;
 }
 
 [data-xtension-reply-name-row] > :not([data-xtension-reply-host]):not([data-xtension-reply-metadata]) {
@@ -132,13 +136,54 @@
 }
 
 [data-xtension-reply-metadata] {
+  align-items: center !important;
+  display: flex !important;
   flex: 0 0 100% !important;
   flex-basis: 100% !important;
   margin-left: 0 !important;
   min-width: 0;
   order: 2;
   overflow: hidden;
+  padding-left: 0 !important;
+  position: static !important;
   width: 100% !important;
+}
+
+[data-xtension-reply-name-row] [data-xtension-reply-handle="true"] {
+  color: rgb(83, 100, 113) !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  text-decoration: none !important;
+}
+
+[data-xtension-reply-name-row] [data-xtension-reply-separator="true"] {
+  display: none !important;
+}
+
+[data-xtension-reply-name-row] [data-xtension-reply-timestamp="true"] {
+  align-items: center !important;
+  color: rgb(83, 100, 113) !important;
+  display: inline-flex !important;
+  height: 20px;
+  justify-content: flex-end;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: absolute !important;
+  right: 0;
+  top: 0;
+  white-space: nowrap;
+}
+
+[data-xtension-reply-name-row] [data-xtension-reply-handle="true"]:hover,
+[data-xtension-reply-name-row] [data-xtension-reply-timestamp="true"]:hover {
+  text-decoration: underline !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-xtension-reply-name-row] [data-xtension-reply-handle="true"],
+  [data-xtension-reply-name-row] [data-xtension-reply-timestamp="true"] {
+    color: rgb(139, 152, 165) !important;
+  }
 }
 
 [data-xtension-reply-button]::before {

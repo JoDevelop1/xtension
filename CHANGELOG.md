@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.23
+
+- Keeps the X/Twitter post time or date at the far right of the first author line, aligned with the display name, relationship badge, and **Reply** button.
+- Places only the `@handle` on the second line, flush with the display name and without a leading gap, while preserving the native profile and timestamp links.
+- Fixes recurring timeline cleanup removing the metadata layout markers from already-enhanced tweets, which caused older visible rows to revert to the previous single-line layout while newly rendered rows looked correct.
+
 ## v0.6.22
 
 - Moves the X/Twitter `@handle · time` metadata onto its own second line beneath the display name and Xtension controls.

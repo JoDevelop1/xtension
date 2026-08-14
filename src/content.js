@@ -441,6 +441,11 @@
     document.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
       node.removeAttribute("data-xtension-reply-metadata");
     });
+    document.querySelectorAll('[data-xtension-reply-handle="true"], [data-xtension-reply-timestamp="true"], [data-xtension-reply-separator="true"]').forEach((node) => {
+      node.removeAttribute("data-xtension-reply-handle");
+      node.removeAttribute("data-xtension-reply-timestamp");
+      node.removeAttribute("data-xtension-reply-separator");
+    });
     document.querySelectorAll('[data-xtension-reply-name-row="true"]').forEach((node) => {
       node.removeAttribute("data-xtension-reply-name-row");
     });
@@ -1789,6 +1794,10 @@
   }
 
   function cleanupLegacyReplyButtonInjection(userName) {
+    const currentHost = userName.querySelector('[data-xtension-reply-host="name-row"]');
+    const currentRow = currentHost?.querySelector?.(REPLY_BUTTON_SELECTOR)
+      ? currentHost.closest?.('[data-xtension-reply-name-row="true"]')
+      : null;
     userName.querySelectorAll(REPLY_BUTTON_SELECTOR).forEach((button) => {
       const host = button.closest('[data-xtension-reply-host]');
       if (host?.getAttribute("data-xtension-reply-host") === "name-row") {
@@ -1800,6 +1809,9 @@
 
     userName.removeAttribute("data-xtension-reply-user-name");
     userName.querySelectorAll('[data-xtension-reply-host="inline"], [data-xtension-reply-host="true"], [data-xtension-reply-metadata="true"]').forEach((node) => {
+      if (node.getAttribute("data-xtension-reply-metadata") === "true" && currentRow?.contains?.(node)) {
+        return;
+      }
       if (node.getAttribute("data-xtension-reply-host") === "inline") {
         node.remove();
         return;
@@ -1834,6 +1846,11 @@
       row.querySelectorAll('[data-xtension-reply-metadata="true"]').forEach((node) => {
         node.removeAttribute("data-xtension-reply-metadata");
       });
+      row.querySelectorAll('[data-xtension-reply-handle="true"], [data-xtension-reply-timestamp="true"], [data-xtension-reply-separator="true"]').forEach((node) => {
+        node.removeAttribute("data-xtension-reply-handle");
+        node.removeAttribute("data-xtension-reply-timestamp");
+        node.removeAttribute("data-xtension-reply-separator");
+      });
     }
   }
 
@@ -1867,6 +1884,7 @@
     placement.row.setAttribute("data-xtension-reply-name-row", "true");
     if (placement.metadata) {
       placement.metadata.setAttribute("data-xtension-reply-metadata", "true");
+      markReplyMetadataParts(userName, placement.metadata);
     }
     placement.row.insertBefore(host, placement.before || null);
     return host;
@@ -1946,6 +1964,31 @@
 
     const flexItem = getDirectChildContaining(row, metadata) || metadata;
     return flexItem === nameItem ? null : flexItem;
+  }
+
+  function markReplyMetadataParts(userName, metadata) {
+    const handlePattern = /^@[A-Za-z0-9_]{1,20}$/;
+    const handleElement = Array.from(metadata.querySelectorAll("a, span, div")).find((element) => {
+      return handlePattern.test(cleanText(element.textContent));
+    });
+    const handleHost = handleElement?.closest?.("a[href]") || handleElement;
+    if (handleHost && metadata.contains(handleHost)) {
+      handleHost.setAttribute("data-xtension-reply-handle", "true");
+    }
+
+    const timeElement = metadata.querySelector("time") || userName.querySelector("time");
+    const timestampHost = timeElement?.closest?.("a[href]") || timeElement;
+    if (timestampHost && userName.contains(timestampHost)) {
+      timestampHost.setAttribute("data-xtension-reply-timestamp", "true");
+    }
+
+    const separatorScope = timestampHost && metadata.contains(timestampHost)
+      ? metadata
+      : (timestampHost?.parentElement || metadata);
+    const separator = Array.from(separatorScope?.querySelectorAll?.("span, div") || []).find((element) => {
+      return cleanText(element.textContent) === "·" && !element.querySelector("time");
+    });
+    separator?.setAttribute?.("data-xtension-reply-separator", "true");
   }
 
   function findDisplayNameElement(userName) {
