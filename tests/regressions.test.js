@@ -129,6 +129,33 @@ test("reply dialogs use the closest preceding post instead of the first post in 
   assert.doesNotMatch(content, /target\?\._xtensionReplyContext/);
 });
 
+test("top-level post composers place Xtension on a dedicated row above X controls", () => {
+  const content = read("src/content.js");
+  const css = read("src/content.css");
+  const start = content.indexOf("  function shouldUseDedicatedDraftActionRow");
+  const end = content.indexOf("\n  function findDraftActionDedicatedPlacement", start);
+  assert.ok(start >= 0 && end > start);
+
+  const editorRoot = { getAttribute: () => "", textContent: "" };
+  const editor = { closest: () => editorRoot };
+  const composer = { textContent: "" };
+  const shouldUseDedicatedDraftActionRow = new Function(
+    "findComposerSubmitButton",
+    "cleanText",
+    `${content.slice(start, end)}\nreturn shouldUseDedicatedDraftActionRow;`
+  )(
+    (scope) => scope.submitButton,
+    (value) => String(value || "").replace(/\s+/g, " ").trim()
+  );
+
+  for (const label of ["Post", "Poster", "Publicar", "Posten", "ポスト"]) {
+    composer.submitButton = { getAttribute: () => label, textContent: label };
+    assert.equal(shouldUseDedicatedDraftActionRow(editor, composer), true, label);
+  }
+  assert.match(css, /\.xtension-draft-actions-host\.is-dedicated-row[\s\S]{0,260}width: 100%/);
+  assert.match(content, /Les composeurs de publication doivent[\s\S]{0,260}return isReplyComposer \|\| isPostComposer/);
+});
+
 test("X relationship data is exposed as a minimal following map for timeline badges", async () => {
   const attributes = new Map();
   const document = {

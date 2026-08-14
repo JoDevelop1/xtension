@@ -613,9 +613,15 @@
     const editorRoot = editor.closest?.('[data-testid^="tweetTextarea_"]') || editor;
     const editorLabel = cleanText(`${editorRoot?.getAttribute?.("aria-label") || ""} ${editorRoot?.textContent || ""}`).toLowerCase();
 
-    return /\breply\b|répond|repond|antwort|respuesta|返信/.test(submitLabel)
+    const isReplyComposer = /\breply\b|répond|repond|antwort|respuesta|返信/.test(submitLabel)
       || /\breplying to\b|répondre à|repondre a|en réponse à|en reponse a/.test(composerText)
       || /\bpost your reply\b|publier votre réponse|publier votre reponse|réponse|reponse/.test(editorLabel);
+    const isPostComposer = /\bpost\b|\btweet\b|publier|poster|posten|publicar|ポスト/.test(submitLabel);
+
+    // Les composeurs de publication doivent, eux aussi, disposer d'une ligne
+    // Xtension dédiée au-dessus de la barre native. Les placer dans la rangée
+    // image/GIF/sondage de X masque ces contrôles et parfois le bouton Publier.
+    return isReplyComposer || isPostComposer;
   }
 
   function findDraftActionDedicatedPlacement(editor, composer) {

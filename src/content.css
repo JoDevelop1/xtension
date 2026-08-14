@@ -314,10 +314,10 @@
 .xtension-draft-actions-host.is-dedicated-row {
   flex: 0 0 auto !important;
   justify-content: flex-end;
-  margin: 4px 0 6px;
+  margin: 2px 0 6px;
   max-width: 100%;
   min-height: 36px;
-  padding: 4px 0 0;
+  padding: 2px 0 0;
   width: 100%;
   z-index: 0;
 }

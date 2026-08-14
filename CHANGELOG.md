@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.26
+
+- Moves the Xtension draft-action toolbar onto a dedicated row above X/Twitter's native media toolbar in top-level post composers such as **What's happening?**.
+- Prevents Xtension's correction, translation, generation, undo/redo, and language controls from overlapping X's image, GIF, poll, emoji, scheduling, location, and publish controls.
+- Recognizes top-level post buttons across the supported English, French, German, Spanish, and Japanese interfaces while retaining the existing dedicated layout in reply composers.
+
 ## v0.6.25
 
 - Places the exact native X/Twitter post time or date immediately before the Grok and overflow-menu action group, instead of leaving it at the earlier edge of the author-name block.
