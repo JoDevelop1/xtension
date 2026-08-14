@@ -97,6 +97,12 @@
   color: rgb(210, 18, 34);
 }
 
+[data-xtension-following-badge="mutual"] {
+  background: rgba(255, 193, 7, 0.16);
+  border-color: rgba(196, 140, 0, 0.58);
+  color: rgb(143, 101, 0);
+}
+
 @media (prefers-color-scheme: dark) {
   [data-xtension-following-badge] {
     border-color: rgba(139, 152, 165, 0.5);
@@ -113,6 +119,12 @@
     background: rgba(244, 33, 46, 0.16);
     border-color: rgba(244, 33, 46, 0.58);
     color: rgb(255, 129, 137);
+  }
+
+  [data-xtension-following-badge="mutual"] {
+    background: rgba(255, 193, 7, 0.2);
+    border-color: rgba(255, 193, 7, 0.62);
+    color: rgb(255, 211, 77);
   }
 }
 

@@ -70,6 +70,13 @@
         padding: 0 4px;
       }
       .post { margin: 4px 0 0; }
+      .relationship-samples {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .relationship-samples [data-xtension-following-badge] { margin-left: 0; }
       output { display: block; margin-top: 16px; white-space: pre; }
     </style>
   </head>
@@ -82,7 +89,7 @@
             <span class="verified" aria-label="Compte certifié">●</span>
           </div>
           <span data-xtension-reply-host="name-row">
-            <span data-xtension-following-badge="not-following" data-layout="badge">✕ Abonné</span>
+            <span data-xtension-following-badge="not-following" data-layout="badge">✕ Non abonné</span>
             <button type="button" data-xtension-reply-button="true" data-xtension-reply-label="Répondre" data-layout="reply"></button>
           </span>
           <div class="metadata" data-xtension-reply-metadata="true" data-layout="metadata"><div class="native-metadata-clip"><a href="/dr_l_alexandre" data-xtension-reply-handle="true" data-layout="handle">@dr_l_alexandre</a><span data-xtension-reply-separator="true">·</span><a href="/dr_l_alexandre/status/1" data-xtension-reply-timestamp="true" data-layout="native-timestamp"><time datetime="2026-08-14T10:00:00Z">2 h</time></a></div></div>
@@ -92,6 +99,11 @@
       </div>
       <p class="post">Cette strat est en train de tout changer en ecom 🤯</p>
     </article>
+    <div class="relationship-samples" aria-label="États de relation Xtension">
+      <span data-xtension-following-badge="not-following">✕ Non abonné</span>
+      <span data-xtension-following-badge="following">✓ Abonné</span>
+      <span data-xtension-following-badge="mutual">↔ Mutuel</span>
+    </div>
     <output id="result"></output>
     <script>
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -122,7 +134,13 @@
           handle: getComputedStyle(elements.handle).color,
           timestamp: getComputedStyle(elements.timestamp).color
         };
-        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampAdjacentToActions, nativeTimestampHidden, colors };
+        const relationshipColors = Object.fromEntries(
+          ["not-following", "following", "mutual"].map((state) => [
+            state,
+            getComputedStyle(document.querySelector(`.relationship-samples [data-xtension-following-badge="${state}"]`)).color
+          ])
+        );
+        const result = { centers, spread, topRowAligned: spread <= 2, metadataBelow, handleFlushLeft, timestampAdjacentToActions, nativeTimestampHidden, colors, relationshipColors };
         result.aligned = result.topRowAligned && result.metadataBelow && result.handleFlushLeft && result.timestampAdjacentToActions && result.nativeTimestampHidden;
         document.body.setAttribute("data-layout-aligned", String(result.aligned));
         document.getElementById("result").textContent = JSON.stringify(result);

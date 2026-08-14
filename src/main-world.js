@@ -25,12 +25,12 @@
 
   const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
   const FOLLOWING_MAP_EVENT = "xtension-following-map";
-  const followingByHandle = new Map();
+  const relationshipByHandle = new Map();
   let followingMapPublishQueued = false;
 
   // Les reponses GraphQL de X contiennent deja la relation entre le compte
   // connecte et les auteurs presents dans la timeline. On ne conserve que le
-  // pseudonyme et le booleen `following`, jamais le contenu des publications.
+  // pseudonyme et les booleens de relation, jamais le contenu des publications.
   // Le content-script peut ainsi afficher l'etat sans provoquer le hover card
   // (et donc sans requete supplementaire par auteur).
   function normalizeHandle(value) {
@@ -47,6 +47,22 @@
       value?.result?.relationship_perspectives?.following,
       value?.result?.legacy?.following,
       value?.following
+    ];
+    return candidates.find((candidate) => typeof candidate === "boolean");
+  }
+
+  function readFollowedByState(value) {
+    const candidates = [
+      value?.relationship_perspectives?.followed_by,
+      value?.relationship_perspectives?.followedBy,
+      value?.legacy?.followed_by,
+      value?.legacy?.followedBy,
+      value?.result?.relationship_perspectives?.followed_by,
+      value?.result?.relationship_perspectives?.followedBy,
+      value?.result?.legacy?.followed_by,
+      value?.result?.legacy?.followedBy,
+      value?.followed_by,
+      value?.followedBy
     ];
     return candidates.find((candidate) => typeof candidate === "boolean");
   }
@@ -84,8 +100,18 @@
 
       const handle = readRelationshipHandle(value);
       const following = readFollowingState(value);
-      if (handle && typeof following === "boolean" && followingByHandle.get(handle) !== following) {
-        followingByHandle.set(handle, following);
+      const followedBy = readFollowedByState(value);
+      const previous = handle ? relationshipByHandle.get(handle) : null;
+      const next = {
+        following: typeof following === "boolean" ? following : previous?.following,
+        followedBy: typeof followedBy === "boolean" ? followedBy : previous?.followedBy
+      };
+      if (
+        handle
+        && (typeof next.following === "boolean" || typeof next.followedBy === "boolean")
+        && (previous?.following !== next.following || previous?.followedBy !== next.followedBy)
+      ) {
+        relationshipByHandle.set(handle, next);
         changed = true;
       }
 
@@ -118,7 +144,7 @@
     queueMicrotask(() => {
       followingMapPublishQueued = false;
       try {
-        const entries = Array.from(followingByHandle.entries()).slice(-1000);
+        const entries = Array.from(relationshipByHandle.entries()).slice(-1000);
         document.documentElement?.setAttribute?.(FOLLOWING_MAP_ATTRIBUTE, JSON.stringify(Object.fromEntries(entries)));
         document.dispatchEvent(new Event(FOLLOWING_MAP_EVENT));
       } catch (error) {

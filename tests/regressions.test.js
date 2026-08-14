@@ -156,8 +156,9 @@ test("top-level post composers place Xtension on a dedicated row above X control
   assert.match(content, /Les composeurs de publication doivent[\s\S]{0,260}return isReplyComposer \|\| isPostComposer/);
 });
 
-test("X relationship data is exposed as a minimal following map for timeline badges", async () => {
+test("X relationship data exposes following and followed-by states without profile requests", async () => {
   const attributes = new Map();
+  let fetchCount = 0;
   const document = {
     documentElement: {
       setAttribute: (name, value) => attributes.set(name, value)
@@ -179,10 +180,14 @@ test("X relationship data is exposed as a minimal following map for timeline bad
         data: {
           followed: {
             core: { screen_name: "FollowedAuthor" },
-            relationship_perspectives: { following: true }
+            relationship_perspectives: { following: true, followed_by: false }
+          },
+          mutual: {
+            core: { screen_name: "MutualAuthor" },
+            relationship_perspectives: { following: true, followed_by: true }
           },
           stranger: {
-            legacy: { screen_name: "OtherAuthor", following: false }
+            legacy: { screen_name: "OtherAuthor", following: false, followed_by: true }
           },
           unknown: {
             core: { screen_name: "UnknownAuthor" }
@@ -194,7 +199,10 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   const context = vm.createContext({
     window: {
       location: { href: "https://x.com/home" },
-      fetch: async () => response,
+      fetch: async () => {
+        fetchCount += 1;
+        return response;
+      },
       XMLHttpRequest
     },
     document,
@@ -206,9 +214,79 @@ test("X relationship data is exposed as a minimal following map for timeline bad
   vm.runInContext(read("src/main-world.js"), context);
   await context.window.fetch("https://x.com/i/api/graphql/example/HomeTimeline");
   await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fetchCount, 1);
   const followingMap = JSON.parse(attributes.get("data-xtension-following-map"));
-  assert.deepEqual({ ...followingMap }, { followedauthor: true, otherauthor: false });
+  assert.deepEqual({ ...followingMap }, {
+    followedauthor: { following: true, followedBy: false },
+    mutualauthor: { following: true, followedBy: true },
+    otherauthor: { following: false, followedBy: true }
+  });
   assert.equal(Object.hasOwn(followingMap, "unknownauthor"), false);
+});
+
+test("X timeline renders distinct not-following, following, and mutual badges", () => {
+  const content = read("src/content.js");
+  const start = content.indexOf("  function enhanceFollowingIndicator");
+  const end = content.indexOf("\n  function getVisibleViewerHandle", start);
+  assert.ok(start >= 0 && end > start);
+
+  const relationships = new Map([
+    ["stranger", { following: false, followedBy: true }],
+    ["followed", { following: true, followedBy: false }],
+    ["mutual", { following: true, followedBy: true }]
+  ]);
+  const labels = {
+    followingBadgeFollowing: "Abonné",
+    followingBadgeNotFollowing: "Non abonné",
+    followingBadgeMutual: "Mutuel"
+  };
+  const badges = [];
+  const enhanceFollowingIndicator = new Function(
+    "cleanHandle",
+    "getTweetStatusContext",
+    "findHandleInTweet",
+    "followingStatusByHandle",
+    "getVisibleViewerHandle",
+    "document",
+    "localizedText",
+    "localizedTemplate",
+    "FOLLOWING_BADGE_SELECTOR",
+    "FOLLOWING_BADGE_ATTRIBUTE",
+    `${content.slice(start, end)}\nreturn enhanceFollowingIndicator;`
+  )(
+    (value) => String(value || "").replace(/^@/, ""),
+    (tweet) => ({ author: tweet.author }),
+    () => "",
+    relationships,
+    () => "viewer",
+    {
+      createElement: () => ({
+        attributes: {},
+        setAttribute(name, value) { this.attributes[name] = value; }
+      })
+    },
+    (key, fallback) => labels[key] || fallback,
+    (_key, values, fallback) => fallback.replace("{handle}", values.handle),
+    "[data-xtension-following-badge]",
+    "data-xtension-following-badge"
+  );
+
+  for (const author of ["stranger", "followed", "mutual"]) {
+    const host = {
+      querySelector: () => null,
+      prepend: (badge) => badges.push(badge)
+    };
+    enhanceFollowingIndicator({ author }, host);
+  }
+
+  assert.deepEqual(badges.map((badge) => ({
+    state: badge.attributes["data-xtension-following-badge"],
+    text: badge.textContent
+  })), [
+    { state: "not-following", text: "✕ Non abonné" },
+    { state: "following", text: "✓ Abonné" },
+    { state: "mutual", text: "↔ Mutuel" }
+  ]);
 });
 
 test("a long verified name keeps controls left, timestamp right, and handle flush below", () => {
@@ -246,9 +324,11 @@ test("a long verified name keeps controls left, timestamp right, and handle flus
   assert.match(content, /syncReplyTimestampProxy\(userName, host\)/);
   assert.match(content, /proxy = source\.cloneNode\(true\)/);
   assert.match(content, /findReplyTimestampActionPlacement\(userName\)/);
-  assert.match(content, /const label = localizedText\("followingBadgeFollowing", "Following"\)/);
-  assert.match(content, /state \? "✓" : "✕"/);
+  assert.match(content, /localizedText\("followingBadgeMutual", "Mutual"\)/);
+  assert.match(content, /localizedText\("followingBadgeNotFollowing", "Not following"\)/);
+  assert.match(content, /const symbol = state === "mutual" \? "↔" : \(following \? "✓" : "✕"\)/);
   assert.match(css, /\[data-xtension-following-badge="not-following"\][\s\S]{0,180}color: rgb\(210, 18, 34\)/);
+  assert.match(css, /\[data-xtension-following-badge="mutual"\][\s\S]{0,180}color: rgb\(143, 101, 0\)/);
   assert.match(css, /\[data-xtension-reply-button\][\s\S]{0,240}background: #138a55/);
 });
 

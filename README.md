@@ -133,9 +133,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.26.zip`
-- `dist/xtension-edge-v0.6.26.zip`
-- `dist/xtension-firefox-v0.6.26.zip`
+- `dist/xtension-chrome-v0.6.27.zip`
+- `dist/xtension-edge-v0.6.27.zip`
+- `dist/xtension-firefox-v0.6.27.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`

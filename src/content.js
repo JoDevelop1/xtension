@@ -309,12 +309,25 @@
     try {
       const parsed = JSON.parse(raw);
       let changed = false;
-      for (const [rawHandle, following] of Object.entries(parsed || {})) {
+      for (const [rawHandle, rawRelationship] of Object.entries(parsed || {})) {
         const handle = cleanHandle(rawHandle).toLowerCase();
-        if (!handle || typeof following !== "boolean" || followingStatusByHandle.get(handle) === following) {
+        const relationship = typeof rawRelationship === "boolean"
+          ? { following: rawRelationship }
+          : rawRelationship;
+        const following = relationship?.following;
+        const followedBy = relationship?.followedBy ?? relationship?.followed_by;
+        if (!handle || (typeof following !== "boolean" && typeof followedBy !== "boolean")) {
           continue;
         }
-        followingStatusByHandle.set(handle, following);
+        const previous = followingStatusByHandle.get(handle);
+        const next = {
+          following: typeof following === "boolean" ? following : previous?.following,
+          followedBy: typeof followedBy === "boolean" ? followedBy : previous?.followedBy
+        };
+        if (previous?.following === next.following && previous?.followedBy === next.followedBy) {
+          continue;
+        }
+        followingStatusByHandle.set(handle, next);
         changed = true;
       }
       if (changed) {
@@ -329,26 +342,35 @@
     const handle = cleanHandle(getTweetStatusContext(tweet)?.author || findHandleInTweet(tweet)).toLowerCase();
     const existing = host.querySelector(FOLLOWING_BADGE_SELECTOR);
     const viewerHandle = getVisibleViewerHandle();
-    const state = followingStatusByHandle.get(handle);
+    const relationship = followingStatusByHandle.get(handle);
+    const following = relationship?.following;
 
     // L'absence de donnees reste distincte de « non abonne ». Cela evite un faux
     // verdict pendant le tout premier instant de chargement ou sur son propre compte.
-    if (!handle || handle === viewerHandle || typeof state !== "boolean") {
+    if (!handle || handle === viewerHandle || typeof following !== "boolean") {
       existing?.remove?.();
       return;
     }
 
     const badge = existing || document.createElement("span");
-    // Le symbole et la couleur portent l'etat. Garder le meme libelle court dans
-    // les deux cas evite que « Non abonne » repousse les actions sur une 2e ligne.
-    const label = localizedText("followingBadgeFollowing", "Following");
-    const accessibleLabel = state
-      ? localizedTemplate("followingBadgeFollowingAria", { handle: `@${handle}` }, "You follow {handle}")
-      : localizedTemplate("followingBadgeNotFollowingAria", { handle: `@${handle}` }, "You do not follow {handle}");
-    badge.setAttribute(FOLLOWING_BADGE_ATTRIBUTE, state ? "following" : "not-following");
+    const state = following && relationship.followedBy === true
+      ? "mutual"
+      : (following ? "following" : "not-following");
+    const label = state === "mutual"
+      ? localizedText("followingBadgeMutual", "Mutual")
+      : (state === "following"
+        ? localizedText("followingBadgeFollowing", "Following")
+        : localizedText("followingBadgeNotFollowing", "Not following"));
+    const accessibleLabel = state === "mutual"
+      ? localizedTemplate("followingBadgeMutualAria", { handle: `@${handle}` }, "You and {handle} follow each other")
+      : (state === "following"
+        ? localizedTemplate("followingBadgeFollowingAria", { handle: `@${handle}` }, "You follow {handle}")
+        : localizedTemplate("followingBadgeNotFollowingAria", { handle: `@${handle}` }, "You do not follow {handle}"));
+    const symbol = state === "mutual" ? "↔" : (following ? "✓" : "✕");
+    badge.setAttribute(FOLLOWING_BADGE_ATTRIBUTE, state);
     badge.setAttribute("aria-label", accessibleLabel);
     badge.title = accessibleLabel;
-    badge.textContent = `${state ? "✓" : "✕"} ${label}`;
+    badge.textContent = `${symbol} ${label}`;
     if (!existing) {
       host.prepend(badge);
     }

@@ -642,8 +642,10 @@ const replyFeatureMessages = {
 const replyFeatureDefaultMessages = {
   followingBadgeFollowing: "Following",
   followingBadgeNotFollowing: "Not following",
+  followingBadgeMutual: "Mutual",
   followingBadgeFollowingAria: "You follow {handle}",
   followingBadgeNotFollowingAria: "You do not follow {handle}",
+  followingBadgeMutualAria: "You and {handle} follow each other",
   socialReplyGenerationFailed: "Unable to generate replies.",
   socialReplyDraftRequired: "Write an instruction or a draft first.",
   socialReplyWorking: "AI is writing...",
@@ -920,8 +922,10 @@ for (const [locale, messages] of Object.entries(replyStyleTranslations)) {
 Object.assign(replyFeatureMessages.fr, {
   followingBadgeFollowing: "Abonné",
   followingBadgeNotFollowing: "Non abonné",
+  followingBadgeMutual: "Mutuel",
   followingBadgeFollowingAria: "Vous êtes abonné à {handle}",
   followingBadgeNotFollowingAria: "Vous n'êtes pas abonné à {handle}",
+  followingBadgeMutualAria: "Vous et {handle} êtes abonnés l'un à l'autre",
   socialReplyGenerationFailed: "Impossible de générer les réponses.",
   socialReplyDraftRequired: "Écrivez d'abord une consigne ou un brouillon.",
   socialReplyWorking: "L'IA rédige...",
@@ -1163,22 +1167,28 @@ Object.assign(replyFeatureMessages.fr, {
 Object.assign(replyFeatureMessages.de, {
   followingBadgeFollowing: "Gefolgt",
   followingBadgeNotFollowing: "Nicht gefolgt",
+  followingBadgeMutual: "Gegenseitig",
   followingBadgeFollowingAria: "Du folgst {handle}",
-  followingBadgeNotFollowingAria: "Du folgst {handle} nicht"
+  followingBadgeNotFollowingAria: "Du folgst {handle} nicht",
+  followingBadgeMutualAria: "Du und {handle} folgt euch gegenseitig"
 });
 
 Object.assign(replyFeatureMessages.es, {
   followingBadgeFollowing: "Siguiendo",
   followingBadgeNotFollowing: "No sigues",
+  followingBadgeMutual: "Mutuo",
   followingBadgeFollowingAria: "Sigues a {handle}",
-  followingBadgeNotFollowingAria: "No sigues a {handle}"
+  followingBadgeNotFollowingAria: "No sigues a {handle}",
+  followingBadgeMutualAria: "Tú y {handle} os seguís mutuamente"
 });
 
 Object.assign(replyFeatureMessages.ja, {
   followingBadgeFollowing: "フォロー中",
   followingBadgeNotFollowing: "未フォロー",
+  followingBadgeMutual: "相互フォロー",
   followingBadgeFollowingAria: "{handle} をフォローしています",
-  followingBadgeNotFollowingAria: "{handle} をフォローしていません"
+  followingBadgeNotFollowingAria: "{handle} をフォローしていません",
+  followingBadgeMutualAria: "{handle} と相互フォローしています"
 });
 
 Object.assign(replyFeatureMessages.de, {

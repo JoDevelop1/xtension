@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.27
+
+- Adds a yellow-gold **↔ Mutual** relationship badge when X/Twitter explicitly reports that the viewer and the timeline author follow each other.
+- Displays three distinct inline labels: red **✕ Not following**, blue **✓ Following**, and gold **↔ Mutual**.
+- Reuses the `following` and `followed_by` fields from X's existing GraphQL timeline responses, without hover cards or per-profile requests; incomplete relationship data remains unlabelled or non-mutual instead of being guessed.
+
 ## v0.6.26
 
 - Moves the Xtension draft-action toolbar onto a dedicated row above X/Twitter's native media toolbar in top-level post composers such as **What's happening?**.
