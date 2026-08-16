@@ -3,6 +3,9 @@ const runtimeApi = extensionApi?.runtime;
 const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
 const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
+// UI-only connector releases must not disable otherwise compatible AI tools.
+// Raise this value only when the loopback API changes incompatibly.
+const MINIMUM_CONNECTOR_VERSION = "0.6.31";
 
 const REPLY_AI_CONFIG_VERSION = 25;
 const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
@@ -1330,14 +1333,14 @@ async function ensureCompatibleBridge(config, bridgeUrl) {
   const data = await response.json().catch(() => ({}));
   const version = cleanText(data?.version || data?.connectorVersion || "");
   const capabilities = data?.capabilities && typeof data.capabilities === "object" ? data.capabilities : {};
-  const compatible = !EXTENSION_VERSION || (version && compareVersions(version, EXTENSION_VERSION) >= 0);
+  const compatible = version && compareVersions(version, MINIMUM_CONNECTOR_VERSION) >= 0;
   bridgeCompatibilityCache = { url: normalizedUrl, checkedAt: now, version, compatible, capabilities };
   if (!compatible) {
     appendDiagnosticLog({
       level: "error",
       area: "ai",
       event: "connector_update_required",
-      expectedVersion: EXTENSION_VERSION,
+      expectedVersion: MINIMUM_CONNECTOR_VERSION,
       installedVersion: version || "unknown"
     }).catch(() => {});
     throw createBridgeUpdateError(version);
@@ -1347,7 +1350,7 @@ async function ensureCompatibleBridge(config, bridgeUrl) {
 
 function createBridgeUpdateError(version) {
   const installed = cleanText(version || "") || "unknown";
-  const error = new Error(`Update the Xtension connector (installed: ${installed}, required: ${EXTENSION_VERSION || "latest"}).`);
+  const error = new Error(`Update the Xtension connector (installed: ${installed}, required: ${MINIMUM_CONNECTOR_VERSION}).`);
   error.code = "bridge_update_required";
   return error;
 }

@@ -55,8 +55,22 @@
                     <span id="reply-ai-connector-badge" class="connection-badge" data-state="unknown" data-i18n="optionsCodexCheckingBadge">Checking...</span>
                   </div>
                 </div>
-                <p id="reply-ai-connector-status" class="field-note" data-i18n="optionsCodexConnectorHint">Install it once, or use this link to update it. The status above tells you whether it is reachable and connected to Codex.</p>
-                <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" data-i18n="optionsCodexInstallOrUpdate">Install or update</a>
+                <p id="reply-ai-connector-status" class="field-note" data-i18n="optionsCodexConnectorHint">Xtension checks the connector and keeps it updated automatically after the first installation.</p>
+                <dl class="connector-versions" aria-label="Connector versions">
+                  <div>
+                    <dt data-i18n="optionsCodexInstalledVersionLabel">Installed</dt>
+                    <dd id="reply-ai-connector-installed-version" data-i18n="optionsCodexNotDetectedVersion">Not detected</dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="optionsCodexLatestVersionLabel">Latest available</dt>
+                    <dd id="reply-ai-connector-latest-version">—</dd>
+                  </div>
+                </dl>
+                <div class="connector-actions">
+                  <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" data-i18n="optionsCodexInstallConnector">Install connector</a>
+                  <button id="reply-ai-update-connector" class="download-button" type="button" hidden data-i18n="optionsCodexUpdateConnector">Update connector</button>
+                  <span id="reply-ai-connector-current" class="connector-current" hidden data-i18n="optionsCodexAutomaticUpdatesEnabled">Up to date · automatic updates enabled</span>
+                </div>
               </article>
 
               <article id="reply-ai-connection-card" class="connection-card setup-step" data-state="unknown">

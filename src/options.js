@@ -8,6 +8,7 @@
   const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
   const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
+  const MINIMUM_CONNECTOR_VERSION = "0.6.31";
 
   const REPLY_AI_CONFIG_VERSION = 25;
   const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
@@ -86,6 +87,10 @@
   const loginButton = document.querySelector("#reply-ai-login");
   const logoutButton = document.querySelector("#reply-ai-logout");
   const installConnectorLink = document.querySelector("#reply-ai-install-connector");
+  const updateConnectorButton = document.querySelector("#reply-ai-update-connector");
+  const connectorCurrentElement = document.querySelector("#reply-ai-connector-current");
+  const installedConnectorVersionElement = document.querySelector("#reply-ai-connector-installed-version");
+  const latestConnectorVersionElement = document.querySelector("#reply-ai-connector-latest-version");
   const connectorDownload = installConnectorLink?.closest(".bridge-download");
   const logsCopyButton = document.querySelector("#reply-ai-logs-copy");
   const logsRefreshButton = document.querySelector("#reply-ai-logs-refresh");
@@ -131,6 +136,10 @@
       await logoutFromChatGpt();
     });
 
+    updateConnectorButton?.addEventListener("click", async () => {
+      await updateConnectorAutomatically();
+    });
+
     codexModelInput?.addEventListener("change", () => {
       applyReasoningOptions(codexModelInput.value, codexReasoningInput?.value);
     });
@@ -164,6 +173,8 @@
     // Bind every control before touching the network. A stopped or wedged
     // connector must never make Save, tabs, or diagnostics appear broken.
     await loadConfig();
+    setConnectorDownloadState("checking");
+    setConnectorVersions("", EXTENSION_VERSION);
     setConnectorState("checking", localizedText("optionsCodexCheckingBadge", "Checking..."));
     setConnectionState("checking", localizedText("optionsCodexCheckingBadge", "Checking..."));
     setEngineStatus(localizedText("optionsCodexConnecting", "Checking the Codex connector and ChatGPT account..."));
@@ -267,6 +278,7 @@
       renderCodexStatus(data);
       await refreshCodexModels(config);
       renderCodexStatus(data);
+      await refreshConnectorUpdateStatus(config, data);
       if (isConnectorUpdateRequired(data)) {
         showStatus(localizedText("optionsCodexUpdateRequired", "Update the Xtension connector before using Codex."), "error");
       } else if (isCodexAuthenticated(data)) {
@@ -307,13 +319,15 @@
         renderCodexStatus(data);
         await refreshCodexModels(config);
         renderCodexStatus(data);
+        await refreshConnectorUpdateStatus(config, data);
         return data;
       } catch (error) {
         lastError = error;
       }
     }
 
-    setConnectorDownloadState(false);
+    setConnectorDownloadState("missing");
+    setConnectorVersions("", EXTENSION_VERSION);
     setConnectorState(
       "unavailable",
       localizedText("optionsCodexConnectorUnavailableBadge", "Connector unavailable"),
@@ -331,8 +345,9 @@
     const codexInstalled = Boolean(data?.codex?.installed);
     const authenticated = isCodexAuthenticated(data);
     const connectorVersion = getConnectorVersion(data);
-    const updateRequired = codexInstalled && isConnectorUpdateRequired(data);
-    setConnectorDownloadState(updateRequired);
+    const updateRequired = isConnectorUpdateRequired(data);
+    setConnectorDownloadState(updateRequired ? "incompatible" : "current");
+    setConnectorVersions(connectorVersion, EXTENSION_VERSION);
     if (updateRequired) {
       setConnectorState(
         "outdated",
@@ -340,7 +355,7 @@
         localizedText(
           "optionsCodexUpdateRequiredVersion",
           "This connector is outdated or does not report its version. Install v{version} to match the extension."
-        ).replace("{version}", EXTENSION_VERSION || "latest")
+        ).replace("{version}", MINIMUM_CONNECTOR_VERSION)
       );
     } else {
       setConnectorState(
@@ -370,7 +385,7 @@
       setEngineStatus(localizedText(
         "optionsCodexUpdateRequiredVersion",
         "This connector is outdated or does not report its version. Install v{version} to match the extension."
-      ).replace("{version}", EXTENSION_VERSION || "latest"));
+      ).replace("{version}", MINIMUM_CONNECTOR_VERSION));
       setAccountStatus(authenticated
         ? localizedText("optionsCodexAccountConnected", "ChatGPT account connected.")
         : localizedText("optionsCodexAccountRequired", "Connect your ChatGPT account to use OpenAI Codex."));
@@ -406,9 +421,8 @@
   }
 
   function isConnectorUpdateRequired(data) {
-    if (!EXTENSION_VERSION) return false;
     const connectorVersion = getConnectorVersion(data);
-    return !connectorVersion || compareVersions(connectorVersion, EXTENSION_VERSION) < 0;
+    return !connectorVersion || compareVersions(connectorVersion, MINIMUM_CONNECTOR_VERSION) < 0;
   }
 
   function compareVersions(left, right) {
@@ -422,15 +436,147 @@
     return 0;
   }
 
-  function setConnectorDownloadState(updateRequired) {
+  function setConnectorDownloadState(state, { canSelfUpdate = false } = {}) {
+    const normalized = cleanText(state || "current");
     if (connectorDownload) {
-      connectorDownload.dataset.state = updateRequired ? "outdated" : "current";
+      connectorDownload.dataset.state = normalized === "incompatible" ? "outdated" : normalized;
     }
     if (installConnectorLink) {
-      installConnectorLink.textContent = updateRequired
+      const manualUpdate = normalized === "outdated" || normalized === "incompatible";
+      installConnectorLink.hidden = normalized !== "missing" && (!manualUpdate || canSelfUpdate);
+      installConnectorLink.textContent = manualUpdate
         ? localizedText("optionsCodexUpdateConnector", "Update connector")
-        : localizedText("optionsCodexInstallOrUpdate", "Install or update");
+        : localizedText("optionsCodexInstallConnector", "Install connector");
     }
+    if (updateConnectorButton) {
+      updateConnectorButton.hidden = !(normalized === "outdated" && canSelfUpdate);
+      updateConnectorButton.disabled = normalized === "updating";
+      updateConnectorButton.textContent = normalized === "updating"
+        ? localizedText("optionsCodexUpdatingConnector", "Updating...")
+        : localizedText("optionsCodexUpdateConnector", "Update connector");
+    }
+    if (connectorCurrentElement) {
+      connectorCurrentElement.hidden = normalized !== "current";
+      connectorCurrentElement.textContent = canSelfUpdate
+        ? localizedText("optionsCodexAutomaticUpdatesEnabled", "Up to date · automatic updates enabled")
+        : localizedText("optionsCodexUpToDate", "Up to date");
+    }
+  }
+
+  function setConnectorVersions(installedVersion, latestVersion) {
+    if (installedConnectorVersionElement) {
+      installedConnectorVersionElement.textContent = installedVersion
+        ? `v${installedVersion}`
+        : localizedText("optionsCodexNotDetectedVersion", "Not detected");
+    }
+    if (latestConnectorVersionElement) {
+      latestConnectorVersionElement.textContent = latestVersion ? `v${latestVersion}` : "—";
+    }
+  }
+
+  async function refreshConnectorUpdateStatus(config, connectorData) {
+    const installedVersion = getConnectorVersion(connectorData);
+    let update = null;
+    try {
+      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/update/status`, {
+        method: "GET",
+        headers: buildBridgeAuthHeaders(config)
+      });
+      update = data?.update && typeof data.update === "object" ? data.update : null;
+    } catch {
+      // Connectors before the self-updater do not expose this route. They still
+      // get a correct one-time manual update state by comparing their reported
+      // version with the connector bundled alongside this extension release.
+    }
+
+    const latestVersion = cleanText(update?.latestVersion || EXTENSION_VERSION || "");
+    const canSelfUpdate = Boolean(update?.canSelfUpdate ?? connectorData?.capabilities?.selfUpdate);
+    const updateAvailable = typeof update?.updateAvailable === "boolean"
+      ? update.updateAvailable
+      : Boolean(installedVersion && latestVersion && compareVersions(installedVersion, latestVersion) < 0);
+    const updateInProgress = ["checking", "downloading", "verifying", "ready", "waiting_for_idle", "installing", "restarting"]
+      .includes(cleanText(update?.state || "").toLowerCase()) && updateAvailable;
+
+    setConnectorVersions(installedVersion, latestVersion);
+    if (updateInProgress) {
+      setConnectorDownloadState("updating", { canSelfUpdate });
+      setConnectorState(
+        "updating",
+        localizedText("optionsCodexUpdatingBadge", "Updating"),
+        localizedText("optionsCodexAutomaticUpdateInProgress", "The signed update is being installed. The connector will restart automatically.")
+      );
+      return update;
+    }
+    if (updateAvailable) {
+      setConnectorDownloadState("outdated", { canSelfUpdate });
+      setConnectorState(
+        "outdated",
+        localizedText("optionsCodexUpdateBadge", "Update available"),
+        canSelfUpdate
+          ? localizedText("optionsCodexUpdateAvailable", "A newer signed connector is available and can be installed automatically.")
+          : localizedText("optionsCodexManualUpdateOnce", "Run this update once. Future connector updates will install automatically.")
+      );
+      return update;
+    }
+
+    setConnectorDownloadState("current", { canSelfUpdate });
+    setConnectorState(
+      "current",
+      localizedText("optionsCodexConnectorReadyBadge", "Up to date"),
+      update?.error
+        ? localizedText("optionsCodexLatestVersionUnavailable", "The connector is running, but the latest version could not be checked right now.")
+        : localizedText("optionsCodexConnectorCurrent", "The installed connector is the latest available version.")
+    );
+    return update;
+  }
+
+  async function updateConnectorAutomatically() {
+    const config = getFormConfig();
+    setConnectorDownloadState("updating", { canSelfUpdate: true });
+    setConnectorState(
+      "updating",
+      localizedText("optionsCodexUpdatingBadge", "Updating"),
+      localizedText("optionsCodexDownloadingUpdate", "Downloading and verifying the signed connector update...")
+    );
+    showStatus(localizedText("optionsCodexDownloadingUpdate", "Downloading and verifying the signed connector update..."), "");
+    try {
+      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/update/install`, {
+        method: "POST",
+        headers: buildBridgeAuthHeaders(config)
+      });
+      const targetVersion = cleanText(data?.update?.latestVersion || EXTENSION_VERSION);
+      await waitForConnectorRestart(config, targetVersion);
+      await refreshCodexStatus({ warmup: true, retry: true });
+      showStatus(localizedText("optionsCodexUpdateComplete", "Connector updated and restarted successfully."), "success");
+    } catch (error) {
+      setConnectorDownloadState("outdated", { canSelfUpdate: true });
+      setConnectorState(
+        "outdated",
+        localizedText("optionsCodexUpdateBadge", "Update available"),
+        error?.message || localizedText("optionsCodexUpdateFailed", "The connector update could not be completed.")
+      );
+      showStatus(error?.message || localizedText("optionsCodexUpdateFailed", "The connector update could not be completed."), "error");
+    }
+  }
+
+  async function waitForConnectorRestart(config, targetVersion) {
+    const deadline = Date.now() + 90 * 1000;
+    while (Date.now() < deadline) {
+      await delay(1000);
+      try {
+        const data = await fetchBridgeJson(`${getBridgeUrl(config)}/ping`, {
+          method: "GET",
+          headers: buildBridgeAuthHeaders(config)
+        });
+        const version = getConnectorVersion(data);
+        if (version && (!targetVersion || compareVersions(version, targetVersion) >= 0)) {
+          return version;
+        }
+      } catch {
+        // Expected while the silent installer replaces and restarts the bridge.
+      }
+    }
+    throw new Error(localizedText("optionsCodexUpdateRestartTimeout", "The update was launched, but the connector did not restart in time."));
   }
 
   function setConnectorState(state, badge, detail = "") {

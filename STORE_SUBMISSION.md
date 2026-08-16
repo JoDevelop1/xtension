@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.31.zip
+dist/xtension-chrome-v0.6.32.zip
 ```
 
 Assets to provide:
@@ -77,7 +77,7 @@ The x.com and twitter.com matches are required to add Xtension's preparation and
 Bridge download disclosure:
 
 ```text
-Xtension's optional AI features require a separate Windows Codex Connector installer. Chrome Web Store cannot install native executables for an extension, so Xtension displays a download button in Options that opens the public installer hosted in the same source repository. The extension remains usable for PDF export without installing the connector.
+Xtension's optional AI features require a separate Windows Codex Connector installer. Chrome Web Store cannot install native executables for an extension, so when the connector is absent Xtension displays an Install button in Options that opens the public installer hosted in the same source repository. Once installed, Options displays both the installed and latest available connector versions. Connectors from 0.6.32 onward verify the published SHA-256, NOVA2G Authenticode signature, and release version before installing later connector updates silently and restarting themselves. The extension remains usable for PDF export without installing the connector.
 ```
 
 Native messaging permission:
@@ -113,7 +113,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.31.zip
+dist/xtension-edge-v0.6.32.zip
 ```
 
 Assets to provide:
@@ -134,7 +134,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.31.zip
+dist/xtension-firefox-v0.6.32.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:
@@ -186,6 +186,8 @@ See:
 - Verify on a fresh profile and an upgraded profile that AI requests stay off until the user enables AI features, while PDF export still works.
 - Verify that turning AI features off stops AI draft actions and automatic contextual suggestions while X relationship badges continue to work locally.
 - Verify that the Codex Connector detects the installed Codex CLI and the connected ChatGPT account.
+- Verify that Options displays the installed and latest connector versions, shows Install only when absent, shows Update only when outdated, and hides both when current.
+- Verify that a connector update checks the published SHA-256 and NOVA2G Authenticode signature, installs silently, and returns on the new version without losing ChatGPT authentication.
 - Verify that `XtensionBridge.exe`, `XtensionBridgeHost.exe`, and `XtensionBridgeSetup.exe` are signed before publishing the Windows installer.
 - Verify that the browser manifest requests only `storage`, the documented social-platform page matches, the exact default bridge hosts, and public X/Twitter media host access.
 - Verify correction, translation, generation, and reply suggestions through Xtension Bridge on X/Twitter and at least one supported non-X platform.

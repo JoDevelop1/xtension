@@ -43,11 +43,13 @@ for (let attempt = 0; attempt < 80; attempt += 1) {
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
 const requestedLocale = String(process.env.XTENSION_CAPTURE_LOCALE || "").trim();
+const captureLocale = requestedLocale || "en";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const localePath = path.join(scriptDir, "..", "browsers", "chrome", "_locales", captureLocale, "messages.json");
+const localeMessages = JSON.parse(fs.readFileSync(localePath, "utf8"));
+const messages = Object.fromEntries(Object.entries(localeMessages).map(([key, value]) => [key, value.message || ""]));
+const packageJson = JSON.parse(fs.readFileSync(path.join(scriptDir, "..", "package.json"), "utf8"));
 if (requestedLocale) {
-  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-  const localePath = path.join(scriptDir, "..", "browsers", "chrome", "_locales", requestedLocale, "messages.json");
-  const localeMessages = JSON.parse(fs.readFileSync(localePath, "utf8"));
-  const messages = Object.fromEntries(Object.entries(localeMessages).map(([key, value]) => [key, value.message || ""]));
   await evaluate(`(() => {
     const messages = ${JSON.stringify(messages)};
     document.documentElement.lang = ${JSON.stringify(requestedLocale)};
@@ -62,6 +64,36 @@ if (requestedLocale) {
     return true;
   })()`);
 }
+await evaluate(`(() => {
+  const messages = ${JSON.stringify(messages)};
+  const version = ${JSON.stringify(packageJson.version)};
+  const connectorCard = document.querySelector(".bridge-download");
+  const connectorBadge = document.querySelector("#reply-ai-connector-badge");
+  const connectorStatus = document.querySelector("#reply-ai-connector-status");
+  const installedVersion = document.querySelector("#reply-ai-connector-installed-version");
+  const latestVersion = document.querySelector("#reply-ai-connector-latest-version");
+  const installLink = document.querySelector("#reply-ai-install-connector");
+  const updateButton = document.querySelector("#reply-ai-update-connector");
+  const current = document.querySelector("#reply-ai-connector-current");
+  const accountCard = document.querySelector("#reply-ai-connection-card");
+  const accountBadge = document.querySelector("#reply-ai-connection-badge");
+  const engineStatus = document.querySelector("#reply-ai-engine-status");
+  const accountStatus = document.querySelector("#reply-ai-account-status");
+  if (connectorCard) connectorCard.dataset.state = "current";
+  if (connectorBadge) { connectorBadge.dataset.state = "current"; connectorBadge.textContent = messages.optionsCodexConnectorReadyBadge || "Up to date"; }
+  if (connectorStatus) connectorStatus.textContent = messages.optionsCodexConnectorCurrent || "The installed connector is the latest available version.";
+  if (installedVersion) installedVersion.textContent = "v" + version;
+  if (latestVersion) latestVersion.textContent = "v" + version;
+  if (installLink) installLink.hidden = true;
+  if (updateButton) updateButton.hidden = true;
+  if (current) { current.hidden = false; current.textContent = messages.optionsCodexAutomaticUpdatesEnabled || "Up to date · automatic updates enabled"; }
+  if (accountCard) accountCard.dataset.state = "connected";
+  if (accountBadge) { accountBadge.dataset.state = "connected"; accountBadge.textContent = messages.optionsCodexConnectedBadge || "Connected to ChatGPT"; }
+  if (engineStatus) engineStatus.textContent = (messages.optionsCodexConnected || "Connected to OpenAI Codex.") + " " + (messages.optionsCodexConnectorVersion || "Connector v{version}.").replace("{version}", version);
+  if (accountStatus) accountStatus.textContent = messages.optionsCodexAccountConnected || "ChatGPT account connected.";
+  document.querySelectorAll(".connection-actions button").forEach((button) => { button.hidden = true; });
+  return true;
+})()`);
 const disclosure = await evaluate('document.querySelector("[data-i18n=optionsPrivacyDisclosure]")?.textContent || ""');
 if (!disclosure.includes("OpenAI") || !disclosure.includes("PDF")) {
   throw new Error("The real options disclosure was not rendered before screenshot capture.");

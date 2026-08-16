@@ -1,6 +1,6 @@
 {
   "name": "xtension",
-  "version": "0.6.31",
+  "version": "0.6.32",
   "description": "Prepare, adapt, and preserve social-platform content with AI writing, images, and local X/Twitter PDF export.",
   "private": true,
   "license": "Apache-2.0",
@@ -9,6 +9,7 @@
     "build:assets": "python scripts/generate_assets.py",
     "capture:store-assets": "powershell -ExecutionPolicy Bypass -File scripts/capture-store-assets.ps1",
     "test:bridge-origin": "powershell -ExecutionPolicy Bypass -File scripts/test-bridge-origin.ps1",
+    "test:updater-status": "node tests/updater-status.mjs",
     "build:full": "npm run build:assets && npm run build",
     "check": "node --check src/content.js && node --check src/social.js && node --check src/main-world.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/version.js && node --check scripts/xtension-ai-bridge.js && npm test",
     "test": "node --test tests/*.test.js",

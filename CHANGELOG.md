@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.32
+
+- Shows the installed connector version and the latest published connector version directly in ChatGPT / Codex Options.
+- Uses distinct actions: **Install connector** only when none is detected, **Update connector** only when a newer release exists, and no download button when current.
+- Adds secure automatic connector updates after the first installation: the connector checks the public release manifest, verifies the published SHA-256, NOVA2G Authenticode signature, and installer version, then installs silently and restarts itself while idle.
+- Keeps compatible older connectors usable across UI-only extension releases so a harmless patch-version difference never disables ChatGPT features.
+
 ## v0.6.31
 
 - Fixes the `Origin is not allowed` regression that prevented existing Xtension package installations from reaching the updated local connector, while continuing to reject arbitrary extension and website origins.

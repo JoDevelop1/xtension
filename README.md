@@ -55,7 +55,7 @@ also run the connector from source:
 npm run bridge
 ```
 
-The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, and ChatGPT account endpoints to the extension. Its default CORS allowlist contains only Xtension's current Chrome Web Store origin and the explicit legacy Xtension package origin retained for existing installations; it never accepts arbitrary extensions. The `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token development or alternate-browser setup:
+The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, ChatGPT account endpoints, and signed update endpoints to the extension. Its default CORS allowlist contains only Xtension's current Chrome Web Store origin and the explicit legacy Xtension package origin retained for existing installations; it never accepts arbitrary extensions. The `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token development or alternate-browser setup:
 
 ```powershell
 $env:XTENSION_BRIDGE_TOKEN='choose-a-local-token'
@@ -84,6 +84,8 @@ npm run bridge:install
 ```
 
 The installer copies the connector into `%LOCALAPPDATA%\Programs\Xtension\Bridge`, registers a current-user startup entry, starts the hidden supervisor in that same Windows session, and verifies the loopback endpoint. This is what lets Codex reuse the user's existing ChatGPT OAuth session.
+
+After this first installation, the connector checks the public Xtension release manifest periodically. A newer connector is downloaded only from the documented Xtension/GitHub release hosts, its SHA-256 and valid NOVA2G Authenticode signature are checked, and the signed installer replaces and restarts the connector silently when no AI request is active. Options displays the installed and latest available versions. Connectors older than 0.6.32 need this one final manual installer run before automatic updates are available.
 
 To rebuild the browser packages locally:
 
@@ -136,9 +138,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.31.zip`
-- `dist/xtension-edge-v0.6.31.zip`
-- `dist/xtension-firefox-v0.6.31.zip`
+- `dist/xtension-chrome-v0.6.32.zip`
+- `dist/xtension-edge-v0.6.32.zip`
+- `dist/xtension-firefox-v0.6.32.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`

@@ -44,6 +44,7 @@
 
         <h2>Security, storage, and retention</h2>
         <p>The connector binds only to <code>127.0.0.1</code>, validates the request host, and accepts only two fixed Xtension origins by default: the current Chrome Web Store ID and the legacy Xtension package ID retained for existing installations. Arbitrary extensions remain blocked. Explicitly configured development or other-browser origins require a shared local secret. The extension contains all executable extension code and does not download or evaluate remote code.</p>
+        <p>After its first manual installation, the connector periodically reads Xtension's public version manifest. If a newer connector exists, it downloads the Windows installer from the documented Xtension/GitHub release hosts, verifies the published SHA-256, the NOVA2G Authenticode signature, and the release version, then installs it silently while no AI operation is active. Version checks contain no page content, draft, ChatGPT account data, or AI request.</p>
         <p>PDFs are saved through the browser's normal save flow. Extension settings and bounded diagnostic metadata remain in extension storage until cleared or uninstalled. The optional Windows connector keeps its logs and generated image files locally under <code>%LOCALAPPDATA%\Xtension\Bridge</code>. Xtension has no developer account database.</p>
 
         <h2>Limited Use</h2>

@@ -440,11 +440,64 @@ body {
   border-color: #f59e0b;
 }
 
+.bridge-download[data-state="unavailable"] {
+  background: #fff7f7;
+  border-color: #fda4af;
+}
+
+.bridge-download[data-state="updating"] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.connector-versions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.connector-versions > div {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.connector-versions dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.connector-versions dd {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 20px;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.connector-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .download-button {
+  appearance: none;
   align-items: center;
   background: var(--accent);
+  border: 0;
   border-radius: 10px;
   color: #fff;
+  cursor: pointer;
   display: inline-flex;
   flex: 0 0 auto;
   font: 800 14px/20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -459,6 +512,24 @@ body {
 }
 
 .download-button[hidden] {
+  display: none;
+}
+
+.download-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.connector-current {
+  align-items: center;
+  color: var(--success);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 18px;
+}
+
+.connector-current[hidden] {
   display: none;
 }
 
@@ -788,6 +859,10 @@ body {
 
   .activation-layout,
   .setup-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-versions {
     grid-template-columns: 1fr;
   }
 

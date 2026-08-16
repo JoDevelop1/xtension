@@ -43,6 +43,7 @@ No website content, draft, identifier, URL, relationship status, image, or AI re
 - The default connector accepts only two fixed Xtension origins: the current Chrome Web Store ID and the legacy Xtension package ID retained for existing installations. It does not accept arbitrary extensions. Other explicitly configured development or browser origins require a shared local secret.
 - The extension package contains all executable extension code. It does not download or evaluate remote code.
 - The extension cannot execute local commands. The separately installed connector performs only its documented Codex and native draft-insertion operations.
+- After its first manual installation, the connector periodically reads Xtension's public version manifest. If a newer connector exists, it downloads the Windows installer from the documented Xtension/GitHub release hosts, verifies the published SHA-256, the NOVA2G Authenticode signature, and the release version, then installs it silently while no AI operation is active. These version checks contain no page content, draft, ChatGPT account data, or AI request.
 
 ## Storage and Retention
 

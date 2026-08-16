@@ -15,6 +15,13 @@ const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { version: CODEX_CLIENT_VERSION } = require("./version");
 
+// A source checkout may emulate an older connector for the updater integration
+// test. Packaged releases always report the immutable version embedded at build
+// time, so an installed executable cannot be downgraded through its environment.
+const CONNECTOR_VERSION = !process.pkg && /^\d+\.\d+\.\d+$/.test(process.env.XTENSION_DEV_CONNECTOR_VERSION || "")
+  ? process.env.XTENSION_DEV_CONNECTOR_VERSION
+  : CODEX_CLIENT_VERSION;
+
 const hostname = "127.0.0.1";
 const port = Number(process.env.XTENSION_BRIDGE_PORT || 47623);
 const maxBodyBytes = 128 * 1024;
@@ -49,6 +56,29 @@ const allowedExtensionOrigins = new Set([
 ]);
 const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefaultBridgeLogFile());
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
+const UPDATE_METADATA_URL = "https://xtension.jodevelop.com/version.json";
+const UPDATE_CHECK_INTERVAL_MS = readDurationSetting("XTENSION_UPDATE_CHECK_INTERVAL_MS", 6 * 60 * 60 * 1000, 5 * 60 * 1000, 24 * 60 * 60 * 1000);
+const UPDATE_RETRY_INTERVAL_MS = 15 * 60 * 1000;
+const UPDATE_INITIAL_DELAY_MS = readDurationSetting("XTENSION_UPDATE_INITIAL_DELAY_MS", 45 * 1000, 5 * 1000, 30 * 60 * 1000);
+const UPDATE_METADATA_CACHE_MS = 10 * 60 * 1000;
+const UPDATE_MAX_INSTALLER_BYTES = 250 * 1024 * 1024;
+const UPDATE_TRUSTED_HOSTS = new Set([
+  "xtension.jodevelop.com",
+  "github.com",
+  "objects.githubusercontent.com",
+  "release-assets.githubusercontent.com"
+]);
+let activeRequestCount = 0;
+let updatePreparePromise = null;
+let updateMetadataCache = null;
+let automaticUpdateTimer = null;
+const updateRuntimeState = {
+  state: "idle",
+  error: "",
+  latestVersion: "",
+  checkedAt: null,
+  automatic: true
+};
 
 const CODEX_MODEL = "gpt-5.6-luna";
 // Défaut aligné sur l'extension : les parcours courts bénéficient de "low"
@@ -797,6 +827,8 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  trackActiveConnectorRequest(pathname, response);
+
   try {
     // Vitalite seule : aucune donnee de compte, joignable par les scripts
     // d'installation qui n'ont pas d'origine d'extension a presenter.
@@ -806,9 +838,36 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         service: "xtension-bridge",
-        version: CODEX_CLIENT_VERSION,
-        capabilities: getNativeTypeCapabilities()
+        version: CONNECTOR_VERSION,
+        capabilities: getConnectorCapabilities()
       });
+      return;
+    }
+
+    if (request.method === "GET" && pathname === "/update/status") {
+      sendJson(response, 200, {
+        ok: true,
+        update: await getConnectorUpdateStatus({ force: true })
+      });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/update/install") {
+      const prepared = await prepareConnectorUpdate();
+      sendJson(response, 202, {
+        ok: true,
+        update: {
+          installedVersion: CONNECTOR_VERSION,
+          latestVersion: prepared.version,
+          state: "installing",
+          automatic: true
+        }
+      });
+      setTimeout(() => {
+        launchPreparedConnectorUpdateWhenIdle(prepared).catch((error) => {
+          recordUpdateFailure(error);
+        });
+      }, 750).unref?.();
       return;
     }
 
@@ -1401,6 +1460,14 @@ function getNativeTypeCapabilities() {
   };
 }
 
+function getConnectorCapabilities() {
+  return {
+    ...getNativeTypeCapabilities(),
+    selfUpdate: process.platform === "win32",
+    automaticUpdates: process.platform === "win32"
+  };
+}
+
 function sanitizeNativeTargetSnapshot(value) {
   const windowHandle = cleanText(value?.windowHandle || "");
   const focusedChildHandle = cleanText(value?.focusedChildHandle || "");
@@ -1559,10 +1626,10 @@ function invokeInputHelper(payload) {
 async function getHealthStatus() {
   const base = {
     ok: true,
-    version: CODEX_CLIENT_VERSION,
-    connectorVersion: CODEX_CLIENT_VERSION,
+    version: CONNECTOR_VERSION,
+    connectorVersion: CONNECTOR_VERSION,
     engine: "codex",
-    capabilities: getNativeTypeCapabilities(),
+    capabilities: getConnectorCapabilities(),
     defaultProvider: "openai-codex",
     provider: "openai-codex",
     model: CODEX_MODEL,
@@ -1608,6 +1675,387 @@ async function getHealthStatus() {
   }
 
   return base;
+}
+
+function trackActiveConnectorRequest(pathname, response) {
+  if (pathname === "/ping" || pathname.startsWith("/update/")) {
+    return;
+  }
+  activeRequestCount += 1;
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    activeRequestCount = Math.max(0, activeRequestCount - 1);
+  };
+  response.once("finish", release);
+  response.once("close", release);
+}
+
+function compareConnectorVersions(left, right) {
+  const parse = (value) => String(value || "").split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const difference = (a[index] || 0) - (b[index] || 0);
+    if (difference) return difference;
+  }
+  return 0;
+}
+
+function assertTrustedUpdateUrl(value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw createBridgeError("The connector update URL is invalid.", { code: "update_metadata_invalid", statusCode: 502 });
+  }
+  if (parsed.protocol !== "https:" || !UPDATE_TRUSTED_HOSTS.has(parsed.hostname.toLowerCase())) {
+    throw createBridgeError("The connector update URL is not trusted.", { code: "update_url_untrusted", statusCode: 502 });
+  }
+  return parsed.toString();
+}
+
+async function fetchTrustedUpdateResponse(value, options = {}) {
+  const url = assertTrustedUpdateUrl(value);
+  const response = await fetch(url, {
+    redirect: "follow",
+    cache: "no-store",
+    signal: AbortSignal.timeout(options.timeoutMs || 30000),
+    headers: { "user-agent": `XtensionConnector/${CONNECTOR_VERSION}` }
+  });
+  assertTrustedUpdateUrl(response.url);
+  if (!response.ok) {
+    throw createBridgeError(`The update server answered with HTTP ${response.status}.`, {
+      code: "update_server_error",
+      statusCode: 502
+    });
+  }
+  return response;
+}
+
+async function fetchUpdateMetadata({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && updateMetadataCache && now - updateMetadataCache.cachedAt < UPDATE_METADATA_CACHE_MS) {
+    return updateMetadataCache.value;
+  }
+
+  const response = await fetchTrustedUpdateResponse(UPDATE_METADATA_URL, { timeoutMs: 20000 });
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > 64 * 1024) {
+    throw createBridgeError("The connector update metadata is too large.", { code: "update_metadata_invalid", statusCode: 502 });
+  }
+  const text = await response.text();
+  if (Buffer.byteLength(text, "utf8") > 64 * 1024) {
+    throw createBridgeError("The connector update metadata is too large.", { code: "update_metadata_invalid", statusCode: 502 });
+  }
+  const data = tryParseJson(text);
+  const version = cleanText(data?.version || "");
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    throw createBridgeError("The connector update version is invalid.", { code: "update_metadata_invalid", statusCode: 502 });
+  }
+  const metadata = {
+    version,
+    installerUrl: assertTrustedUpdateUrl(data?.connector || ""),
+    checksumUrl: assertTrustedUpdateUrl(data?.connector_checksum || ""),
+    releasePage: assertTrustedUpdateUrl(data?.release_page || "https://github.com/JoDevelop1/xtension/releases/latest"),
+    releasedAt: cleanText(data?.released_at || "") || null
+  };
+  updateMetadataCache = { cachedAt: now, value: metadata };
+  updateRuntimeState.latestVersion = version;
+  updateRuntimeState.checkedAt = new Date().toISOString();
+  updateRuntimeState.error = "";
+  if (updateRuntimeState.state === "error") updateRuntimeState.state = "idle";
+  return metadata;
+}
+
+async function getConnectorUpdateStatus({ force = false } = {}) {
+  try {
+    const metadata = await fetchUpdateMetadata({ force });
+    return {
+      installedVersion: CONNECTOR_VERSION,
+      latestVersion: metadata.version,
+      updateAvailable: compareConnectorVersions(CONNECTOR_VERSION, metadata.version) < 0,
+      state: updateRuntimeState.state,
+      automatic: process.platform === "win32",
+      canSelfUpdate: process.platform === "win32",
+      checkedAt: updateRuntimeState.checkedAt,
+      releasedAt: metadata.releasedAt,
+      releasePage: metadata.releasePage,
+      error: updateRuntimeState.error || null
+    };
+  } catch (error) {
+    recordUpdateFailure(error);
+    return {
+      installedVersion: CONNECTOR_VERSION,
+      latestVersion: updateRuntimeState.latestVersion || null,
+      updateAvailable: null,
+      state: "error",
+      automatic: process.platform === "win32",
+      canSelfUpdate: process.platform === "win32",
+      checkedAt: updateRuntimeState.checkedAt,
+      releasedAt: null,
+      releasePage: "https://github.com/JoDevelop1/xtension/releases/latest",
+      error: truncateText(error?.message || "Unable to check for connector updates.", 240)
+    };
+  }
+}
+
+async function prepareConnectorUpdate() {
+  if (process.platform !== "win32") {
+    throw createBridgeError("Automatic connector updates are available on Windows only.", {
+      code: "update_platform_unsupported",
+      statusCode: 501
+    });
+  }
+  if (updatePreparePromise) return updatePreparePromise;
+
+  updatePreparePromise = (async () => {
+    updateRuntimeState.state = "checking";
+    updateRuntimeState.error = "";
+    const metadata = await fetchUpdateMetadata({ force: true });
+    if (compareConnectorVersions(CONNECTOR_VERSION, metadata.version) >= 0) {
+      updateRuntimeState.state = "current";
+      throw createBridgeError("The Xtension connector is already up to date.", {
+        code: "update_not_required",
+        statusCode: 409
+      });
+    }
+
+    updateRuntimeState.state = "downloading";
+    const checksumResponse = await fetchTrustedUpdateResponse(metadata.checksumUrl, { timeoutMs: 20000 });
+    const checksumText = await checksumResponse.text();
+    if (Buffer.byteLength(checksumText, "utf8") > 4096) {
+      throw createBridgeError("The connector checksum file is invalid.", { code: "update_checksum_invalid", statusCode: 502 });
+    }
+    const expectedHash = (checksumText.match(/\b[0-9a-f]{64}\b/i) || [])[0]?.toLowerCase();
+    if (!expectedHash) {
+      throw createBridgeError("The connector checksum file is invalid.", { code: "update_checksum_invalid", statusCode: 502 });
+    }
+
+    const updateDirectory = path.join(getBridgeDataDir(), "updates");
+    fs.mkdirSync(updateDirectory, { recursive: true });
+    cleanupStaleUpdateFiles(updateDirectory);
+    const installerPath = path.join(updateDirectory, `XtensionBridgeSetup-${metadata.version}.exe`);
+    const temporaryPath = `${installerPath}.part-${process.pid}`;
+    fs.rmSync(temporaryPath, { force: true });
+
+    const installerResponse = await fetchTrustedUpdateResponse(metadata.installerUrl, { timeoutMs: 120000 });
+    const declaredLength = Number(installerResponse.headers.get("content-length") || 0);
+    if (declaredLength > UPDATE_MAX_INSTALLER_BYTES) {
+      throw createBridgeError("The connector installer is unexpectedly large.", { code: "update_installer_invalid", statusCode: 502 });
+    }
+
+    const hash = crypto.createHash("sha256");
+    let totalBytes = 0;
+    const output = fs.createWriteStream(temporaryPath, { flags: "wx" });
+    try {
+      for await (const rawChunk of installerResponse.body) {
+        const chunk = Buffer.from(rawChunk);
+        totalBytes += chunk.length;
+        if (totalBytes > UPDATE_MAX_INSTALLER_BYTES) {
+          throw createBridgeError("The connector installer is unexpectedly large.", { code: "update_installer_invalid", statusCode: 502 });
+        }
+        hash.update(chunk);
+        if (!output.write(chunk)) {
+          await new Promise((resolve, reject) => {
+            output.once("drain", resolve);
+            output.once("error", reject);
+          });
+        }
+      }
+      await new Promise((resolve, reject) => output.end((error) => error ? reject(error) : resolve()));
+    } catch (error) {
+      output.destroy();
+      fs.rmSync(temporaryPath, { force: true });
+      throw error;
+    }
+
+    const actualHash = hash.digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(actualHash, "hex"), Buffer.from(expectedHash, "hex"))) {
+      fs.rmSync(temporaryPath, { force: true });
+      throw createBridgeError("The connector installer checksum does not match the published value.", {
+        code: "update_checksum_mismatch",
+        statusCode: 502
+      });
+    }
+
+    fs.rmSync(installerPath, { force: true });
+    fs.renameSync(temporaryPath, installerPath);
+    updateRuntimeState.state = "verifying";
+    await verifyConnectorInstallerSignature(installerPath, metadata.version);
+    updateRuntimeState.state = "ready";
+    logBridgeEvent("connector_update_ready", { fromVersion: CONNECTOR_VERSION, toVersion: metadata.version });
+    return { version: metadata.version, installerPath };
+  })().catch((error) => {
+    if (error?.code === "update_not_required") {
+      updateRuntimeState.state = "current";
+      updateRuntimeState.error = "";
+    } else {
+      recordUpdateFailure(error);
+    }
+    throw error;
+  }).finally(() => {
+    updatePreparePromise = null;
+  });
+
+  return updatePreparePromise;
+}
+
+async function verifyConnectorInstallerSignature(installerPath, expectedVersion) {
+  const windowsDirectory = cleanText(process.env.SystemRoot || process.env.WINDIR || "C:\\Windows");
+  const powershell = path.join(windowsDirectory, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  if (!fs.existsSync(powershell)) {
+    throw createBridgeError("Windows signature verification is unavailable.", { code: "update_signature_unavailable", statusCode: 500 });
+  }
+  const quotedPath = `'${installerPath.replace(/'/g, "''")}'`;
+  const command = [
+    `$signature = Get-AuthenticodeSignature -LiteralPath ${quotedPath}`,
+    `$version = (Get-Item -LiteralPath ${quotedPath}).VersionInfo.ProductVersion`,
+    `[pscustomobject]@{ Status = [string]$signature.Status; Subject = [string]$signature.SignerCertificate.Subject; ProductVersion = [string]$version } | ConvertTo-Json -Compress`
+  ].join("; ");
+  const output = await runCapturedProcess(powershell, [
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command
+  ], 30000);
+  const result = tryParseJson(output);
+  const subject = cleanText(result?.Subject || "");
+  const productVersion = cleanText(result?.ProductVersion || "").split("+", 1)[0].replace(/\.0$/, "");
+  if (result?.Status !== "Valid" || !/(?:^|,\s*)O=NOVA2G(?:,|$)/i.test(subject)) {
+    fs.rmSync(installerPath, { force: true });
+    throw createBridgeError("The connector installer does not have a valid NOVA2G signature.", {
+      code: "update_signature_invalid",
+      statusCode: 502
+    });
+  }
+  if (compareConnectorVersions(productVersion, expectedVersion) !== 0) {
+    fs.rmSync(installerPath, { force: true });
+    throw createBridgeError("The signed connector installer version does not match the published release.", {
+      code: "update_version_mismatch",
+      statusCode: 502
+    });
+  }
+}
+
+function runCapturedProcess(fileName, args, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(fileName, args, {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    const stdout = [];
+    const stderr = [];
+    let outputBytes = 0;
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(createBridgeError("Signature verification timed out.", { code: "update_signature_timeout", statusCode: 504 }));
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => {
+      outputBytes += chunk.length;
+      if (outputBytes <= 64 * 1024) stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      if (Buffer.concat(stderr).length < 16 * 1024) stderr.push(chunk);
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve(Buffer.concat(stdout).toString("utf8").trim());
+      else reject(createBridgeError(`Signature verification failed with code ${code}: ${truncateText(Buffer.concat(stderr).toString("utf8"), 160)}`, {
+        code: "update_signature_invalid",
+        statusCode: 502
+      }));
+    });
+  });
+}
+
+async function launchPreparedConnectorUpdate(prepared) {
+  updateRuntimeState.state = "installing";
+  updateRuntimeState.error = "";
+  logBridgeEvent("connector_update_installing", { fromVersion: CONNECTOR_VERSION, toVersion: prepared.version });
+  const child = spawn(prepared.installerPath, ["--quiet", "--from-update"], {
+    cwd: path.dirname(prepared.installerPath),
+    detached: true,
+    windowsHide: true,
+    stdio: "ignore"
+  });
+  await new Promise((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+  child.unref();
+  updateRuntimeState.state = "restarting";
+}
+
+async function launchPreparedConnectorUpdateWhenIdle(prepared) {
+  const deadline = Date.now() + 10 * 60 * 1000;
+  while (activeRequestCount > 0 || nativeTypeInFlight) {
+    if (Date.now() >= deadline) {
+      throw createBridgeError("The connector stayed busy, so the update was postponed.", {
+        code: "update_waiting_for_idle",
+        statusCode: 409
+      });
+    }
+    updateRuntimeState.state = "waiting_for_idle";
+    await delay(1000);
+  }
+  await launchPreparedConnectorUpdate(prepared);
+}
+
+function cleanupStaleUpdateFiles(updateDirectory = path.join(getBridgeDataDir(), "updates")) {
+  try {
+    if (!fs.existsSync(updateDirectory)) return;
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    for (const entry of fs.readdirSync(updateDirectory, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const candidate = path.join(updateDirectory, entry.name);
+      if (fs.statSync(candidate).mtimeMs < cutoff) fs.rmSync(candidate, { force: true });
+    }
+  } catch {
+    // A locked installer from the previous restart is cleaned on a later pass.
+  }
+}
+
+function recordUpdateFailure(error) {
+  updateRuntimeState.state = "error";
+  updateRuntimeState.error = truncateText(error?.message || "Connector update failed.", 240);
+  updateRuntimeState.checkedAt = new Date().toISOString();
+  logBridgeEvent("connector_update_failed", {
+    code: cleanText(error?.code || "update_failed"),
+    error: updateRuntimeState.error
+  });
+}
+
+async function runAutomaticConnectorUpdateCheck() {
+  const status = await getConnectorUpdateStatus({ force: true });
+  if (!status.updateAvailable || process.platform !== "win32") return;
+  if (activeRequestCount > 0 || nativeTypeInFlight) {
+    scheduleAutomaticConnectorUpdateCheck(60 * 1000);
+    return;
+  }
+  const prepared = await prepareConnectorUpdate();
+  if (activeRequestCount > 0 || nativeTypeInFlight) {
+    scheduleAutomaticConnectorUpdateCheck(60 * 1000);
+    return;
+  }
+  await launchPreparedConnectorUpdateWhenIdle(prepared);
+}
+
+function scheduleAutomaticConnectorUpdateCheck(delayMs = UPDATE_CHECK_INTERVAL_MS) {
+  if (process.platform !== "win32") return;
+  if (automaticUpdateTimer) clearTimeout(automaticUpdateTimer);
+  automaticUpdateTimer = setTimeout(() => {
+    runAutomaticConnectorUpdateCheck().then(
+      () => scheduleAutomaticConnectorUpdateCheck(UPDATE_CHECK_INTERVAL_MS),
+      (error) => {
+        recordUpdateFailure(error);
+        scheduleAutomaticConnectorUpdateCheck(UPDATE_RETRY_INTERVAL_MS);
+      }
+    );
+  }, delayMs);
+  automaticUpdateTimer.unref?.();
 }
 
 // Seuls ces noms d'hote sont acceptes dans l'en-tete Host. Un navigateur qui
@@ -2038,6 +2486,8 @@ server.requestTimeout = Math.max(CODEX_TURN_TIMEOUT_MS, CODEX_IMAGE_TIMEOUT_MS) 
 server.headersTimeout = 30000;
 server.listen(port, hostname, () => {
   console.log(`Xtension Codex connector listening on http://${hostname}:${port}`);
+  cleanupStaleUpdateFiles();
+  scheduleAutomaticConnectorUpdateCheck(UPDATE_INITIAL_DELAY_MS);
   logBridgeEvent("server_started", {
     url: `http://${hostname}:${port}`,
     pid: process.pid,
@@ -2048,6 +2498,7 @@ server.listen(port, hostname, () => {
 });
 
 async function shutdown() {
+  if (automaticUpdateTimer) clearTimeout(automaticUpdateTimer);
   codex.stop();
   await new Promise((resolve) => server.close(() => resolve()));
 }

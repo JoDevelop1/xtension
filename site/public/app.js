@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.31 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.32 · Chrome · Edge · Firefox',
   heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et les états Non abonné, Abonné ou Mutuel directement dans la timeline. Rien n'est publié automatiquement.",
@@ -127,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.31',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.32',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -142,9 +142,9 @@ const FR = {
     'Cliquez sur <strong>Charger un module temporaire</strong> et sélectionnez le <code>manifest.json</code> dans le dossier décompressé.',
   dlStep2: '2 · Le connecteur Codex (optionnel, Windows)',
   dlConnectorLead:
-    "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
+    "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe sans droits administrateur, démarre à l'ouverture de session et applique ensuite automatiquement les mises à jour signées lorsqu'il est inactif.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · v0.6.31 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.32 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',

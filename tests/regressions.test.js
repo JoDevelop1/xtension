@@ -136,8 +136,36 @@ test("Options presents connector and ChatGPT setup in priority order", () => {
   assert.ok(html.indexOf('<span class="step-number">1</span>') < html.indexOf('<span class="step-number">2</span>'));
   assert.match(html, /<details class="model-settings">/);
   assert.match(html, /id="options-version"/);
+  assert.match(html, /id="reply-ai-connector-installed-version"/);
+  assert.match(html, /id="reply-ai-connector-latest-version"/);
+  assert.match(html, /id="reply-ai-install-connector"[\s\S]{0,300}id="reply-ai-update-connector"/);
   assert.match(css, /grid-template-columns: 210px minmax\(0, 1fr\)/);
   assert.match(options, /optionsCodexOriginRejected/);
+  assert.match(options, /setConnectorDownloadState\("missing"\)/);
+  assert.match(options, /setConnectorDownloadState\("outdated", \{ canSelfUpdate \}\)/);
+  assert.match(options, /setConnectorDownloadState\("current", \{ canSelfUpdate \}\)/);
+});
+
+test("the connector updater verifies release metadata, checksum, signature, and version before restart", () => {
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  assert.match(bridge, /UPDATE_METADATA_URL = "https:\/\/xtension\.jodevelop\.com\/version\.json"/);
+  assert.match(bridge, /pathname === "\/update\/status"/);
+  assert.match(bridge, /pathname === "\/update\/install"/);
+  assert.match(bridge, /crypto\.timingSafeEqual/);
+  assert.match(bridge, /Get-AuthenticodeSignature -LiteralPath/);
+  assert.match(bridge, /O=NOVA2G/);
+  assert.match(bridge, /update_version_mismatch/);
+  assert.match(bridge, /scheduleAutomaticConnectorUpdateCheck\(UPDATE_INITIAL_DELAY_MS\)/);
+  assert.match(bridge, /activeRequestCount > 0 \|\| nativeTypeInFlight/);
+});
+
+test("connector compatibility is independent from UI-only patch releases", () => {
+  const options = read("src/options.js");
+  const background = read("src/background.js");
+  assert.match(options, /MINIMUM_CONNECTOR_VERSION = "0\.6\.31"/);
+  assert.match(background, /MINIMUM_CONNECTOR_VERSION = "0\.6\.31"/);
+  assert.match(background, /compareVersions\(version, MINIMUM_CONNECTOR_VERSION\) >= 0/);
+  assert.doesNotMatch(background, /compareVersions\(version, EXTENSION_VERSION\) >= 0/);
 });
 
 test("asset generation preserves real Store screenshots and pads the 128px icon", () => {

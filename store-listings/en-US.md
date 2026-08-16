@@ -28,7 +28,7 @@ Choose **Download as PDF** from the `...` menu of an X/Twitter article, post, or
 
 ### ChatGPT connection and privacy
 
-AI features are off by default and can be turned on in Options. They require the separately installed, open-source **Xtension Codex Connector** for Windows. The connector listens only on `127.0.0.1:47623` and accepts only Xtension's current Store ID plus its fixed legacy package ID for existing installations, never arbitrary extensions. It starts the official Codex App Server using your ChatGPT-managed sign-in. Xtension never asks for an OpenAI API key.
+AI features are off by default and can be turned on in Options. They require the separately installed, open-source **Xtension Codex Connector** for Windows. Options shows the installed and latest connector versions. After the first manual installation, signed connector updates are verified and installed automatically when no AI request is active. The connector listens only on `127.0.0.1:47623` and accepts only Xtension's current Store ID plus its fixed legacy package ID for existing installations, never arbitrary extensions. It starts the official Codex App Server using your ChatGPT-managed sign-in. Xtension never asks for an OpenAI API key.
 
 When you request an AI action, the selected text and useful visible context go directly to OpenAI with your ChatGPT account through the local connector. JoDevelop does not receive or store that content, the request, or the response. There are no analytics, ads, or tracking. PDF export and X/Twitter relationship badges remain local.
 
