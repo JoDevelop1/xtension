@@ -28,7 +28,7 @@ Choisissez **Télécharger en PDF** dans le menu `...` d'un article, post ou fil
 
 ### Connexion ChatGPT et confidentialité
 
-Les fonctions IA sont désactivées par défaut et s'activent dans les options. Elles nécessitent le **connecteur Codex Xtension**, un programme open source installé séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, accepte par défaut l'origine officielle d'Xtension sur le Chrome Web Store et démarre le Codex App Server officiel avec votre connexion ChatGPT. Xtension ne demande jamais de clé API OpenAI.
+Les fonctions IA sont désactivées par défaut et s'activent dans les options. Elles nécessitent le **connecteur Codex Xtension**, un programme open source installé séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623` et accepte seulement l'identifiant Store actuel d'Xtension ainsi que son identifiant historique fixe pour les installations existantes, jamais les extensions arbitraires. Il démarre le Codex App Server officiel avec votre connexion ChatGPT. Xtension ne demande jamais de clé API OpenAI.
 
 Lorsque vous demandez une action IA, le texte choisi et le contexte visible utile sont envoyés directement à OpenAI avec votre compte ChatGPT, via le connecteur local. JoDevelop ne reçoit ni ne conserve ce contenu, la demande ou la réponse. Il n'y a ni analyse d'audience, ni publicité, ni pistage. Le PDF et les badges X/Twitter restent locaux.
 

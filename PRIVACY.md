@@ -40,7 +40,7 @@ No website content, draft, identifier, URL, relationship status, image, or AI re
 ## Local Connector Security
 
 - The connector binds only to `127.0.0.1`, validates the request `Host`, and is not reachable from the local network or internet.
-- The default connector accepts the official Chrome Web Store Xtension origin only. Other explicitly configured development or browser origins require a shared local secret.
+- The default connector accepts only two fixed Xtension origins: the current Chrome Web Store ID and the legacy Xtension package ID retained for existing installations. It does not accept arbitrary extensions. Other explicitly configured development or browser origins require a shared local secret.
 - The extension package contains all executable extension code. It does not download or evaluate remote code.
 - The extension cannot execute local commands. The separately installed connector performs only its documented Codex and native draft-insertion operations.
 

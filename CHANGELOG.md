@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.31
+
+- Fixes the `Origin is not allowed` regression that prevented existing Xtension package installations from reaching the updated local connector, while continuing to reject arbitrary extension and website origins.
+- Rebuilds Options around a clear hierarchy: a compact AI switch, step 1 for the local connector, step 2 for the ChatGPT account, and secondary model settings collapsed below.
+- Saves the AI switch immediately, displays the installed extension version, and replaces the raw connector-origin error with a localized recovery message.
+- Preserves PDF export, relationship badges, writing tools, image generation, prompts, and diagnostics.
+
 ## v0.6.30
 
 - Replaces the legalistic AI-consent panel with one clear “Enable AI features” switch and removes the redundant second enable toggle.

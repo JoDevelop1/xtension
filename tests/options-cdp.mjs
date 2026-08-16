@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const wsUrl = process.argv[2];
 const screenshotPath = process.argv[3];
@@ -39,6 +41,26 @@ for (let attempt = 0; attempt < 80; attempt += 1) {
   const ready = await evaluate('document.readyState === "complete" && Boolean(document.querySelector("#reply-ai-enabled"))');
   if (ready) break;
   await new Promise((resolve) => setTimeout(resolve, 50));
+}
+const requestedLocale = String(process.env.XTENSION_CAPTURE_LOCALE || "").trim();
+if (requestedLocale) {
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const localePath = path.join(scriptDir, "..", "browsers", "chrome", "_locales", requestedLocale, "messages.json");
+  const localeMessages = JSON.parse(fs.readFileSync(localePath, "utf8"));
+  const messages = Object.fromEntries(Object.entries(localeMessages).map(([key, value]) => [key, value.message || ""]));
+  await evaluate(`(() => {
+    const messages = ${JSON.stringify(messages)};
+    document.documentElement.lang = ${JSON.stringify(requestedLocale)};
+    document.querySelectorAll("[data-i18n]").forEach((element) => {
+      const value = messages[element.getAttribute("data-i18n")];
+      if (value) element.textContent = value;
+    });
+    document.querySelectorAll("[data-help-i18n]").forEach((element) => {
+      const value = messages[element.getAttribute("data-help-i18n")];
+      if (value) element.setAttribute("data-help", value);
+    });
+    return true;
+  })()`);
 }
 const disclosure = await evaluate('document.querySelector("[data-i18n=optionsPrivacyDisclosure]")?.textContent || ""');
 if (!disclosure.includes("OpenAI") || !disclosure.includes("PDF")) {

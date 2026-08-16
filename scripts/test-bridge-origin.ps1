@@ -56,6 +56,7 @@ try {
   }
 
   $official = Send-TestRequest "/ping" "chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm"
+  $legacy = Send-TestRequest "/ping" "chrome-extension://bkcoigchdfenookfhogaokpmlkhekeai"
   $arbitrary = Send-TestRequest "/ping" "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   $website = Send-TestRequest "/ping" "https://evil.example"
   $noOriginHealth = Send-TestRequest "/health"
@@ -64,6 +65,8 @@ try {
     Liveness = $probe.StatusCode
     OfficialStoreOrigin = $official.StatusCode
     OfficialCors = $official.Cors
+    ExistingXtensionOrigin = $legacy.StatusCode
+    ExistingXtensionCors = $legacy.Cors
     ArbitraryExtensionOrigin = $arbitrary.StatusCode
     WebsiteOrigin = $website.StatusCode
     NoOriginHealth = $noOriginHealth.StatusCode
@@ -72,6 +75,8 @@ try {
     $results.Liveness -ne 200 -or
     $results.OfficialStoreOrigin -ne 200 -or
     $results.OfficialCors -ne "chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm" -or
+    $results.ExistingXtensionOrigin -ne 200 -or
+    $results.ExistingXtensionCors -ne "chrome-extension://bkcoigchdfenookfhogaokpmlkhekeai" -or
     $results.ArbitraryExtensionOrigin -ne 403 -or
     $results.WebsiteOrigin -ne 403 -or
     $results.NoOriginHealth -ne 403

@@ -35,8 +35,13 @@ let nativeTypeInFlight = false;
 const nativeTypeTargets = new Map();
 const bridgeToken = cleanText(process.env.XTENSION_BRIDGE_TOKEN || "");
 const OFFICIAL_CHROME_EXTENSION_ORIGIN = "chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm";
+// Existing signed/local Xtension installations use this stable Chrome ID.
+// Keep it explicit so upgrades continue to work without allowing arbitrary
+// browser extensions to reach the user's ChatGPT session.
+const LEGACY_CHROME_EXTENSION_ORIGIN = "chrome-extension://bkcoigchdfenookfhogaokpmlkhekeai";
 const allowedExtensionOrigins = new Set([
   OFFICIAL_CHROME_EXTENSION_ORIGIN,
+  LEGACY_CHROME_EXTENSION_ORIGIN,
   ...cleanText(process.env.XTENSION_ALLOWED_EXTENSION_ORIGINS || "")
     .split(",")
     .map((value) => cleanText(value))
@@ -777,7 +782,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (!setCorsHeaders(request, response, pathname)) {
-    sendJson(response, 403, { ok: false, error: "Origin is not allowed." });
+    sendJson(response, 403, { ok: false, code: "origin_not_allowed", error: "Origin is not allowed." });
     return;
   }
 

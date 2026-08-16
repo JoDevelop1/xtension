@@ -10,8 +10,11 @@
     <main class="options-shell">
       <header class="options-header">
         <div class="brand-mark"><img src="icons/icon-48.png" alt="" width="44" height="44"></div>
-        <div>
-          <h1 data-i18n="optionsTitle">Xtension</h1>
+        <div class="options-header-copy">
+          <div class="options-title-row">
+            <h1 data-i18n="optionsTitle">Xtension</h1>
+            <span id="options-version" class="version-chip"></span>
+          </div>
           <p data-i18n="optionsDescription">Control how Xtension prepares social content with your ChatGPT account while PDF preservation stays local.</p>
         </div>
       </header>
@@ -27,65 +30,81 @@
         <section class="settings-tab-panel is-active" data-tab-panel="connection">
           <fieldset class="setting-section privacy-consent-section">
             <legend data-i18n="optionsPrivacyTitle">Optional AI features</legend>
-            <p class="field-note" data-i18n="optionsPrivacyDisclosure">When you use an AI feature, your selected text and the useful on-screen context go directly to OpenAI with your ChatGPT account through the local open-source connector. Automatic suggestions use the same context when you open an empty reply field. JoDevelop does not receive or store this data. PDF export and relationship badges stay local.</p>
-            <label class="consent-checkbox" for="reply-ai-enabled">
-              <input id="reply-ai-enabled" type="checkbox">
-              <span data-i18n="optionsPrivacyConsent">Enable AI features</span>
-            </label>
-            <p class="field-note" data-i18n="optionsPrivacyConsentHelp">This switch does not sign you in. Install the open-source connector and connect ChatGPT below.</p>
-            <p class="field-note"><a href="https://xtension.jodevelop.com/privacy.html" target="_blank" rel="noopener noreferrer" data-i18n="optionsPrivacyLink">How data is used</a></p>
+            <div class="activation-layout">
+              <div class="activation-copy">
+                <p class="field-note" data-i18n="optionsPrivacyDisclosure">When you use an AI feature, your selected text and the useful on-screen context go directly to OpenAI with your ChatGPT account through the local open-source connector. Automatic suggestions use the same context when you open an empty reply field. JoDevelop does not receive or store this data. PDF export and relationship badges stay local.</p>
+                <p class="privacy-help"><span data-i18n="optionsPrivacyConsentHelp">This switch does not sign you in. Install the open-source connector and connect ChatGPT below.</span> <a href="https://xtension.jodevelop.com/privacy.html" target="_blank" rel="noopener noreferrer" data-i18n="optionsPrivacyLink">How data is used</a></p>
+              </div>
+              <label class="activation-switch" for="reply-ai-enabled">
+                <input id="reply-ai-enabled" type="checkbox">
+                <span class="switch-track" aria-hidden="true"><span></span></span>
+                <span class="activation-switch-label" data-i18n="optionsPrivacyConsent">Enable AI features</span>
+              </label>
+            </div>
           </fieldset>
 
           <fieldset class="setting-section ai-settings-section">
             <legend data-i18n="optionsSectionEngine">ChatGPT / Codex connection</legend>
 
-            <div id="reply-ai-connection-card" class="connection-card" data-state="unknown">
-              <div class="connection-card-header">
-                <span class="connection-card-title" data-i18n="optionsCodexAccountStatus">ChatGPT account</span>
-                <span id="reply-ai-connection-badge" class="connection-badge" data-state="unknown" data-i18n="optionsEngineStatusUnknown">Checking...</span>
-              </div>
-              <p id="reply-ai-engine-status" class="field-note" data-i18n="optionsEngineStatusUnknown">Checking Codex connectivity...</p>
-              <p id="reply-ai-account-status" class="field-note" data-i18n="optionsCodexAccountRequired">Connect your ChatGPT account to use OpenAI Codex.</p>
-              <div class="inline-actions connection-actions">
-                <button id="reply-ai-login" type="button" hidden data-i18n="optionsCodexLogin">Connect ChatGPT</button>
-                <button id="reply-ai-logout" type="button" class="secondary" hidden data-i18n="optionsCodexLogout">Disconnect</button>
-                <button id="reply-ai-test" type="button" class="secondary" data-i18n="optionsTest">Test connection</button>
-              </div>
-            </div>
-
-            <div class="bridge-download">
-              <div>
-                <strong data-i18n="optionsCodexConnectorTitle">Xtension Codex connector</strong>
-                <p class="field-note" data-i18n="optionsCodexConnectorHint">Install it once, or use this link to update it. The status above tells you whether it is reachable and connected to Codex.</p>
-              </div>
-              <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" data-i18n="optionsCodexInstallOrUpdate">Install or update</a>
-            </div>
-
-            <div class="options-grid">
-              <div class="setting-row">
-                <div class="field-title">
-                  <label for="reply-ai-codex-model" data-i18n="optionsCodexModelLabel">Model</label>
-                  <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModel" data-help="Choose the OpenAI Codex model available for your ChatGPT account.">?</button>
+            <div class="setup-flow">
+              <article class="bridge-download setup-step" data-state="unknown">
+                <div class="setup-step-heading">
+                  <span class="step-number">1</span>
+                  <div>
+                    <strong data-i18n="optionsCodexConnectorTitle">Xtension Codex connector</strong>
+                    <span id="reply-ai-connector-badge" class="connection-badge" data-state="unknown" data-i18n="optionsCodexCheckingBadge">Checking...</span>
+                  </div>
                 </div>
-                <select id="reply-ai-codex-model">
-                  <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
-                  <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
-                  <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
-                </select>
-                <p id="reply-ai-codex-model-status" class="field-note" data-i18n="optionsCodexModelLoading">Loading available models...</p>
-              </div>
-              <div class="setting-row">
-                <div class="field-title"><label for="reply-ai-codex-reasoning" data-i18n="optionsCodexReasoningLabel">Reasoning effort</label></div>
-                <select id="reply-ai-codex-reasoning">
-                  <option value="low" data-i18n="optionsCodexReasoningLow">Low</option>
-                  <option value="medium" data-i18n="optionsCodexReasoningMedium">Medium</option>
-                  <option value="high" data-i18n="optionsCodexReasoningHigh">High</option>
-                  <option value="xhigh" data-i18n="optionsCodexReasoningXHigh">Extra high</option>
-                  <option value="max" data-i18n="optionsCodexReasoningMax">Maximum</option>
-                  <option value="ultra" data-i18n="optionsCodexReasoningUltra">Ultra</option>
-                </select>
-              </div>
+                <p id="reply-ai-connector-status" class="field-note" data-i18n="optionsCodexConnectorHint">Install it once, or use this link to update it. The status above tells you whether it is reachable and connected to Codex.</p>
+                <a id="reply-ai-install-connector" class="download-button" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe" target="_blank" rel="noopener noreferrer" data-i18n="optionsCodexInstallOrUpdate">Install or update</a>
+              </article>
+
+              <article id="reply-ai-connection-card" class="connection-card setup-step" data-state="unknown">
+                <div class="setup-step-heading">
+                  <span class="step-number">2</span>
+                  <div class="connection-card-header">
+                    <span class="connection-card-title" data-i18n="optionsCodexAccountStatus">ChatGPT account</span>
+                    <span id="reply-ai-connection-badge" class="connection-badge" data-state="unknown" data-i18n="optionsCodexCheckingBadge">Checking...</span>
+                  </div>
+                </div>
+                <p id="reply-ai-engine-status" class="field-note" data-i18n="optionsEngineStatusUnknown">Checking Codex connectivity...</p>
+                <p id="reply-ai-account-status" class="field-note" data-i18n="optionsCodexAccountRequired">Connect your ChatGPT account to use OpenAI Codex.</p>
+                <div class="inline-actions connection-actions">
+                  <button id="reply-ai-login" type="button" hidden data-i18n="optionsCodexLogin">Connect ChatGPT</button>
+                  <button id="reply-ai-logout" type="button" class="secondary" hidden data-i18n="optionsCodexLogout">Disconnect</button>
+                  <button id="reply-ai-test" type="button" class="secondary" data-i18n="optionsTest">Test connection</button>
+                </div>
+              </article>
             </div>
+
+            <details class="model-settings">
+              <summary data-i18n="optionsModelSettingsTitle">Model settings</summary>
+              <div class="options-grid">
+                <div class="setting-row">
+                  <div class="field-title">
+                    <label for="reply-ai-codex-model" data-i18n="optionsCodexModelLabel">Model</label>
+                    <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpCodexModel" data-help="Choose the OpenAI Codex model available for your ChatGPT account.">?</button>
+                  </div>
+                  <select id="reply-ai-codex-model">
+                    <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
+                    <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
+                    <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+                  </select>
+                  <p id="reply-ai-codex-model-status" class="field-note" data-i18n="optionsCodexModelLoading">Loading available models...</p>
+                </div>
+                <div class="setting-row">
+                  <div class="field-title"><label for="reply-ai-codex-reasoning" data-i18n="optionsCodexReasoningLabel">Reasoning effort</label></div>
+                  <select id="reply-ai-codex-reasoning">
+                    <option value="low" data-i18n="optionsCodexReasoningLow">Low</option>
+                    <option value="medium" data-i18n="optionsCodexReasoningMedium">Medium</option>
+                    <option value="high" data-i18n="optionsCodexReasoningHigh">High</option>
+                    <option value="xhigh" data-i18n="optionsCodexReasoningXHigh">Extra high</option>
+                    <option value="max" data-i18n="optionsCodexReasoningMax">Maximum</option>
+                    <option value="ultra" data-i18n="optionsCodexReasoningUltra">Ultra</option>
+                  </select>
+                </div>
+              </div>
+            </details>
             <p class="field-note" data-i18n="optionsCodexLoginHint">The connector reuses the official Codex sign-in for this Windows account. Xtension never requests or stores an API key.</p>
             <input id="reply-ai-codex-bridge-url" type="hidden" value="http://127.0.0.1:47623">
             <input id="reply-ai-bridge-token" type="hidden" value="">
@@ -163,8 +182,10 @@
           </fieldset>
         </section>
 
-        <div class="options-actions"><button type="submit" data-i18n="optionsSave">Save settings</button></div>
-        <div id="reply-ai-status" class="options-status" role="status" aria-live="polite"></div>
+        <div class="options-footer">
+          <div id="reply-ai-status" class="options-status" role="status" aria-live="polite"></div>
+          <div class="options-actions"><button type="submit" data-i18n="optionsSave">Save settings</button></div>
+        </div>
       </form>
     </main>
     <script src="options.js"></script>

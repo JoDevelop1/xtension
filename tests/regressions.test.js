@@ -64,6 +64,7 @@ test("AI website content stays off until the user enables AI features", () => {
   assert.match(html, /does not sign you in[\s\S]{0,240}open-source connector/);
   assert.doesNotMatch(html, /reply-ai-data-consent|I agree to this processing/);
   assert.match(options, /dataProcessingConsentVersion: aiEnabled \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
+  assert.match(options, /enabledInput\?\.addEventListener\("change", async \(\) => \{[\s\S]{0,180}await saveConfig\(\)/);
   assert.match(options, /normalized\.enabled = normalized\.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION/);
   assert.match(background, /error\.code = consentGranted \? "not_configured" : "consent_required"/);
   assert.match(content, /await isAiProcessingEnabled\(\)/);
@@ -117,12 +118,26 @@ test("X relationship badges remain independent from optional AI consent", () => 
   assert.match(mainWorld, /function collectFollowingRelationships\(payload\) \{\s+if \(!payload/);
 });
 
-test("the local connector accepts the official Store origin by default, not every extension", () => {
+test("the local connector accepts only the official and existing Xtension origins by default", () => {
   const bridge = read("scripts/xtension-ai-bridge.js");
   assert.match(bridge, /OFFICIAL_CHROME_EXTENSION_ORIGIN = "chrome-extension:\/\/mjimpcncnbcngljfdifglncblmljgfkm"/);
+  assert.match(bridge, /LEGACY_CHROME_EXTENSION_ORIGIN = "chrome-extension:\/\/bkcoigchdfenookfhogaokpmlkhekeai"/);
+  assert.match(bridge, /code: "origin_not_allowed"/);
   assert.match(bridge, /if \(allowedExtensionOrigins\.has\(origin\)\)/);
   assert.match(bridge, /return Boolean\(bridgeToken\) && isBrowserExtensionOrigin\(origin\)/);
   assert.doesNotMatch(bridge, /function isAllowedBrowserExtensionOrigin\(origin\) \{\s+return \/\^chrome-extension/);
+});
+
+test("Options presents connector and ChatGPT setup in priority order", () => {
+  const html = read("src/options.html");
+  const css = read("src/options.css");
+  const options = read("src/options.js");
+  assert.ok(html.indexOf('class="bridge-download setup-step"') < html.indexOf('class="connection-card setup-step"'));
+  assert.ok(html.indexOf('<span class="step-number">1</span>') < html.indexOf('<span class="step-number">2</span>'));
+  assert.match(html, /<details class="model-settings">/);
+  assert.match(html, /id="options-version"/);
+  assert.match(css, /grid-template-columns: 210px minmax\(0, 1fr\)/);
+  assert.match(options, /optionsCodexOriginRejected/);
 });
 
 test("asset generation preserves real Store screenshots and pads the 128px icon", () => {

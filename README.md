@@ -55,7 +55,7 @@ also run the connector from source:
 npm run bridge
 ```
 
-The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, and ChatGPT account endpoints to the extension. Its default CORS allowlist contains only the official Chrome Web Store origin `chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm`; the `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token development or alternate-browser setup:
+The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, and ChatGPT account endpoints to the extension. Its default CORS allowlist contains only Xtension's current Chrome Web Store origin and the explicit legacy Xtension package origin retained for existing installations; it never accepts arbitrary extensions. The `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token development or alternate-browser setup:
 
 ```powershell
 $env:XTENSION_BRIDGE_TOKEN='choose-a-local-token'
@@ -136,9 +136,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.30.zip`
-- `dist/xtension-edge-v0.6.30.zip`
-- `dist/xtension-firefox-v0.6.30.zip`
+- `dist/xtension-chrome-v0.6.31.zip`
+- `dist/xtension-edge-v0.6.31.zip`
+- `dist/xtension-firefox-v0.6.31.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`

@@ -63,6 +63,7 @@
   };
 
   const form = document.querySelector("#reply-ai-form");
+  const versionElement = document.querySelector("#options-version");
   const enabledInput = document.querySelector("#reply-ai-enabled");
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
@@ -76,6 +77,8 @@
   const accountStatusElement = document.querySelector("#reply-ai-account-status");
   const connectionCard = document.querySelector("#reply-ai-connection-card");
   const connectionBadge = document.querySelector("#reply-ai-connection-badge");
+  const connectorBadge = document.querySelector("#reply-ai-connector-badge");
+  const connectorStatusElement = document.querySelector("#reply-ai-connector-status");
   const codexModelInput = document.querySelector("#reply-ai-codex-model");
   const codexModelStatus = document.querySelector("#reply-ai-codex-model-status");
   const codexReasoningInput = document.querySelector("#reply-ai-codex-reasoning");
@@ -99,10 +102,21 @@
   async function start() {
     localizePage();
     setupTabs();
+    if (versionElement && EXTENSION_VERSION) {
+      versionElement.textContent = `v${EXTENSION_VERSION}`;
+    }
 
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       await saveConfig();
+    });
+
+    enabledInput?.addEventListener("change", async () => {
+      try {
+        await saveConfig();
+      } catch (error) {
+        showStatus(error?.message || localizedText("optionsRuntimeUnavailable", "Extension runtime is unavailable."), "error");
+      }
     });
 
     testButton?.addEventListener("click", async () => {
@@ -150,7 +164,8 @@
     // Bind every control before touching the network. A stopped or wedged
     // connector must never make Save, tabs, or diagnostics appear broken.
     await loadConfig();
-    setConnectionState("checking", localizedText("optionsEngineStatusUnknown", "Checking..."));
+    setConnectorState("checking", localizedText("optionsCodexCheckingBadge", "Checking..."));
+    setConnectionState("checking", localizedText("optionsCodexCheckingBadge", "Checking..."));
     setEngineStatus(localizedText("optionsCodexConnecting", "Checking the Codex connector and ChatGPT account..."));
     await refreshCodexStatus({ warmup: true, retry: true });
   }
@@ -261,7 +276,7 @@
       }
     } catch (error) {
       await refreshCodexStatus();
-      showStatus(error?.message || localizedText("optionsCodexConnectionFailed", "The Codex connection failed."), "error");
+      setStatusText("", "");
     }
   }
 
@@ -299,6 +314,11 @@
     }
 
     setConnectorDownloadState(false);
+    setConnectorState(
+      "unavailable",
+      localizedText("optionsCodexConnectorUnavailableBadge", "Connector unavailable"),
+      lastError?.message || localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable.")
+    );
     setConnectionState("unavailable", localizedText("optionsCodexUnavailableBadge", "Codex unavailable"));
     setEngineStatus(lastError?.message || localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
     setAccountStatus(localizedText("optionsCodexConnectorMissing", "The Xtension Codex connector is not reachable."));
@@ -313,6 +333,24 @@
     const connectorVersion = getConnectorVersion(data);
     const updateRequired = codexInstalled && isConnectorUpdateRequired(data);
     setConnectorDownloadState(updateRequired);
+    if (updateRequired) {
+      setConnectorState(
+        "outdated",
+        localizedText("optionsCodexUpdateBadge", "Update required"),
+        localizedText(
+          "optionsCodexUpdateRequiredVersion",
+          "This connector is outdated or does not report its version. Install v{version} to match the extension."
+        ).replace("{version}", EXTENSION_VERSION || "latest")
+      );
+    } else {
+      setConnectorState(
+        "current",
+        localizedText("optionsCodexConnectorReadyBadge", "Connector ready"),
+        connectorVersion
+          ? localizedText("optionsCodexConnectorVersion", "Connector v{version}.").replace("{version}", connectorVersion)
+          : localizedText("optionsCodexConnectorHint", "The local connector is ready.")
+      );
+    }
     const selectedModel = getSelectedModel() || cleanText(data?.model || DEFAULT_CODEX_MODEL);
     const modelEntry = modelCatalog.find((item) => item.model === selectedModel);
     const modelName = modelEntry?.displayName || selectedModel;
@@ -392,6 +430,20 @@
       installConnectorLink.textContent = updateRequired
         ? localizedText("optionsCodexUpdateConnector", "Update connector")
         : localizedText("optionsCodexInstallOrUpdate", "Install or update");
+    }
+  }
+
+  function setConnectorState(state, badge, detail = "") {
+    const normalizedState = cleanText(state || "unknown").toLowerCase() || "unknown";
+    if (connectorDownload) {
+      connectorDownload.dataset.state = normalizedState;
+    }
+    if (connectorBadge) {
+      connectorBadge.dataset.state = normalizedState;
+      connectorBadge.textContent = badge || "";
+    }
+    if (connectorStatusElement && detail) {
+      connectorStatusElement.textContent = detail;
     }
   }
 
@@ -612,7 +664,11 @@
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(data?.error || `${localizedText("optionsCodexConnectionFailed", "The Codex connection failed.")} (${response.status})`);
+      const originRejected = response.status === 403
+        && (data?.code === "origin_not_allowed" || /origin is not allowed/i.test(cleanText(data?.error || "")));
+      const error = new Error(originRejected
+        ? localizedText("optionsCodexOriginRejected", "This connector does not recognize this Xtension installation. Update the connector, then try again.")
+        : data?.error || `${localizedText("optionsCodexConnectionFailed", "The Codex connection failed.")} (${response.status})`);
       error.code = data?.code || "bridge_request_failed";
       error.status = response.status;
       throw error;

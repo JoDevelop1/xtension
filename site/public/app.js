@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.30 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.31 · Chrome · Edge · Firefox',
   heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et les états Non abonné, Abonné ou Mutuel directement dans la timeline. Rien n'est publié automatiquement.",
@@ -116,7 +116,7 @@ const FR = {
 
   secTitle: 'Propriétés de sécurité vérifiables',
   sec1: "<strong>Boucle locale uniquement.</strong> Le connecteur écoute sur <code>127.0.0.1</code>. Il n'est joignable ni depuis votre réseau local, ni depuis Internet.",
-  sec2: "<strong>Origine restreinte.</strong> Le connecteur accepte par défaut uniquement l'origine officielle d'Xtension sur le Chrome Web Store. Les origines de développement ou d'autres navigateurs configurées explicitement exigent aussi un secret local partagé.",
+  sec2: "<strong>Origines restreintes.</strong> Le connecteur accepte uniquement les deux identifiants fixes d'Xtension : l'identifiant Store actuel et l'identifiant historique conservé pour les installations existantes. Toute autre extension reste bloquée. Les origines de développement ou d'autres navigateurs configurées explicitement exigent aussi un secret local partagé.",
   sec3: "<strong>Sans droits administrateur.</strong> Le connecteur s'installe dans votre profil utilisateur sous <code>%LOCALAPPDATA%</code>. Il ne s'exécute jamais en tant que SYSTEM.",
   sec4: "<strong>Signé et horodaté.</strong> L'installateur est signé via Microsoft Trusted Signing. Vérifiez-le dans Windows : clic droit → <em>Propriétés</em> → <em>Signatures numériques</em>.",
   sec5: '<strong>Empreintes publiées.</strong> Chaque téléchargement ci-dessous affiche son SHA-256 pour que vous puissiez vérifier le fichier reçu.',
@@ -127,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.30',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.31',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -144,7 +144,7 @@ const FR = {
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · v0.6.30 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.31 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',
