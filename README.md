@@ -6,7 +6,7 @@ Xtension is a browser extension for preparing, adapting, and preserving content 
 
 Generated text is inserted as a draft. Xtension never clicks a platform's final publish or submit control, so the user reviews and sends every reply.
 
-AI processing is disabled by default. The user must accept the disclosure in Xtension options before the extension reads supported-page context or drafts for AI use. After opt-in, contextual suggestions may be requested when the user deliberately focuses an empty supported reply field. PDF export stays local and does not require AI consent.
+AI features are off by default. When the user turns them on, selected text and useful visible context go directly to OpenAI with the user's ChatGPT account through the local open-source connector; JoDevelop does not receive or store the request or response. Contextual suggestions may be requested when the user deliberately focuses an empty supported reply field. PDF export and X/Twitter relationship badges remain local and independent of AI.
 
 Voice dictation was removed in 0.6.7. ChatGPT-managed Codex exposes no transcription model, so the feature could not work; rather than ship a microphone code path that never produced a result, the extension no longer contains any audio capture code at all.
 
@@ -136,9 +136,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.29.zip`
-- `dist/xtension-edge-v0.6.29.zip`
-- `dist/xtension-firefox-v0.6.29.zip`
+- `dist/xtension-chrome-v0.6.30.zip`
+- `dist/xtension-edge-v0.6.30.zip`
+- `dist/xtension-firefox-v0.6.30.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`
@@ -149,8 +149,8 @@ See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while s
 
 ## Permissions
 
-- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter content-preparation controls, local PDF export, consent-gated reply suggestions, and locally computed timeline relationship badges that remain independent of AI consent.
-- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the writing toolbar beside recognized post/comment editors. Nearby visible context is read for AI only after affirmative consent and a user action or deliberate focus in an empty supported reply field.
+- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter content-preparation controls, local PDF export, optional AI reply suggestions, and locally computed timeline relationship badges that remain independent of AI.
+- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the writing toolbar beside recognized post/comment editors. Useful visible context is sent to OpenAI only after the user enables AI features and requests an action or deliberately focuses an empty supported reply field.
 - `https://pbs.twimg.com/*`: fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the selected content.
 - `http://localhost:47623/*`, `http://127.0.0.1:47623/*`: connect to the Xtension Codex Connector running on the user's computer on the default loopback port.
 

@@ -1006,7 +1006,7 @@ function createAiDisabledError(config) {
   const consentGranted = Number(config?.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION;
   const error = new Error(consentGranted
     ? "AI tools are disabled in Xtension settings."
-    : "Review and accept the AI data-processing disclosure in Xtension options first.");
+    : "Enable AI features in Xtension options first.");
   error.code = consentGranted ? "not_configured" : "consent_required";
   return error;
 }

@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.29.zip
+dist/xtension-chrome-v0.6.30.zip
 ```
 
 Assets to provide:
@@ -71,7 +71,7 @@ Xtension does not load or execute remotely hosted code. All JavaScript, CSS, ico
 Host permission justification:
 
 ```text
-The x.com and twitter.com matches are required to add Xtension's preparation and preservation controls: draft tools, image tools, local PDF export, and locally computed relationship badges. The Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube matches add the writing toolbar beside recognized post or comment editors and, after affirmative consent, read the nearby visible post when the user invokes assistance or deliberately focuses an empty reply field with contextual suggestions enabled. Private-message routes are excluded. The pbs.twimg.com permission fetches public X/Twitter media referenced by selected content for local PDF or image tools. The localhost:47623 and 127.0.0.1:47623 permissions connect the optional AI tools to the Codex Connector on the user's computer. This does not let the extension execute local commands.
+The x.com and twitter.com matches are required to add Xtension's preparation and preservation controls: draft tools, image tools, local PDF export, and locally computed relationship badges. The Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube matches add the writing toolbar beside recognized post or comment editors and, after the user enables AI features, use the nearby visible post when the user invokes assistance or deliberately focuses an empty reply field with contextual suggestions enabled. Private-message routes are excluded. The pbs.twimg.com permission fetches public X/Twitter media referenced by selected content for local PDF or image tools. The localhost:47623 and 127.0.0.1:47623 permissions connect the optional AI tools to the open-source Codex Connector on the user's computer. This does not let the extension execute local commands.
 ```
 
 Bridge download disclosure:
@@ -89,7 +89,7 @@ Xtension does not request the nativeMessaging permission. Optional AI tools comm
 Data usage certification:
 
 ```text
-Xtension does not sell data or send data to a developer-owned server. PDF export processes visible X/Twitter content locally in the browser. AI processing is off by default and starts only after the user accepts a prominent disclosure. When enabled, the nearby visible post or comment, public author name or handle, current/source URL, quoted content, visible links, selected public images, and user draft or instruction may be sent to the local Codex Connector and then to OpenAI through the user's ChatGPT account. Contextual suggestions may be requested after the user deliberately focuses an empty supported reply field. No OpenAI API key or ChatGPT OAuth token is stored by the extension, and Xtension never submits a reply automatically.
+JoDevelop does not receive or store website content, AI requests, or AI responses. PDF export processes visible X/Twitter content locally in the browser. AI features are off by default and start only after the user turns them on in Options. When enabled, the user sends the selected text and useful visible context directly to OpenAI with their ChatGPT account through the local open-source Codex Connector. Contextual suggestions may use the same context after the user deliberately focuses an empty supported reply field. No OpenAI API key or ChatGPT OAuth token is stored by the extension, and Xtension never submits a reply automatically.
 ```
 
 Data-type selections (select these conservatively because Chrome defines collection to include transmission to a third-party processor):
@@ -113,7 +113,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.29.zip
+dist/xtension-edge-v0.6.30.zip
 ```
 
 Assets to provide:
@@ -134,7 +134,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.29.zip
+dist/xtension-firefox-v0.6.30.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:
@@ -183,8 +183,8 @@ See:
 - Verify that images appear in the PDF.
 - Verify that clicking the toolbar icon opens the dedicated Xtension settings page directly (the intermediate popup was removed in 0.6.3).
 - Verify that AI tools fail clearly when Xtension Bridge is not running.
-- Verify on a fresh profile and an upgraded profile that AI requests are blocked until the disclosure is accepted, while PDF export still works.
-- Verify that revoking consent stops AI draft actions and automatic contextual suggestions while X relationship badges continue to work locally.
+- Verify on a fresh profile and an upgraded profile that AI requests stay off until the user enables AI features, while PDF export still works.
+- Verify that turning AI features off stops AI draft actions and automatic contextual suggestions while X relationship badges continue to work locally.
 - Verify that the Codex Connector detects the installed Codex CLI and the connected ChatGPT account.
 - Verify that `XtensionBridge.exe`, `XtensionBridgeHost.exe`, and `XtensionBridgeSetup.exe` are signed before publishing the Windows installer.
 - Verify that the browser manifest requests only `storage`, the documented social-platform page matches, the exact default bridge hosts, and public X/Twitter media host access.

@@ -20,7 +20,7 @@ Sur X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTub
 - **Annuler et Rétablir** rend chaque modification IA réversible avant publication.
 - **Choix du modèle** permet de sélectionner un modèle Codex disponible sur votre compte ChatGPT et son effort de raisonnement.
 
-Après votre accord au traitement par l'IA, des suggestions contextuelles peuvent être demandées lorsque vous placez volontairement le curseur dans un champ de réponse vide pris en charge. Choisir une suggestion insère uniquement un brouillon modifiable.
+Après avoir activé les fonctions IA, des suggestions contextuelles peuvent être demandées lorsque vous placez volontairement le curseur dans un champ de réponse vide pris en charge. Choisir une suggestion insère uniquement un brouillon modifiable.
 
 ### Conserver le contenu X/Twitter en PDF
 
@@ -28,9 +28,9 @@ Choisissez **Télécharger en PDF** dans le menu `...` d'un article, post ou fil
 
 ### Connexion ChatGPT et confidentialité
 
-Les fonctions IA sont désactivées jusqu'à l'acceptation d'une information claire sur le traitement des données dans les options. Elles nécessitent le **connecteur Codex Xtension**, installé séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, accepte par défaut l'origine officielle d'Xtension sur le Chrome Web Store et démarre le Codex App Server officiel avec votre connexion ChatGPT. Xtension ne demande jamais de clé API OpenAI.
+Les fonctions IA sont désactivées par défaut et s'activent dans les options. Elles nécessitent le **connecteur Codex Xtension**, un programme open source installé séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, accepte par défaut l'origine officielle d'Xtension sur le Chrome Web Store et démarre le Codex App Server officiel avec votre connexion ChatGPT. Xtension ne demande jamais de clé API OpenAI.
 
-Pour une requête IA, Xtension peut traiter le post ou commentaire visible voisin, le nom ou pseudonyme public de l'auteur, l'URL source, le contenu cité, les liens visibles, les images publiques choisies et le brouillon ou la consigne saisis. Les données nécessaires passent par le connecteur local vers OpenAI sous votre compte ChatGPT. Rien n'est envoyé à un serveur appartenant au développeur d'Xtension. Il n'y a ni analyse d'audience, ni publicité, ni pistage.
+Lorsque vous demandez une action IA, le texte choisi et le contexte visible utile sont envoyés directement à OpenAI avec votre compte ChatGPT, via le connecteur local. JoDevelop ne reçoit ni ne conserve ce contenu, la demande ou la réponse. Il n'y a ni analyse d'audience, ni publicité, ni pistage. Le PDF et les badges X/Twitter restent locaux.
 
 Les routes de messages privés sont exclues. Xtension ne lit ni les mots de passe, ni les cookies, ni les jetons d'authentification des plateformes. L'extension ne contient aucun code de capture micro ou audio.
 

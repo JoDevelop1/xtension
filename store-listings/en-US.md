@@ -20,7 +20,7 @@ On X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTu
 - **Undo and Redo** keeps every AI edit reversible before you publish.
 - **Model controls** let you choose a Codex model available to your ChatGPT account and its reasoning effort.
 
-After you opt in to AI processing, contextual suggestions may be requested when you deliberately focus an empty supported reply field. Choosing a suggestion only inserts an editable draft.
+After you turn on AI features, contextual suggestions may be requested when you deliberately focus an empty supported reply field. Choosing a suggestion only inserts an editable draft.
 
 ### Preserve X/Twitter content as PDF
 
@@ -28,9 +28,9 @@ Choose **Download as PDF** from the `...` menu of an X/Twitter article, post, or
 
 ### ChatGPT connection and privacy
 
-AI features are disabled until you accept a clear data-processing disclosure in the options. They require the separately installed **Xtension Codex Connector** for Windows. The connector listens only on `127.0.0.1:47623`, accepts the official Xtension Chrome Web Store origin by default, and starts the official Codex App Server using your ChatGPT-managed sign-in. Xtension never asks for an OpenAI API key.
+AI features are off by default and can be turned on in Options. They require the separately installed, open-source **Xtension Codex Connector** for Windows. The connector listens only on `127.0.0.1:47623`, accepts the official Xtension Chrome Web Store origin by default, and starts the official Codex App Server using your ChatGPT-managed sign-in. Xtension never asks for an OpenAI API key.
 
-For an AI request, Xtension may process the nearby visible post or comment, public author name or handle, source URL, quoted content, visible links, selected public images, and the draft or instruction you type. The required request data goes through the local connector to OpenAI under your ChatGPT account. Nothing is sent to a server owned by the Xtension developer. There are no analytics, ads, or tracking.
+When you request an AI action, the selected text and useful visible context go directly to OpenAI with your ChatGPT account through the local connector. JoDevelop does not receive or store that content, the request, or the response. There are no analytics, ads, or tracking. PDF export and X/Twitter relationship badges remain local.
 
 Private-message routes are excluded. Xtension does not read platform passwords, cookies, or authentication tokens. It contains no microphone or audio-capture code.
 

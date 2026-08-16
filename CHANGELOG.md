@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.30
+
+- Replaces the legalistic AI-consent panel with one clear “Enable AI features” switch and removes the redundant second enable toggle.
+- States unambiguously that the user sends selected content directly to OpenAI with their ChatGPT account through the local open-source connector, while JoDevelop receives and stores none of the content, request, or response.
+- Fully localizes the extension's user-facing writing, image, activation, connector, account, options, and error flows in English, French, German, Spanish, and Japanese.
+- Keeps PDF export and X/Twitter relationship badges local and independent of the optional AI path.
+
 ## v0.6.29
 
 - Keeps X/Twitter following, followed-by, and mutual badges active independently of the optional AI consent and connection flow.

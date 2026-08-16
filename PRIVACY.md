@@ -4,38 +4,38 @@ Effective date: August 16, 2026
 
 Xtension's single purpose is to help users prepare, adapt, and preserve content for use on supported social platforms. This includes drafting and improving posts or replies, generating related images, displaying relevant public relationship context on X/Twitter, and exporting X/Twitter content to PDF.
 
-Xtension does not sell data, use data for advertising or creditworthiness, or send data to a server owned by the developer. The extension has no analytics or tracking SDK. Some optional AI features do transmit data to OpenAI through a connector running on the user's own computer, as described below.
+JoDevelop does not receive, collect, or store the user's page content, drafts, AI requests, or AI responses. There is no JoDevelop processing server, analytics SDK, advertising system, or tracking SDK. When the user chooses an optional AI feature, the requested content goes from the user's browser to OpenAI through the open-source connector running on that same computer.
 
-## Consent and Control
+## AI Features and User Control
 
-AI processing is disabled by default. Before any supported-page content, draft, URL, author identifier, or image is processed for AI features, the user must affirmatively accept the disclosure shown in Xtension's options and enable the AI tools. A user can withdraw consent at any time by disabling the AI tools or clearing that consent in the options.
+AI features are off by default. The user turns them on in Xtension's options after a short explanation of the OpenAI connection. Turning them off immediately stops AI draft actions and automatic contextual suggestions.
 
-Accepting this disclosure does not sign the user into ChatGPT. Account authentication is a separate optional step handled by the local connector and the official OpenAI sign-in flow; Xtension never receives the user's password or OAuth token.
+Turning on AI features does not sign the user into ChatGPT. Account authentication is a separate step handled by the local connector and the official OpenAI sign-in flow; Xtension and JoDevelop never receive the user's password or OAuth token.
 
-After consent, Xtension may request contextual reply suggestions when the user deliberately focuses an empty supported reply field. Other AI operations begin when the user chooses an Xtension correction, translation, generation, suggestion, or image action. Xtension inserts results as editable drafts and never activates a platform's final publish or submit control.
+When AI features are on, contextual reply suggestions may be requested when the user deliberately focuses an empty supported reply field. Other AI requests begin only when the user chooses a correction, translation, generation, suggestion, or image action. Results are inserted as editable drafts; Xtension never activates a platform's final publish or submit control.
 
-PDF export does not require AI consent. It is generated locally in the browser and is never sent to OpenAI or the developer.
+PDF export works whether or not AI features are enabled. It is generated locally in the browser and is never sent to OpenAI or JoDevelop.
 
 ## Data Processed
 
-Depending on the feature used, Xtension may process these categories:
+Depending on the feature chosen, these categories may be used locally or sent to OpenAI to produce the requested result:
 
 - **Website content:** visible text from a nearby post, comment, article, reply composer, quoted post, or same-author thread; the user's draft or instruction; and public images or video thumbnails associated with that content.
 - **Identifiers contained in website content:** public display names and account handles visible next to the selected content.
 - **Current-page and source URLs:** URLs for the supported page or selected public post, used to preserve sources and give AI the relevant context. Xtension does not build a browsing-history profile.
 - **Public relationship context on X/Twitter:** following, followed-by, or mutual status already present in X/Twitter responses, processed locally to display timeline badges independently of the optional AI tools.
-- **Extension settings:** consent state, AI enablement, model, reasoning effort, writing preferences, loopback connector URL, and an optional local connector token, stored in browser extension storage.
+- **Extension settings:** AI on/off state, model, reasoning effort, writing preferences, loopback connector URL, and an optional local connector token, stored in browser extension storage.
 - **Diagnostic metadata:** up to 160 local entries containing operation names, timestamps, durations, text lengths, routing information, and error codes. Full post text, drafts, prompts, account tokens, and API keys are excluded.
 
 Xtension contains no microphone, camera, audio-capture, cookie-reading, password-reading, private-message, or platform-authentication-token code.
 
-## AI Request Processing and Sharing
+## What Is Sent to OpenAI
 
-When an AI feature is enabled and invoked, Xtension sends only the data needed for that feature to the Xtension Codex Connector at `127.0.0.1:47623` on the user's computer. The connector starts the official Codex App Server and sends the request to OpenAI using the user's ChatGPT-managed authentication, selected model, and reasoning effort.
+When the user requests an AI feature, the browser sends only the data needed for that request to the Xtension Codex Connector at `127.0.0.1:47623` on the same computer. The connector starts the official Codex App Server and forwards the request directly to OpenAI using the user's ChatGPT-managed authentication, selected model, and reasoning effort. JoDevelop is not in this data path.
 
 OpenAI is the only external AI processor used by these features. Its handling of data is governed by the user's OpenAI account and applicable OpenAI terms and privacy controls. Xtension does not request or store an OpenAI API key or ChatGPT OAuth token. ChatGPT authentication is managed by Codex outside extension storage.
 
-No website content, draft, identifier, URL, relationship status, image, or AI response is sent to a developer-owned server.
+No website content, draft, identifier, URL, relationship status, image, or AI response is sent to JoDevelop or to a JoDevelop-owned server.
 
 ## Local Connector Security
 

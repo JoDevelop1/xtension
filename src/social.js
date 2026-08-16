@@ -277,7 +277,7 @@
     if (!registered || button.disabled) return;
     if (!(await isAiProcessingEnabled())) {
       sendRuntimeMessage({ type: "xtension-open-options" }).catch(() => {});
-      const error = new Error(localize("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first."));
+      const error = new Error(localize("replyAiConsentRequired", "Enable AI features in Xtension options first."));
       error.code = "consent_required";
       throw error;
     }

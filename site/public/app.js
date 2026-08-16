@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.29 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.30 · Chrome · Edge · Firefox',
   heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et les états Non abonné, Abonné ou Mutuel directement dans la timeline. Rien n'est publié automatiquement.",
@@ -23,7 +23,7 @@ const FR = {
   heroCtaSource: 'Lire le code source',
 
   badgeNoKey: "Aucune clé d'API OpenAI",
-  badgeNoServer: 'Aucun serveur du développeur',
+  badgeNoServer: 'Aucun serveur de traitement JoDevelop',
   badgeSigned: 'Installateur Windows signé',
   badgeAuditable: 'Open source Apache-2.0',
 
@@ -101,13 +101,13 @@ const FR = {
     "L'export PDF n'a besoin de rien de tout cela : il fonctionne seul, hors ligne, dès que l'extension est installée.",
 
   privacyTitle: 'Confidentialité et sécurité',
-  privacyDoesTitle: 'Ce que fait Xtension',
-  pd1: 'Lit le texte visible du message, article, fil ou brouillon sur lequel vous agissez.',
+  privacyDoesTitle: 'Comment fonctionnent les demandes IA',
+  pd1: "Vous choisissez le brouillon, le post, l'article, le fil ou l'image utilisé pour la demande IA.",
   pd2: 'Récupère les images publiques de ce contenu depuis <code>pbs.twimg.com</code>.',
-  pd3: "Après votre accord explicite, envoie uniquement les données nécessaires à une action IA vers OpenAI via le connecteur local. Des suggestions peuvent aussi être demandées après votre action volontaire de placer le curseur dans un champ de réponse vide pris en charge.",
+  pd3: "Votre navigateur envoie le contexte utile directement à OpenAI avec votre compte ChatGPT, via le connecteur local open source. Les suggestions peuvent aussi utiliser ce contexte après votre action volontaire d'ouvrir un champ de réponse vide pris en charge.",
   pd4: "Enregistre vos réglages dans le stockage d'extension du navigateur, sur votre machine.",
   privacyNotTitle: 'Ce que Xtension ne fait jamais',
-  pn1: 'Aucune donnée envoyée à un serveur appartenant au développeur.',
+  pn1: 'JoDevelop ne reçoit ni ne conserve votre contenu, vos demandes IA ou les réponses de l’IA.',
   pn2: "Aucun mot de passe, cookie ou jeton d'authentification des plateformes lu.",
   pn3: 'Aucun accès à vos messages privés.',
   pn4: "Aucun profil de navigation, aucune analyse d'audience, aucun pistage, aucune publicité.",
@@ -127,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.29',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.30',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -144,7 +144,7 @@ const FR = {
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · v0.6.29 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.30 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',

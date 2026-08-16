@@ -63,7 +63,6 @@
   };
 
   const form = document.querySelector("#reply-ai-form");
-  const dataConsentInput = document.querySelector("#reply-ai-data-consent");
   const enabledInput = document.querySelector("#reply-ai-enabled");
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
@@ -148,20 +147,6 @@
       showStatus(localizedText("optionsPromptsReset", "Default prompts restored. Save to apply them."), "");
     });
 
-    dataConsentInput?.addEventListener("change", () => {
-      if (enabledInput) {
-        enabledInput.checked = Boolean(dataConsentInput.checked);
-      }
-      syncConsentControls();
-    });
-
-    enabledInput?.addEventListener("change", () => {
-      if (enabledInput.checked && dataConsentInput && !dataConsentInput.checked) {
-        dataConsentInput.checked = true;
-      }
-      syncConsentControls();
-    });
-
     // Bind every control before touching the network. A stopped or wedged
     // connector must never make Save, tabs, or diagnostics appear broken.
     await loadConfig();
@@ -193,10 +178,8 @@
     }
 
     if (enabledInput) {
-      enabledInput.checked = Boolean(config.enabled);
-    }
-    if (dataConsentInput) {
-      dataConsentInput.checked = config.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION;
+      enabledInput.checked = Boolean(config.enabled)
+        && config.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION;
     }
     if (codexBridgeUrlInput) {
       codexBridgeUrlInput.value = config.codexBridgeUrl || DEFAULT_CODEX_BRIDGE_URL;
@@ -218,7 +201,6 @@
       generatePromptInput.value = config.generatePrompt || DEFAULT_GENERATE_PROMPT;
     }
     setPromptProfileInputs(config.replyPromptProfiles);
-    syncConsentControls();
   }
 
   function setupTabs() {
@@ -252,7 +234,6 @@
   async function saveConfig() {
     const config = getFormConfig();
     await storageSet({ replyAiConfig: config });
-    syncConsentControls();
     showStatus(localizedText("optionsSaved", "Settings saved."), "success");
     return true;
   }
@@ -749,11 +730,11 @@
   }
 
   function getFormConfig() {
-    const consentGranted = Boolean(dataConsentInput?.checked);
+    const aiEnabled = Boolean(enabledInput?.checked);
     return {
       configVersion: REPLY_AI_CONFIG_VERSION,
-      enabled: consentGranted && Boolean(enabledInput?.checked),
-      dataProcessingConsentVersion: consentGranted ? REQUIRED_AI_DATA_CONSENT_VERSION : 0,
+      enabled: aiEnabled,
+      dataProcessingConsentVersion: aiEnabled ? REQUIRED_AI_DATA_CONSENT_VERSION : 0,
       codexBridgeUrl: normalizeCodexBridgeUrl(codexBridgeUrlInput?.value) || DEFAULT_CODEX_BRIDGE_URL,
       bridgeToken: cleanText(bridgeTokenInput?.value || ""),
       codexModel: normalizeCodexModel(codexModelInput?.value || DEFAULT_CODEX_MODEL),
@@ -810,14 +791,6 @@
       "baseUrl", "model", "apiKey", "gpu", "replyLanguageMode"
     ].forEach((key) => delete normalized[key]);
     return normalized;
-  }
-
-  function syncConsentControls() {
-    const consentGranted = Boolean(dataConsentInput?.checked);
-    if (enabledInput) {
-      enabledInput.disabled = !consentGranted;
-      enabledInput.closest(".options-toggle")?.classList.toggle("is-disabled", !consentGranted);
-    }
   }
 
   function cloneDefaultReplyPromptProfiles() {

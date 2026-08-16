@@ -53,22 +53,59 @@ test("options and background use the same configuration generation", () => {
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
 });
 
-test("AI website-content processing requires a versioned affirmative consent", () => {
+test("AI website content stays off until the user enables AI features", () => {
   const options = read("src/options.js");
   const background = read("src/background.js");
   const html = read("src/options.html");
   const content = read("src/content.js");
   const social = read("src/social.js");
-  assert.match(html, /id="reply-ai-data-consent" type="checkbox"/);
-  assert.match(html, /nearby visible post[\s\S]{0,500}OpenAI[\s\S]{0,500}automatically/);
-  assert.match(html, /only authorizes AI processing[\s\S]{0,240}ChatGPT connection is handled separately/);
-  assert.match(options, /dataProcessingConsentVersion: consentGranted \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
+  assert.match(html, /id="reply-ai-enabled" type="checkbox"/);
+  assert.match(html, /go directly to OpenAI[\s\S]{0,500}JoDevelop does not receive or store/);
+  assert.match(html, /does not sign you in[\s\S]{0,240}open-source connector/);
+  assert.doesNotMatch(html, /reply-ai-data-consent|I agree to this processing/);
+  assert.match(options, /dataProcessingConsentVersion: aiEnabled \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
   assert.match(options, /normalized\.enabled = normalized\.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION/);
   assert.match(background, /error\.code = consentGranted \? "not_configured" : "consent_required"/);
   assert.match(content, /await isAiProcessingEnabled\(\)/);
   assert.match(social, /await isAiProcessingEnabled\(\)/);
   assert.match(content, /action !== "undo" && action !== "redo" && !\(await isAiProcessingEnabled\(\)\)/);
   assert.match(social, /async function runAction[\s\S]{0,260}await isAiProcessingEnabled\(\)/);
+});
+
+test("all supported UI locales are complete and the AI disclosure names the real recipient", () => {
+  const { localeMessages } = require(path.join(root, "scripts", "locales.js"));
+  for (const locale of ["en", "fr", "de", "es", "ja"]) {
+    const messages = localeMessages[locale];
+    assert.ok(messages.optionsPrivacyTitle);
+    assert.match(messages.optionsPrivacyDisclosure, /OpenAI/);
+    assert.match(messages.optionsPrivacyDisclosure, /JoDevelop/);
+    if (locale !== "en") {
+      assert.notEqual(messages.optionsPrivacyDisclosure, localeMessages.en.optionsPrivacyDisclosure, locale);
+      assert.notEqual(messages.replyAiConsentRequired, localeMessages.en.replyAiConsentRequired, locale);
+    }
+  }
+
+  const unchangedTechnicalLabels = new Set([
+    "actionTitle",
+    "draftLanguageAuto",
+    "extensionName",
+    "imageGenerationFormatPortrait",
+    "imageGenerationMoodWarm",
+    "imageGenerationOptionAuto",
+    "optionsCodexReasoningUltra",
+    "optionsPrompt",
+    "optionsPromptHint",
+    "optionsTabEngine",
+    "optionsTitle",
+    "replyStyleOption"
+  ]);
+  for (const locale of ["de", "es", "ja"]) {
+    for (const key of Object.keys(localeMessages.en)) {
+      if (localeMessages[locale][key] === localeMessages.en[key]) {
+        assert.ok(unchangedTechnicalLabels.has(key), `${locale}/${key} unexpectedly falls back to English`);
+      }
+    }
+  }
 });
 
 test("X relationship badges remain independent from optional AI consent", () => {
@@ -93,7 +130,7 @@ test("asset generation preserves real Store screenshots and pads the 128px icon"
   assert.match(assets, /target_size = max\(1, round\(size \* 0\.75\)\)/);
   assert.doesNotMatch(assets.slice(assets.indexOf("def main():")), /screenshot\(STORE/);
   assert.match(read("tests/social-cdp.mjs"), /Page\.captureScreenshot/);
-  assert.match(read("tests/options-cdp.mjs"), /#reply-ai-data-consent/);
+  assert.match(read("tests/options-cdp.mjs"), /#reply-ai-enabled/);
 });
 
 test("generated text keeps one blank line between short paragraphs", () => {

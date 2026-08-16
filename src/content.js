@@ -1327,7 +1327,7 @@
 
     if (action !== "undo" && action !== "redo" && !(await isAiProcessingEnabled())) {
       button._xtensionDraftActionLastActivatedAt = now;
-      showToast(localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first."));
+      showToast(localizedText("replyAiConsentRequired", "Enable AI features in Xtension options first."));
       openExtensionOptions();
       return;
     }
@@ -3781,7 +3781,7 @@
 
   function getReplyAiSetupErrorMessage(code) {
     if (code === "consent_required") {
-      return localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first.");
+      return localizedText("replyAiConsentRequired", "Enable AI features in Xtension options first.");
     }
     if (code === "provider_login_required") {
       return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then request the suggestions again.");
@@ -4734,7 +4734,7 @@
   function getImageGenerationErrorMessage(error) {
     const code = cleanText(error?.code || "").toLowerCase();
     if (code === "consent_required") {
-      return localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first.");
+      return localizedText("replyAiConsentRequired", "Enable AI features in Xtension options first.");
     }
     if (code === "codex_timeout") {
       return localizedText("imageGenerationTimeout", "Codex did not finish this generation in time. No post was changed; try again.");

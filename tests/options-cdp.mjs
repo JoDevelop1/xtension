@@ -36,7 +36,7 @@ await command("Runtime.enable");
 await command("Page.enable");
 await command("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 for (let attempt = 0; attempt < 80; attempt += 1) {
-  const ready = await evaluate('document.readyState === "complete" && Boolean(document.querySelector("#reply-ai-data-consent"))');
+  const ready = await evaluate('document.readyState === "complete" && Boolean(document.querySelector("#reply-ai-enabled"))');
   if (ready) break;
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
@@ -44,7 +44,7 @@ const disclosure = await evaluate('document.querySelector("[data-i18n=optionsPri
 if (!disclosure.includes("OpenAI") || !disclosure.includes("PDF")) {
   throw new Error("The real options disclosure was not rendered before screenshot capture.");
 }
-await evaluate('window.scrollTo(0, 0); document.querySelector("#reply-ai-data-consent")?.focus(); true');
+await evaluate('window.scrollTo(0, 0); document.querySelector("#reply-ai-enabled")?.focus(); true');
 const screenshot = await command("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
 fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64"));
 socket.close();
