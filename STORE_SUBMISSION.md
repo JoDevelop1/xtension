@@ -14,7 +14,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-chrome-v0.6.32.zip
+dist/xtension-chrome-v0.6.33.zip
 ```
 
 Assets to provide:
@@ -77,7 +77,7 @@ The x.com and twitter.com matches are required to add Xtension's preparation and
 Bridge download disclosure:
 
 ```text
-Xtension's optional AI features require a separate Windows Codex Connector installer. Chrome Web Store cannot install native executables for an extension, so when the connector is absent Xtension displays an Install button in Options that opens the public installer hosted in the same source repository. Once installed, Options displays both the installed and latest available connector versions. Connectors from 0.6.32 onward verify the published SHA-256, NOVA2G Authenticode signature, and release version before installing later connector updates silently and restarting themselves. The extension remains usable for PDF export without installing the connector.
+Xtension's optional AI features require a separate Windows Codex Connector installer. Chrome Web Store cannot install native executables for an extension, so when the connector is absent Xtension displays an Install button in Options that opens the public installer hosted in the same source repository. Once installed, Options displays both the installed and latest available connector versions. Connectors from 0.6.33 onward verify the published SHA-256, NOVA2G Authenticode signature, and release version before installing later connector updates silently and restarting themselves. The extension remains usable for PDF export without installing the connector.
 ```
 
 Native messaging permission:
@@ -113,7 +113,7 @@ Official documentation:
 File to upload:
 
 ```text
-dist/xtension-edge-v0.6.32.zip
+dist/xtension-edge-v0.6.33.zip
 ```
 
 Assets to provide:
@@ -134,7 +134,7 @@ Official documentation:
 File to use:
 
 ```text
-dist/xtension-firefox-v0.6.32.zip
+dist/xtension-firefox-v0.6.33.zip
 ```
 
 For a listed publication or signature, use `web-ext` from the Firefox folder:

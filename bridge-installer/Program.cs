@@ -22,6 +22,7 @@ internal static class Program
     {
         var uninstallMode = HasArg(args, "--uninstall");
         var fromTemp = HasArg(args, "--from-temp");
+        var fromUpdate = HasArg(args, "--from-update");
         var quietMode = HasArg(args, "--quiet") || HasArg(args, "/quiet") || HasArg(args, "/qn");
         if (uninstallMode && !fromTemp && TryRelaunchUninstallerFromTemp())
         {
@@ -38,7 +39,7 @@ internal static class Program
             }
             else
             {
-                Install();
+                Install(fromUpdate);
                 Log("Installation completed successfully.");
             }
 
@@ -55,7 +56,7 @@ internal static class Program
         }
     }
 
-    private static void Install()
+    private static void Install(bool fromUpdate)
     {
         var installDir = GetInstallDirectory();
         var tempDir = Path.Combine(Path.GetTempPath(), "XtensionBridgeSetup-" + Guid.NewGuid().ToString("N"));
@@ -69,7 +70,7 @@ internal static class Program
             Step("Stopping the previous connector.");
             RemoveRunEntry();
             CleanupLegacyServiceIfPossible();
-            StopInstalledProcesses(installDir);
+            StopInstalledProcesses(installDir, preserveUpdaterProcess: fromUpdate);
             CleanupLegacyStartupTask();
             CleanupLegacyArtifacts();
 
@@ -184,7 +185,7 @@ internal static class Program
         process.Dispose();
     }
 
-    private static void StopInstalledProcesses(string installDir)
+    private static void StopInstalledProcesses(string installDir, bool preserveUpdaterProcess = false)
     {
         var allowedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -213,7 +214,12 @@ internal static class Program
                     }
 
                     Log($"Stopping installed connector process {process.Id}.");
-                    process.Kill(entireProcessTree: true);
+                    // During a self-update the installer is a child of the
+                    // connector being replaced. Killing the entire host tree
+                    // would also terminate this signed installer before it can
+                    // copy the new files. Normal installs retain the stronger
+                    // full-tree cleanup.
+                    process.Kill(entireProcessTree: !preserveUpdaterProcess);
                     process.WaitForExit(7000);
                 }
                 catch (Exception error)

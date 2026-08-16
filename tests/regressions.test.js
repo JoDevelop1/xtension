@@ -755,6 +755,9 @@ test("the Windows connector builds, signs, packages, and installs the native inp
   assert.ok(release.indexOf("bridge:input:build") < release.indexOf("bridge:sign"));
   assert.match(installerBuild, /bridge-input\\XtensionInput\.exe/);
   assert.match(installer, /File\.Copy\([^\n]+XtensionInput\.exe/);
+  assert.match(installer, /fromUpdate = HasArg\(args, "--from-update"\)/);
+  assert.match(installer, /StopInstalledProcesses\(installDir, preserveUpdaterProcess: fromUpdate\)/);
+  assert.match(installer, /process\.Kill\(entireProcessTree: !preserveUpdaterProcess\)/);
   assert.match(signing, /bridge-input\\XtensionInput\.exe/);
 });
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.33
+
+- Hardens automatic updates by importing the Windows Authenticode security module from its trusted system path instead of depending on the caller's PowerShell module environment.
+- Keeps the signed update installer alive while it stops the old connector by avoiding an entire-process-tree kill specifically in verified self-update mode.
+- Adds a real public-release integration test that observes the connector go offline, return on the target version, and preserve ChatGPT authentication.
+
 ## v0.6.32
 
 - Shows the installed connector version and the latest published connector version directly in ChatGPT / Codex Options.

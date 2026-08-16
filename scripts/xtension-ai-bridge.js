@@ -1908,8 +1908,23 @@ async function verifyConnectorInstallerSignature(installerPath, expectedVersion)
   if (!fs.existsSync(powershell)) {
     throw createBridgeError("Windows signature verification is unavailable.", { code: "update_signature_unavailable", statusCode: 500 });
   }
+  const securityModule = path.join(
+    windowsDirectory,
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+    "Modules",
+    "Microsoft.PowerShell.Security",
+    "Microsoft.PowerShell.Security.psd1"
+  );
+  if (!fs.existsSync(securityModule)) {
+    throw createBridgeError("The Windows signature module is unavailable.", { code: "update_signature_unavailable", statusCode: 500 });
+  }
   const quotedPath = `'${installerPath.replace(/'/g, "''")}'`;
+  const quotedModule = `'${securityModule.replace(/'/g, "''")}'`;
   const command = [
+    `$ErrorActionPreference = 'Stop'`,
+    `Import-Module -Name ${quotedModule} -Force -ErrorAction Stop`,
     `$signature = Get-AuthenticodeSignature -LiteralPath ${quotedPath}`,
     `$version = (Get-Item -LiteralPath ${quotedPath}).VersionInfo.ProductVersion`,
     `[pscustomobject]@{ Status = [string]$signature.Status; Subject = [string]$signature.SignerCertificate.Subject; ProductVersion = [string]$version } | ConvertTo-Json -Compress`
@@ -1975,17 +1990,42 @@ async function launchPreparedConnectorUpdate(prepared) {
   updateRuntimeState.state = "installing";
   updateRuntimeState.error = "";
   logBridgeEvent("connector_update_installing", { fromVersion: CONNECTOR_VERSION, toVersion: prepared.version });
+  const captureInstallerForDevelopmentTest = !process.pkg
+    && Boolean(process.env.XTENSION_DEV_CONNECTOR_VERSION)
+    && process.env.XTENSION_DEV_UPDATE_CAPTURE !== "0";
   const child = spawn(prepared.installerPath, ["--quiet", "--from-update"], {
     cwd: path.dirname(prepared.installerPath),
-    detached: true,
+    detached: false,
     windowsHide: true,
-    stdio: "ignore"
+    stdio: captureInstallerForDevelopmentTest ? ["ignore", "pipe", "pipe"] : "ignore"
   });
+  const stdout = [];
+  const stderr = [];
+  if (captureInstallerForDevelopmentTest) {
+    child.stdout.on("data", (chunk) => stdout.push(chunk));
+    child.stderr.on("data", (chunk) => stderr.push(chunk));
+  }
+  const closed = captureInstallerForDevelopmentTest
+    ? new Promise((resolve) => child.once("close", resolve))
+    : null;
   await new Promise((resolve, reject) => {
     child.once("spawn", resolve);
     child.once("error", reject);
   });
-  child.unref();
+  if (captureInstallerForDevelopmentTest) {
+    const exitCode = await closed;
+    if (exitCode !== 0) {
+      throw createBridgeError(`The connector installer failed with code ${exitCode}: ${truncateText(Buffer.concat([...stdout, ...stderr]).toString("utf8"), 400)}`, {
+        code: "update_installer_failed",
+        statusCode: 500
+      });
+    }
+  } else {
+    // On Windows an unreferenced child remains alive when its parent exits. The
+    // installer update mode stops the host and bridge without an entire-tree
+    // kill, so this signed child can finish replacement.
+    child.unref();
+  }
   updateRuntimeState.state = "restarting";
 }
 

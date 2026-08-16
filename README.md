@@ -85,7 +85,7 @@ npm run bridge:install
 
 The installer copies the connector into `%LOCALAPPDATA%\Programs\Xtension\Bridge`, registers a current-user startup entry, starts the hidden supervisor in that same Windows session, and verifies the loopback endpoint. This is what lets Codex reuse the user's existing ChatGPT OAuth session.
 
-After this first installation, the connector checks the public Xtension release manifest periodically. A newer connector is downloaded only from the documented Xtension/GitHub release hosts, its SHA-256 and valid NOVA2G Authenticode signature are checked, and the signed installer replaces and restarts the connector silently when no AI request is active. Options displays the installed and latest available versions. Connectors older than 0.6.32 need this one final manual installer run before automatic updates are available.
+After this first installation, the connector checks the public Xtension release manifest periodically. A newer connector is downloaded only from the documented Xtension/GitHub release hosts, its SHA-256 and valid NOVA2G Authenticode signature are checked, and the signed installer replaces and restarts the connector silently when no AI request is active. Options displays the installed and latest available versions. Connectors older than 0.6.33 need this one final manual installer run before automatic updates are available.
 
 To rebuild the browser packages locally:
 
@@ -138,9 +138,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.32.zip`
-- `dist/xtension-edge-v0.6.32.zip`
-- `dist/xtension-firefox-v0.6.32.zip`
+- `dist/xtension-chrome-v0.6.33.zip`
+- `dist/xtension-edge-v0.6.33.zip`
+- `dist/xtension-firefox-v0.6.33.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`
