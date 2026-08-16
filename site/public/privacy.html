@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Xtension Privacy Policy</title>
+    <meta name="description" content="Privacy policy for the Xtension browser extension." />
+    <link rel="icon" href="/icon-32.png" type="image/png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="/"><img src="/icon-32.png" alt="" width="28" height="28" /><span>Xtension</span></a>
+        <nav class="nav" aria-label="Main"><a href="/">Home</a><a href="https://github.com/JoDevelop1/xtension" rel="noopener">Source code</a></nav>
+      </div>
+    </header>
+    <main class="policy-page">
+      <article class="wrap narrow">
+        <p class="eyebrow"><span class="dot"></span>Effective August 16, 2026</p>
+        <h1>Xtension Privacy Policy</h1>
+        <p>Xtension's single purpose is to help users prepare, adapt, and preserve content for use on supported social platforms. This includes drafting and improving posts or replies, generating related images, displaying relevant public relationship context on X/Twitter, and exporting X/Twitter content to PDF.</p>
+        <p>Xtension does not sell data, use data for advertising or creditworthiness, or send data to a server owned by the developer. The extension has no analytics or tracking SDK. Optional AI features transmit the required request data to OpenAI through a connector on the user's computer.</p>
+
+        <h2>Consent and control</h2>
+        <p>AI processing is disabled by default. Before supported-page content, a draft, URL, author identifier, relationship context, or image is processed for AI features, the user must affirmatively accept the disclosure in Xtension's options and enable the AI tools. Consent can be withdrawn at any time.</p>
+        <p>After consent, Xtension may request contextual reply suggestions when the user deliberately focuses an empty supported reply field. Other AI operations start when the user chooses an Xtension action. Results remain editable drafts; Xtension never activates a platform's final publish control.</p>
+        <p>PDF export requires no AI consent, runs locally in the browser, and is never sent to OpenAI or the developer.</p>
+
+        <h2>Data processed</h2>
+        <ul>
+          <li><strong>Website content:</strong> visible posts, comments, articles, quoted content, same-author threads, drafts, instructions, public images, and video thumbnails needed for the selected feature.</li>
+          <li><strong>Public identifiers:</strong> display names and account handles shown next to that content.</li>
+          <li><strong>Current and source URLs:</strong> only for the supported page or selected public post; Xtension does not build a browsing profile.</li>
+          <li><strong>X/Twitter relationship context:</strong> public following, followed-by, or mutual status already present in X/Twitter responses. Its observation is disabled before AI consent.</li>
+          <li><strong>Local settings and diagnostics:</strong> consent and feature settings plus a bounded log of operation names, timestamps, durations, text lengths, and errors. Full content, prompts, passwords, cookies, tokens, and API keys are excluded from diagnostics.</li>
+        </ul>
+        <p>Xtension contains no microphone, camera, audio-capture, cookie-reading, password-reading, private-message, or platform-authentication-token code.</p>
+
+        <h2>AI processing and sharing</h2>
+        <p>When an enabled AI feature runs, Xtension sends only the required data to the Xtension Codex Connector at <code>127.0.0.1:47623</code>. The connector starts the official Codex App Server and sends the request to OpenAI using the user's ChatGPT-managed authentication, selected model, and reasoning effort. OpenAI is the only external AI processor used by these features.</p>
+        <p>Xtension does not request or store an OpenAI API key or ChatGPT OAuth token. No website content, draft, identifier, URL, relationship status, image, or AI response is sent to a developer-owned server.</p>
+
+        <h2>Security, storage, and retention</h2>
+        <p>The connector binds only to <code>127.0.0.1</code>, validates the request host, and accepts the official Xtension Chrome Web Store origin by default. Explicitly configured development or other-browser origins require a shared local secret. The extension contains all executable extension code and does not download or evaluate remote code.</p>
+        <p>PDFs are saved through the browser's normal save flow. Extension settings and bounded diagnostic metadata remain in extension storage until cleared or uninstalled. The optional Windows connector keeps its logs and generated image files locally under <code>%LOCALAPPDATA%\Xtension\Bridge</code>. Xtension has no developer account database.</p>
+
+        <h2>Limited Use</h2>
+        <p>Xtension's use and transfer of information received from Google APIs, if any, complies with the <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data-faq">Chrome Web Store User Data Policy</a>, including its Limited Use requirements. Data is used only for Xtension's single user-facing purpose, is not sold, is not used for advertising, and is not used for creditworthiness or lending.</p>
+
+        <h2>Contact</h2>
+        <p>Email: <a href="mailto:contact@jodevelop.com">contact@jodevelop.com</a><br />Support: <a href="https://github.com/JoDevelop1/xtension/issues">GitHub issues</a></p>
+      </article>
+    </main>
+  </body>
+</html>

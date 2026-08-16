@@ -34,6 +34,14 @@ const NATIVE_TYPE_TARGET_LIMIT = 16;
 let nativeTypeInFlight = false;
 const nativeTypeTargets = new Map();
 const bridgeToken = cleanText(process.env.XTENSION_BRIDGE_TOKEN || "");
+const OFFICIAL_CHROME_EXTENSION_ORIGIN = "chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm";
+const allowedExtensionOrigins = new Set([
+  OFFICIAL_CHROME_EXTENSION_ORIGIN,
+  ...cleanText(process.env.XTENSION_ALLOWED_EXTENSION_ORIGINS || "")
+    .split(",")
+    .map((value) => cleanText(value))
+    .filter((value) => isBrowserExtensionOrigin(value))
+]);
 const bridgeLogFile = cleanText(process.env.XTENSION_BRIDGE_LOG_FILE || getDefaultBridgeLogFile());
 const bridgeLogMaxBytes = 2 * 1024 * 1024;
 
@@ -1637,6 +1645,18 @@ function setCorsHeaders(request, response, pathname) {
 }
 
 function isAllowedBrowserExtensionOrigin(origin) {
+  if (allowedExtensionOrigins.has(origin)) {
+    return true;
+  }
+
+  // A non-Store development build, Edge or Firefox may be explicitly enabled
+  // by its local administrator, but only together with a shared secret. The
+  // default installation never grants every browser extension access to the
+  // user's ChatGPT session.
+  return Boolean(bridgeToken) && isBrowserExtensionOrigin(origin);
+}
+
+function isBrowserExtensionOrigin(origin) {
   return /^chrome-extension:\/\/[a-p]{32}$/i.test(origin)
     || /^moz-extension:\/\/[0-9a-f-]{36}$/i.test(origin)
     || /^safari-web-extension:\/\/[0-9A-F-]{36}$/i.test(origin);

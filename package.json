@@ -1,12 +1,14 @@
 {
   "name": "xtension",
-  "version": "0.6.27",
-  "description": "Browser extension for AI-assisted social replies powered by the user's OpenAI Codex account.",
+  "version": "0.6.28",
+  "description": "Prepare, adapt, and preserve social-platform content with AI writing, images, and local X/Twitter PDF export.",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/build.js",
     "build:assets": "python scripts/generate_assets.py",
+    "capture:store-assets": "powershell -ExecutionPolicy Bypass -File scripts/capture-store-assets.ps1",
+    "test:bridge-origin": "powershell -ExecutionPolicy Bypass -File scripts/test-bridge-origin.ps1",
     "build:full": "npm run build:assets && npm run build",
     "check": "node --check src/content.js && node --check src/social.js && node --check src/main-world.js && node --check src/background.js && node --check src/options.js && node --check scripts/build.js && node --check scripts/locales.js && node --check scripts/version.js && node --check scripts/xtension-ai-bridge.js && npm test",
     "test": "node --test tests/*.test.js",

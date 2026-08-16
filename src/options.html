@@ -12,7 +12,7 @@
         <div class="brand-mark"><img src="icons/icon-48.png" alt="" width="44" height="44"></div>
         <div>
           <h1 data-i18n="optionsTitle">Xtension</h1>
-          <p data-i18n="optionsDescription">Connect ChatGPT and customize the Codex tools used across supported social platforms.</p>
+          <p data-i18n="optionsDescription">Control how Xtension prepares social content with your ChatGPT account while PDF preservation stays local.</p>
         </div>
       </header>
 
@@ -25,6 +25,16 @@
         </nav>
 
         <section class="settings-tab-panel is-active" data-tab-panel="connection">
+          <fieldset class="setting-section privacy-consent-section">
+            <legend data-i18n="optionsPrivacyTitle">Privacy and AI processing</legend>
+            <p class="field-note" data-i18n="optionsPrivacyDisclosure">When AI tools are enabled, Xtension reads the nearby visible post, public author name or handle, source URL, media context, and the text you type. It sends only the data needed for the action through the local Xtension connector to OpenAI using your ChatGPT account. Suggested replies may be requested automatically after you deliberately focus an empty reply field. PDF export stays entirely local. Xtension never publishes for you.</p>
+            <label class="consent-checkbox" for="reply-ai-data-consent">
+              <input id="reply-ai-data-consent" type="checkbox">
+              <span data-i18n="optionsPrivacyConsent">I agree to this processing and want to enable the AI tools.</span>
+            </label>
+            <p class="field-note"><a href="https://xtension.jodevelop.com/privacy.html" target="_blank" rel="noopener noreferrer" data-i18n="optionsPrivacyLink">Read the privacy policy</a></p>
+          </fieldset>
+
           <fieldset class="setting-section ai-settings-section">
             <legend data-i18n="optionsSectionEngine">ChatGPT / Codex connection</legend>
 

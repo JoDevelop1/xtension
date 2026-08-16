@@ -49,8 +49,41 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "24");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "25");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
+});
+
+test("AI website-content processing requires a versioned affirmative consent", () => {
+  const options = read("src/options.js");
+  const background = read("src/background.js");
+  const html = read("src/options.html");
+  const content = read("src/content.js");
+  const social = read("src/social.js");
+  assert.match(html, /id="reply-ai-data-consent" type="checkbox"/);
+  assert.match(html, /nearby visible post[\s\S]{0,500}OpenAI[\s\S]{0,500}automatically/);
+  assert.match(options, /dataProcessingConsentVersion: consentGranted \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
+  assert.match(options, /normalized\.enabled = normalized\.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION/);
+  assert.match(background, /error\.code = consentGranted \? "not_configured" : "consent_required"/);
+  assert.match(content, /await isAiProcessingEnabled\(\)/);
+  assert.match(social, /await isAiProcessingEnabled\(\)/);
+  assert.match(content, /action !== "undo" && action !== "redo" && !\(await isAiProcessingEnabled\(\)\)/);
+  assert.match(social, /async function runAction[\s\S]{0,260}await isAiProcessingEnabled\(\)/);
+});
+
+test("the local connector accepts the official Store origin by default, not every extension", () => {
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  assert.match(bridge, /OFFICIAL_CHROME_EXTENSION_ORIGIN = "chrome-extension:\/\/mjimpcncnbcngljfdifglncblmljgfkm"/);
+  assert.match(bridge, /if \(allowedExtensionOrigins\.has\(origin\)\)/);
+  assert.match(bridge, /return Boolean\(bridgeToken\) && isBrowserExtensionOrigin\(origin\)/);
+  assert.doesNotMatch(bridge, /function isAllowedBrowserExtensionOrigin\(origin\) \{\s+return \/\^chrome-extension/);
+});
+
+test("asset generation preserves real Store screenshots and pads the 128px icon", () => {
+  const assets = read("scripts/generate_assets.py");
+  assert.match(assets, /target_size = max\(1, round\(size \* 0\.75\)\)/);
+  assert.doesNotMatch(assets.slice(assets.indexOf("def main():")), /screenshot\(STORE/);
+  assert.match(read("tests/social-cdp.mjs"), /Page\.captureScreenshot/);
+  assert.match(read("tests/options-cdp.mjs"), /#reply-ai-data-consent/);
 });
 
 test("generated text keeps one blank line between short paragraphs", () => {
@@ -157,11 +190,13 @@ test("top-level post composers place Xtension on a dedicated row above X control
 });
 
 test("X relationship data exposes following and followed-by states without profile requests", async () => {
-  const attributes = new Map();
+  const attributes = new Map([["data-xtension-ai-processing-enabled", "1"]]);
   let fetchCount = 0;
   const document = {
     documentElement: {
-      setAttribute: (name, value) => attributes.set(name, value)
+      setAttribute: (name, value) => attributes.set(name, value),
+      getAttribute: (name) => attributes.get(name) || null,
+      removeAttribute: (name) => attributes.delete(name)
     },
     addEventListener: () => {},
     dispatchEvent: () => {},

@@ -150,6 +150,9 @@
       if (document.activeElement !== editor || readEditorText(editor)) {
         return;
       }
+      if (!(await isAiProcessingEnabled())) {
+        return;
+      }
       const hidden = await readStorageValue("replySuggestionsHidden");
       if (!hidden && !editor._xtensionSocialAutoRequested) {
         editor._xtensionSocialAutoRequested = true;
@@ -272,6 +275,12 @@
   async function runAction(button) {
     const registered = actionRegistry.get(button);
     if (!registered || button.disabled) return;
+    if (!(await isAiProcessingEnabled())) {
+      sendRuntimeMessage({ type: "xtension-open-options" }).catch(() => {});
+      const error = new Error(localize("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first."));
+      error.code = "consent_required";
+      throw error;
+    }
     if (registered.action === "suggestions" || (registered.action === "generate" && !readEditorText(registered.editor))) {
       await showSuggestions(registered.editor, { force: true });
       return;
@@ -640,10 +649,16 @@
       : editor?.innerText || editor?.textContent || "");
   }
 
-  function warmupBridge() {
+  async function warmupBridge() {
+    if (!(await isAiProcessingEnabled())) return;
     if (warmupBridge.lastAt && Date.now() - warmupBridge.lastAt < 5 * 60 * 1000) return;
     warmupBridge.lastAt = Date.now();
     sendRuntimeMessage({ type: "xtension-warmup-bridge" }).catch(() => {});
+  }
+
+  async function isAiProcessingEnabled() {
+    const config = await readStorageValue("replyAiConfig");
+    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 1;
   }
 
   function cleanup() {
@@ -662,7 +677,7 @@
   function createResponseError(response) {
     const error = new Error(response?.error || localize("socialReplyGenerationFailed", "Unable to generate replies."));
     error.code = response?.code || "generation_failed";
-    if (["bridge_unreachable", "bridge_update_required", "not_configured", "codex_login_required"].includes(error.code)) {
+    if (["bridge_unreachable", "bridge_update_required", "not_configured", "consent_required", "codex_login_required"].includes(error.code)) {
       const configure = window.confirm(`${error.message}\n\n${localize("socialReplyOpenSettings", "Open Xtension settings?")}`);
       if (configure) sendRuntimeMessage({ type: "xtension-open-options" }).catch(() => {});
     }

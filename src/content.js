@@ -17,6 +17,8 @@
   const FOLLOWING_BADGE_ATTRIBUTE = "data-xtension-following-badge";
   const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
   const FOLLOWING_MAP_EVENT = "xtension-following-map";
+  const MAIN_WORLD_AI_STATE_ATTRIBUTE = "data-xtension-ai-processing-enabled";
+  const MAIN_WORLD_AI_STATE_EVENT = "xtension-ai-processing-state";
   const DRAFT_ACTIONS_SELECTOR = "[data-xtension-draft-actions]";
   const DRAFT_ACTIONS_ATTRIBUTE = "data-xtension-draft-actions";
   const DRAFT_ACTIONS_HOST_SELECTOR = "[data-xtension-draft-actions-host]";
@@ -169,6 +171,7 @@
   let statusPageScrollToken = 0;
   let lastReplyImageReference = null;
   const followingStatusByHandle = new Map();
+  let aiStorageListenerInstalled = false;
 
   function start() {
     if (extensionContextInvalidated) {
@@ -186,6 +189,8 @@
     document.addEventListener("pointerup", handleDraftActionPointerUp, true);
     document.addEventListener("pointerup", scheduleEnhancementUnlessNativeMediaControl, true);
     document.addEventListener(FOLLOWING_MAP_EVENT, handleFollowingMapUpdate, false);
+    syncMainWorldAiProcessingState();
+    installAiStorageListener();
     handleFollowingMapUpdate();
     enhancePage();
 
@@ -1268,7 +1273,10 @@
 
   let lastBridgeWarmupAt = 0;
 
-  function warmupBridgeSoon() {
+  async function warmupBridgeSoon() {
+    if (!(await isAiProcessingEnabled())) {
+      return;
+    }
     const now = Date.now();
     if (now - lastBridgeWarmupAt < 5 * 60 * 1000) {
       return;
@@ -1319,6 +1327,13 @@
     // pour éviter un double déclenchement onéreux.
     const throttleMs = action === "undo" || action === "redo" ? 120 : 450;
     if (button._xtensionDraftActionLastActivatedAt && now - button._xtensionDraftActionLastActivatedAt < throttleMs) {
+      return;
+    }
+
+    if (action !== "undo" && action !== "redo" && !(await isAiProcessingEnabled())) {
+      button._xtensionDraftActionLastActivatedAt = now;
+      showToast(localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first."));
+      openExtensionOptions();
       return;
     }
 
@@ -2336,6 +2351,10 @@
 
     target._xtensionAutoReplySuggestionsRequested = true;
     window.setTimeout(async () => {
+      if (!(await isAiProcessingEnabled())) {
+        target._xtensionAutoReplySuggestionsRequested = false;
+        return;
+      }
       if (await getReplySuggestionsHidden()) {
         target._xtensionAutoReplySuggestionsRequested = false;
         updateReplySuggestionsToggleButtons(target);
@@ -3759,12 +3778,16 @@
 
   function isReplyAiSetupErrorCode(code) {
     return code === "not_configured"
+      || code === "consent_required"
       || code === "bridge_unreachable"
       || code === "bridge_update_required"
       || code === "provider_login_required";
   }
 
   function getReplyAiSetupErrorMessage(code) {
+    if (code === "consent_required") {
+      return localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first.");
+    }
     if (code === "provider_login_required") {
       return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then request the suggestions again.");
     }
@@ -4715,6 +4738,9 @@
 
   function getImageGenerationErrorMessage(error) {
     const code = cleanText(error?.code || "").toLowerCase();
+    if (code === "consent_required") {
+      return localizedText("replyAiConsentRequired", "Review and accept the AI data-processing disclosure in Xtension options first.");
+    }
     if (code === "codex_timeout") {
       return localizedText("imageGenerationTimeout", "Codex did not finish this generation in time. No post was changed; try again.");
     }
@@ -4954,6 +4980,30 @@
         }
 
         resolve(false);
+      }
+    });
+  }
+
+  async function isAiProcessingEnabled() {
+    const stored = await storageGet({ replyAiConfig: null });
+    const config = stored?.replyAiConfig;
+    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 1;
+  }
+
+  async function syncMainWorldAiProcessingState() {
+    const enabled = await isAiProcessingEnabled();
+    const root = document.documentElement;
+    if (!root) return;
+    root.setAttribute(MAIN_WORLD_AI_STATE_ATTRIBUTE, enabled ? "1" : "0");
+    document.dispatchEvent(new Event(MAIN_WORLD_AI_STATE_EVENT));
+  }
+
+  function installAiStorageListener() {
+    if (aiStorageListenerInstalled || !EXTENSION_API?.storage?.onChanged?.addListener) return;
+    aiStorageListenerInstalled = true;
+    EXTENSION_API.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes?.replyAiConfig) {
+        syncMainWorldAiProcessingState();
       }
     });
   }

@@ -3,18 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Xtension — AI replies across social platforms</title>
+    <title>Xtension — prepare and preserve social content</title>
     <meta
       name="description"
-      content="Generate and review AI replies on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube through your own ChatGPT/Codex account. Xtension inserts drafts and never publishes automatically."
+      content="Prepare, adapt and preserve social content with AI writing tools, image generation and local X/Twitter PDF export. Xtension never publishes automatically."
     />
     <link rel="icon" href="/icon-32.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icon-128.png" />
     <link rel="stylesheet" href="/styles.css" />
-    <meta property="og:title" content="Xtension — AI replies across social platforms" />
+    <meta property="og:title" content="Xtension — prepare and preserve social content" />
     <meta
       property="og:description"
-      content="AI correction, translation, generation and contextual reply suggestions across supported social platforms — powered by your own ChatGPT/Codex account."
+      content="One workflow for AI-assisted social writing, image generation and local X/Twitter PDF preservation."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://xtension.jodevelop.com/" />
@@ -53,7 +53,7 @@
         <div class="wrap">
           <p class="eyebrow">
             <span class="dot"></span>
-            <span data-i18n="heroEyebrow">Version 0.6.27 · Chrome · Edge · Firefox</span>
+            <span data-i18n="heroEyebrow">Version 0.6.28 · Chrome · Edge · Firefox</span>
           </p>
           <h1 data-i18n="heroTitle">
             Reply better across social platforms,<br />with your own ChatGPT account.
@@ -92,9 +92,8 @@
         <div class="wrap">
           <h2 data-i18n="featuresTitle">Everything Xtension does</h2>
           <p class="section-lead" data-i18n="featuresLead">
-            Two independent halves: a PDF exporter that runs entirely in your browser, and a set of
-            AI writing tools that run through your own ChatGPT/Codex account. Each one can be used
-            without the other.
+            One focused workflow for social content: write and adapt posts, create related images,
+            and preserve useful X/Twitter material as clean local PDFs.
           </p>
 
           <h3 class="group-title" data-i18n="groupPdf">PDF export — fully local</h3>
@@ -291,7 +290,9 @@
                   Fetches the public images of that content from <code>pbs.twimg.com</code>.
                 </li>
                 <li data-i18n="pd3">
-                  Sends that content to the local connector only when you click an AI action.
+                  After your explicit opt-in, sends only the data needed for an AI action to OpenAI
+                  through the local connector. Suggestions may also be requested after you
+                  deliberately focus an empty supported reply field.
                 </li>
                 <li data-i18n="pd4">
                   Stores your settings in the browser's extension storage, on your machine.
@@ -304,7 +305,7 @@
                 <li data-i18n="pn1">No data sent to a server owned by the developer.</li>
                 <li data-i18n="pn2">No platform password, cookie or authentication token read.</li>
                 <li data-i18n="pn3">No access to your private messages.</li>
-                <li data-i18n="pn4">No browsing history, no analytics, no tracking, no ads.</li>
+                <li data-i18n="pn4">No browsing profile, no analytics, no tracking, no ads.</li>
                 <li data-i18n="pn5">No OpenAI API key requested or stored.</li>
                 <li data-i18n="pn6">No automatic publication: Xtension inserts a draft and never presses Publish.</li>
               </ul>
@@ -319,8 +320,9 @@
                 not reachable from your local network or from the internet.
               </li>
               <li data-i18n="sec2">
-                <strong>Origin-restricted.</strong> Only browser-extension origins are accepted by
-                the connector's CORS policy, and an optional shared token can be required.
+                <strong>Origin-restricted.</strong> The default connector accepts only Xtension's
+                official Chrome Web Store origin. Explicitly configured development or other-browser
+                origins also require a shared local secret.
               </li>
               <li data-i18n="sec3">
                 <strong>No admin rights.</strong> The connector installs under your own user profile
@@ -343,7 +345,7 @@
           </div>
 
           <p class="note">
-            <a href="https://github.com/JoDevelop1/xtension/blob/main/PRIVACY.md" rel="noopener" data-i18n="privacyLink">
+            <a href="/privacy.html" data-i18n="privacyLink">
               Read the full privacy policy →
             </a>
           </p>
@@ -363,19 +365,19 @@
 
           <h3 class="group-title" data-i18n="dlStep1">1 · The browser extension</h3>
           <div class="dl-grid">
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.27/xtension-chrome-v0.6.27.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.28/xtension-chrome-v0.6.28.zip">
               <span class="dl-name">Chrome</span>
-              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.27</span>
+              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.28</span>
               <span class="dl-action" data-i18n="dlZip">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.27/xtension-edge-v0.6.27.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.28/xtension-edge-v0.6.28.zip">
               <span class="dl-name">Edge</span>
-              <span class="dl-meta">v0.6.27</span>
+              <span class="dl-meta">v0.6.28</span>
               <span class="dl-action" data-i18n="dlZip2">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.27/xtension-firefox-v0.6.27.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.28/xtension-firefox-v0.6.28.zip">
               <span class="dl-name">Firefox</span>
-              <span class="dl-meta">v0.6.27</span>
+              <span class="dl-meta">v0.6.28</span>
               <span class="dl-action" data-i18n="dlZip3">Download .zip</span>
             </a>
           </div>
@@ -413,7 +415,7 @@
           </p>
           <a class="btn btn-primary btn-lg" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe">
             <span data-i18n="dlConnectorBtn">Download XtensionBridgeSetup.exe</span>
-            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · v0.6.27 · from GitHub</span>
+            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · v0.6.28 · from GitHub</span>
           </a>
 
           <div class="checksums">
@@ -435,21 +437,21 @@
                   <td><code>3fd05664d0c76f4dac998e3187549a0200b43dab5335c6f814ef5a6134894471</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-chrome-v0.6.27.zip</td>
+                  <td>xtension-chrome-v0.6.28.zip</td>
                   <td><code>f806e089bde166f6ffde99836098e4d6cd56c16d6f1f03b27abb6b7467bae32a</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-edge-v0.6.27.zip</td>
+                  <td>xtension-edge-v0.6.28.zip</td>
                   <td><code>f806e089bde166f6ffde99836098e4d6cd56c16d6f1f03b27abb6b7467bae32a</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-firefox-v0.6.27.zip</td>
+                  <td>xtension-firefox-v0.6.28.zip</td>
                   <td><code>0cc362f1aea179f586a4525df0bcefdcacc2fc2e56e8d53308a1d52d1d188d98</code></td>
                 </tr>
               </tbody>
             </table>
             <p class="fineprint">
-              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.27/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
+              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.28/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
               ·
               <a href="/version.json" data-i18n="versionJson">version.json</a>
             </p>

@@ -2,53 +2,42 @@
 
 ## Short summary
 
-Generate AI replies across social platforms with your own ChatGPT account, plus PDF export on X.
+Prepare social posts with AI, generate images, and preserve X/Twitter content as local PDFs.
 
 ## Description
 
-Xtension adds user-invoked AI reply tools to X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube. X/Twitter also includes local PDF export, ImageGen and direct Following / Not following badges in the timeline.
+Xtension helps you prepare, adapt, and preserve content for supported social platforms from one browser workflow. Improve a draft, create a contextual reply, generate a related image, or keep useful X/Twitter content as a clean PDF. You review every result: Xtension never presses the final publish button.
 
-**1. PDF export — entirely local**
+### Write and adapt social content
 
-Open the `...` menu on an X article, tweet or thread and choose **Download as PDF**. The extension detects the relevant content, extracts text, structure, quoted tweets and media images, then generates the PDF in your browser. For threads, Xtension groups contiguous posts from the same author and stops before replies from other accounts. Your browser opens its normal **Save as** dialog so you choose the file name and folder. No external service is involved.
+On X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube, Xtension adds writing controls beside recognized post or comment editors:
 
-- Direct PDF export from an X/Twitter article, tweet or thread menu.
-- Preserves article structure: headings, paragraphs, lists and quotes.
-- Detects same-author threads without capturing every reply.
-- Includes quoted tweets with their available content.
-- Embeds media images, avatars, card images and video preview thumbnails.
-- Keeps links clickable and adds the source URL.
-- Generated locally, offline, without an external service.
+- **Correction** fixes grammar, spelling, and syntax while preserving your voice.
+- **Translation** translates your draft into the output language you select.
+- **Generate** turns an instruction into a post or reply adapted to the visible platform.
+- **Suggested replies** creates three contextual draft choices from customizable prompts.
+- **Image generation on X/Twitter** creates a related image in square, landscape, or portrait formats, with style, framing, and mood controls.
+- **Undo and Redo** keeps every AI edit reversible before you publish.
+- **Model controls** let you choose a Codex model available to your ChatGPT account and its reasoning effort.
 
-**2. AI writing tools — through your own ChatGPT account**
+After you opt in to AI processing, contextual suggestions may be requested when you deliberately focus an empty supported reply field. Choosing a suggestion only inserts an editable draft.
 
-When you enable the draft tools, a compact toolbar appears beside supported social reply editors:
+### Preserve X/Twitter content as PDF
 
-- **Correction** — fixes grammar, spelling and syntax while keeping your voice.
-- **Translation** — translates your draft into the output language you choose.
-- **Reformulation** — rewrites your draft to be clearer or more impactful.
-- **Generate** — turns an instruction into a finished post or reply adapted to the visible platform.
-- **Reply suggestions** — three contextual responses generated independently from customizable prompts.
-- **Image generation on X/Twitter** — describe an image and attach it to your post, with square, landscape and portrait formats, style presets, framing and mood options.
-- **Undo / Redo** — every AI edit is reversible from the composer toolbar.
-- **Model control** — choose any Codex model available to your ChatGPT account and set the reasoning effort per request.
+Choose **Download as PDF** from the `...` menu of an X/Twitter article, post, or thread. Xtension preserves headings, paragraphs, lists, quotes, same-author thread structure, quoted posts, available media images, video preview thumbnails, clickable links, and the source URL. The PDF is generated locally in your browser and saved through the normal save dialog. It is not sent to OpenAI or the developer.
 
-These AI features require the **Xtension Codex Connector**, a small program you install separately on Windows. It listens only on `127.0.0.1:47623`, is reachable only from your own machine, and starts the official Codex App Server using the ChatGPT sign-in that already exists on your computer. Xtension never asks for an OpenAI API key and never sends your data to a server owned by the developer. The connector is a separate download: https://xtension.jodevelop.com
+### ChatGPT connection and privacy
 
-The extension interface is available in English, French, German, Spanish and Japanese.
+AI features are disabled until you accept a clear data-processing disclosure in the options. They require the separately installed **Xtension Codex Connector** for Windows. The connector listens only on `127.0.0.1:47623`, accepts the official Xtension Chrome Web Store origin by default, and starts the official Codex App Server using your ChatGPT-managed sign-in. Xtension never asks for an OpenAI API key.
 
-Permissions:
+For an AI request, Xtension may process the nearby visible post or comment, public author name or handle, source URL, quoted content, visible links, selected public images, and the draft or instruction you type. The required request data goes through the local connector to OpenAI under your ChatGPT account. Nothing is sent to a server owned by the Xtension developer. There are no analytics, ads, or tracking.
 
-- `x.com` / `twitter.com`: add Xtension actions to the X/Twitter menu and composer, and read only the visible content you selected.
-- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky and YouTube: add the AI toolbar beside recognized post/comment editors and read the nearby visible post when you use reply assistance. Private-message routes are excluded.
-- `pbs.twimg.com`: fetch the public X/Twitter images, avatars, card images and video preview thumbnails referenced by the selected content.
-- `localhost:47623` / `127.0.0.1:47623`: connect the optional AI tools to the Codex Connector running on your own computer. The extension itself cannot execute local commands.
-- `storage`: save your settings in the browser.
+Private-message routes are excluded. Xtension does not read platform passwords, cookies, or authentication tokens. It contains no microphone or audio-capture code.
 
-Xtension does not collect personal data, does not send content to a developer-owned server, and contains no analytics or tracking. It inserts generated text as a draft and never presses the final publish button. It contains no microphone or audio-capture code. The full source code is published under the Apache License 2.0 at https://github.com/JoDevelop1/xtension
+The interface is available in English, French, German, Spanish, and Japanese. Source code is published under Apache License 2.0 at https://github.com/JoDevelop1/xtension
 
-Xtension is an independent project. It is not affiliated with X Corp., OpenAI, Microsoft, Google, Mozilla or Apple.
+Xtension is independent and is not affiliated with X Corp., OpenAI, Microsoft, Google, Mozilla, Apple, or the other supported platforms.
 
 ## Keywords
 
-X, Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, YouTube, PDF, AI, ChatGPT, Codex, writing, translation, reply
+social media, X, Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, YouTube, PDF, AI, ChatGPT, Codex, writing, translation, reply, image

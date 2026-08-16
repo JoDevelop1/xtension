@@ -2,9 +2,11 @@
 
 **Website: [xtension.jodevelop.com](https://xtension.jodevelop.com)** — feature overview, downloads and published checksums.
 
-Xtension is a browser extension for AI-assisted social replies. OpenAI Codex-assisted correction, translation, reformulation, and contextual reply suggestions work on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube. X/Twitter also keeps its PDF export, ImageGen integration, and direct timeline following-status badges.
+Xtension is a browser extension for preparing, adapting, and preserving content for social platforms. OpenAI Codex-assisted correction, translation, generation, contextual reply suggestions, and image creation support the writing workflow on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube. X/Twitter content can also be preserved as a clean PDF generated locally in the browser.
 
 Generated text is inserted as a draft. Xtension never clicks a platform's final publish or submit control, so the user reviews and sends every reply.
+
+AI processing is disabled by default. The user must accept the disclosure in Xtension options before the extension reads supported-page context or drafts for AI use. After opt-in, contextual suggestions may be requested when the user deliberately focuses an empty supported reply field. PDF export stays local and does not require AI consent.
 
 Voice dictation was removed in 0.6.7. ChatGPT-managed Codex exposes no transcription model, so the feature could not work; rather than ship a microphone code path that never produced a result, the extension no longer contains any audio capture code at all.
 
@@ -53,14 +55,15 @@ also run the connector from source:
 npm run bridge
 ```
 
-The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, and ChatGPT account endpoints to the extension. Every route except `/ping` requires a browser-extension `Origin`, and the `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token setup:
+The connector listens on `http://127.0.0.1:47623` and exposes `/ping`, `/transform`, `/transform-stream`, and ChatGPT account endpoints to the extension. Its default CORS allowlist contains only the official Chrome Web Store origin `chrome-extension://mjimpcncnbcngljfdifglncblmljgfkm`; the `Host` header is validated to block DNS rebinding. It starts a persistent `codex app-server` in the signed-in Windows user's session, reuses Codex's ChatGPT-managed authentication, applies the selected model and reasoning effort to each request, denies tool approvals, and uses read-only ephemeral threads. For a shared local-token development or alternate-browser setup:
 
 ```powershell
 $env:XTENSION_BRIDGE_TOKEN='choose-a-local-token'
+$env:XTENSION_ALLOWED_EXTENSION_ORIGINS='chrome-extension://your-local-extension-id'
 npm run bridge
 ```
 
-Then enter the same token in Xtension's hidden connector configuration. The connector is bound to `127.0.0.1`, requires a browser-extension `Origin` on every route except `/ping`, and validates the `Host` header.
+Then enter the same token in Xtension's hidden connector configuration. Explicitly configured origins are accepted only when a shared token is present. The connector remains bound to `127.0.0.1`, requires an allowed origin on every route except `/ping`, and validates the `Host` header.
 
 Maintainers can build, sign, and package the Windows bridge executable and its silent per-user host with:
 
@@ -133,9 +136,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.27.zip`
-- `dist/xtension-edge-v0.6.27.zip`
-- `dist/xtension-firefox-v0.6.27.zip`
+- `dist/xtension-chrome-v0.6.28.zip`
+- `dist/xtension-edge-v0.6.28.zip`
+- `dist/xtension-firefox-v0.6.28.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`
@@ -146,8 +149,8 @@ See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while s
 
 ## Permissions
 
-- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter draft tools, PDF export, reply suggestions, and timeline following-status badges.
-- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the AI toolbar only beside recognized post/comment editors and read the nearby visible post when the user requests or opens reply suggestions.
+- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter content-preparation controls, local PDF export, consent-gated reply suggestions, and consent-gated timeline relationship badges.
+- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the writing toolbar beside recognized post/comment editors. Nearby visible context is read for AI only after affirmative consent and a user action or deliberate focus in an empty supported reply field.
 - `https://pbs.twimg.com/*`: fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the selected content.
 - `http://localhost:47623/*`, `http://127.0.0.1:47623/*`: connect to the Xtension Codex Connector running on the user's computer on the default loopback port.
 

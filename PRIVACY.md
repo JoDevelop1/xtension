@@ -1,45 +1,61 @@
-# Privacy Policy
+# Xtension Privacy Policy
 
-Xtension does not collect, sell, or store personal data on a developer-owned server.
+Effective date: August 16, 2026
 
-Xtension contains no microphone, camera, or audio-capture code. The extension runs on X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube pages. X/Twitter PDF export is processed locally. The optional draft tools (correction, translation, reformulation, reply generation, and image generation) use the local Xtension Codex Connector, which the user installs and runs on Windows, and the user's authenticated OpenAI Codex/ChatGPT account. Request data is sent to OpenAI by Codex when an AI operation is requested. Xtension does not request or store an OpenAI API key.
+Xtension's single purpose is to help users prepare, adapt, and preserve content for use on supported social platforms. This includes drafting and improving posts or replies, generating related images, displaying relevant public relationship context on X/Twitter, and exporting X/Twitter content to PDF.
 
-## Data Processed Locally
+Xtension does not sell data, use data for advertising or creditworthiness, or send data to a server owned by the developer. The extension has no analytics or tracking SDK. Some optional AI features do transmit data to OpenAI through a connector running on the user's own computer, as described below.
 
-- Visible text from the selected or nearby post, comment, article, reply composer, or thread on a supported platform.
-- Source URL of the selected content.
-- Public images, avatars, card images, and video preview thumbnails displayed in the selected content.
-- User draft text when the user asks Xtension to correct, translate, or reformulate a draft.
-- Extension settings stored in browser extension storage, including the loopback connector URL and an optional local connector token. ChatGPT OAuth tokens are managed by Codex, not stored by Xtension.
-- A local diagnostic log, capped at 160 entries, kept in extension storage and clearable from the options page. It records operation names, timestamps, durations, text *lengths*, and error codes. Draft text, tweet content, prompts, tokens, and API keys are stripped before an entry is written.
+## Consent and Control
 
-## AI Request Processing
+AI processing is disabled by default. Before any supported-page content, draft, URL, author identifier, relationship context, or image is processed for AI features, the user must affirmatively accept the disclosure shown in Xtension's options and enable the AI tools. A user can withdraw consent at any time by disabling the AI tools or clearing that consent in the options.
 
-When the draft tools are enabled, Xtension sends the visible supported-platform context, user draft text, or image data needed for generation to the Xtension Codex Connector running on the user's own computer:
+After consent, Xtension may request contextual reply suggestions when the user deliberately focuses an empty supported reply field. Other AI operations begin when the user chooses an Xtension correction, translation, generation, suggestion, or image action. Xtension inserts results as editable drafts and never activates a platform's final publish or submit control.
 
-- The connector is bound to `127.0.0.1` and is only reachable from the local machine.
-- The connector only accepts requests presenting a browser-extension origin, and validates the `Host` header so that a remote site cannot reach it through DNS rebinding.
-- The connector starts the official Codex App Server using ChatGPT-managed OAuth authentication.
-- Codex sends the request to OpenAI using the model and reasoning effort selected by the user; the defaults are `gpt-5.6-luna` and low reasoning. Xtension does not send data to an Xtension developer server.
-- The extension itself cannot execute local commands.
+PDF export does not require AI consent. It is generated locally in the browser and is never sent to OpenAI or the developer.
 
-## Data Not Collected by Xtension
+## Data Processed
 
-- No X/Twitter password.
-- No cookie.
-- No X/Twitter authentication token.
-- No browsing history.
-- No private message access.
-- No automatic publication: Xtension inserts drafts but never activates a platform's final publish or submit control.
-- No analytics, tracking, or advertising.
-- No upload to an Xtension developer-owned server.
+Depending on the feature used, Xtension may process these categories:
 
-## Storage
+- **Website content:** visible text from a nearby post, comment, article, reply composer, quoted post, or same-author thread; the user's draft or instruction; and public images or video thumbnails associated with that content.
+- **Identifiers contained in website content:** public display names and account handles visible next to the selected content.
+- **Current-page and source URLs:** URLs for the supported page or selected public post, used to preserve sources and give AI the relevant context. Xtension does not build a browsing-history profile.
+- **Public relationship context on X/Twitter:** following, followed-by, or mutual status already present in X/Twitter responses, used to display timeline badges. This observation remains off until AI processing has been accepted and enabled.
+- **Extension settings:** consent state, AI enablement, model, reasoning effort, writing preferences, loopback connector URL, and an optional local connector token, stored in browser extension storage.
+- **Diagnostic metadata:** up to 160 local entries containing operation names, timestamps, durations, text lengths, routing information, and error codes. Full post text, drafts, prompts, account tokens, and API keys are excluded.
 
-Generated PDFs are saved only through the user's browser download flow. Xtension stores extension settings and the local diagnostic log in browser extension storage so the user's preferences persist.
+Xtension contains no microphone, camera, audio-capture, cookie-reading, password-reading, private-message, or platform-authentication-token code.
 
-The separately installed Windows connector writes on the user's own machine only, under `%LOCALAPPDATA%\Xtension\Bridge`: its operation log, and any image generated through the image tool. It also registers a per-user startup entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\XtensionCodexConnector`) so it is available when the user signs in. Uninstalling the connector removes both.
+## AI Request Processing and Sharing
+
+When an AI feature is enabled and invoked, Xtension sends only the data needed for that feature to the Xtension Codex Connector at `127.0.0.1:47623` on the user's computer. The connector starts the official Codex App Server and sends the request to OpenAI using the user's ChatGPT-managed authentication, selected model, and reasoning effort.
+
+OpenAI is the only external AI processor used by these features. Its handling of data is governed by the user's OpenAI account and applicable OpenAI terms and privacy controls. Xtension does not request or store an OpenAI API key or ChatGPT OAuth token. ChatGPT authentication is managed by Codex outside extension storage.
+
+No website content, draft, identifier, URL, relationship status, image, or AI response is sent to a developer-owned server.
+
+## Local Connector Security
+
+- The connector binds only to `127.0.0.1`, validates the request `Host`, and is not reachable from the local network or internet.
+- The default connector accepts the official Chrome Web Store Xtension origin only. Other explicitly configured development or browser origins require a shared local secret.
+- The extension package contains all executable extension code. It does not download or evaluate remote code.
+- The extension cannot execute local commands. The separately installed connector performs only its documented Codex and native draft-insertion operations.
+
+## Storage and Retention
+
+Generated PDFs are saved only through the browser's normal save flow. Settings and bounded diagnostic metadata remain in browser extension storage until the user clears them or uninstalls the extension.
+
+The optional Windows connector stores its logs and generated image files locally under `%LOCALAPPDATA%\Xtension\Bridge`. It registers a per-user startup entry at `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\XtensionCodexConnector`. Uninstalling the connector removes the installed program; the user can delete remaining locally generated files or logs.
+
+Xtension has no developer account database and therefore retains no user data on developer infrastructure.
+
+## Limited Use
+
+Xtension's use and transfer of information received from Google APIs, if any, complies with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including the Limited Use requirements. Data is used only to provide or improve Xtension's single user-facing purpose, is not sold, is not used for advertising, is not used for creditworthiness or lending, and is not transferred to humans except with the user's affirmative agreement for support, for security purposes, to comply with law, or as part of a merger or acquisition.
 
 ## Contact
 
-Support: https://github.com/JoDevelop1/xtension/issues
+Support and privacy questions: contact@jodevelop.com
+
+Issue tracker: https://github.com/JoDevelop1/xtension/issues

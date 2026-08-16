@@ -7,7 +7,7 @@ This file is a maintenance memo for publishing Xtension as a public GitHub repos
 Use this in the repository **Description** field:
 
 ```text
-Browser extension to improve the X/Twitter experience with practical tools.
+Prepare, adapt, and preserve social-platform content with AI writing, images, and local X/Twitter PDF export.
 ```
 
 ## Repository Creation
@@ -62,15 +62,15 @@ The workflow also declares `contents: write` so it can attach generated zip file
 Create the tag:
 
 ```powershell
-git tag v0.4.16
-git push origin v0.4.16
+git tag v0.6.28
+git push origin v0.6.28
 ```
 
 The GitHub Actions workflow builds:
 
-- `xtension-edge-v0.4.16.zip`
-- `xtension-chrome-v0.4.16.zip`
-- `xtension-firefox-v0.4.16.zip`
+- `xtension-edge-v0.6.28.zip`
+- `xtension-chrome-v0.6.28.zip`
+- `xtension-firefox-v0.6.28.zip`
 - `SHA256SUMS.txt`
 
 The signed Windows bridge is built locally because it uses the Trusted Signing setup shared with ClonyVoice:
@@ -92,7 +92,7 @@ If the browser files are not attached automatically, create or edit the release 
 Use the matching file:
 
 ```text
-release-notes/v0.4.16.md
+release-notes/v0.6.28.md
 ```
 
 ## Pre-Publication Check
@@ -132,6 +132,6 @@ Official documentation:
 Example PowerShell with `$env:GITHUB_TOKEN` already set:
 
 ```powershell
-$body = @{ name = "xtension"; private = $false; description = "Browser extension to improve the X/Twitter experience with practical tools." } | ConvertTo-Json
+$body = @{ name = "xtension"; private = $false; description = "Prepare, adapt, and preserve social-platform content with AI writing, images, and local X/Twitter PDF export." } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "https://api.github.com/user/repos" -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" } -Body $body -ContentType "application/json"
 ```

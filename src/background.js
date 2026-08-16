@@ -4,7 +4,8 @@ const storageApi = extensionApi?.storage?.local;
 const actionApi = extensionApi?.action || extensionApi?.browserAction;
 const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 
-const REPLY_AI_CONFIG_VERSION = 24;
+const REPLY_AI_CONFIG_VERSION = 25;
+const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
 // Les réponses X sont courtes et bien délimitées. Le mode low est le meilleur
@@ -80,7 +81,8 @@ const DEFAULT_REPLY_PROMPT_PROFILES = [
 
 const DEFAULT_REPLY_AI_CONFIG = {
   configVersion: REPLY_AI_CONFIG_VERSION,
-  enabled: true,
+  enabled: false,
+  dataProcessingConsentVersion: 0,
   codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
   bridgeToken: "",
   codexModel: DEFAULT_CODEX_MODEL,
@@ -353,9 +355,7 @@ async function streamDraftOperation(port, message) {
   const operation = normalizeDraftTransformOperation(message?.operation || "generate");
   const draftText = String(message?.text || "").trim();
   if (!config.enabled) {
-    const error = new Error("AI bridge is not configured.");
-    error.code = "not_configured";
-    throw error;
+    throw createAiDisabledError(config);
   }
   if (!draftText) {
     postToPort(port, { type: "done", text: "" });
@@ -729,9 +729,7 @@ async function transformReplyDraft(operation, text, locale, targetLanguage, cont
     logAiRoute(config, `draft_${normalizedOperation}`, {
       enabled: false
     });
-    const error = new Error("AI bridge is not configured.");
-    error.code = "not_configured";
-    throw error;
+    throw createAiDisabledError(config);
   }
 
   if (!draftText) {
@@ -845,9 +843,7 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
   const config = await getReplyAiConfig();
   const profile = getReplyPromptProfile(config, profileIndex);
   if (!config.enabled) {
-    const error = new Error("AI tools are disabled in Xtension settings.");
-    error.code = "not_configured";
-    throw error;
+    throw createAiDisabledError(config);
   }
 
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
@@ -915,9 +911,7 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
 async function generateImageWithBridge(message) {
   const config = await getReplyAiConfig();
   if (!config.enabled) {
-    const error = new Error("AI tools are disabled in Xtension settings.");
-    error.code = "not_configured";
-    throw error;
+    throw createAiDisabledError(config);
   }
 
   const prompt = cleanDraftText(message?.prompt || "").slice(0, 5000);
@@ -1008,6 +1002,15 @@ async function getReplyAiConfig() {
   return config;
 }
 
+function createAiDisabledError(config) {
+  const consentGranted = Number(config?.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION;
+  const error = new Error(consentGranted
+    ? "AI tools are disabled in Xtension settings."
+    : "Review and accept the AI data-processing disclosure in Xtension options first.");
+  error.code = consentGranted ? "not_configured" : "consent_required";
+  return error;
+}
+
 function normalizeReplyAiConfig(config) {
   const rawConfig = config && typeof config === "object" ? config : {};
   const previousConfigVersion = Number(rawConfig.configVersion) || 0;
@@ -1017,7 +1020,11 @@ function normalizeReplyAiConfig(config) {
   };
 
   normalized.configVersion = REPLY_AI_CONFIG_VERSION;
-  normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
+  normalized.dataProcessingConsentVersion = Number(rawConfig.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION
+    ? REQUIRED_AI_DATA_CONSENT_VERSION
+    : 0;
+  normalized.enabled = normalized.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION
+    && rawConfig.enabled === true;
   normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
   normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
@@ -1238,7 +1245,7 @@ async function typeTextWithBridge(config, text, replaceExisting, targetToken, ex
 async function handleNativeTypeRequest(message) {
   const config = await getReplyAiConfig();
   if (!config.enabled) {
-    return { ok: false, code: "disabled" };
+    return { ok: false, code: Number(config?.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION ? "disabled" : "consent_required" };
   }
   const text = String(message?.text || "");
   if (!text.trim()) {
@@ -1259,7 +1266,7 @@ async function handleNativeTypeRequest(message) {
 async function handleNativeTypePrepareRequest(message) {
   const config = await getReplyAiConfig();
   if (!config.enabled) {
-    return { ok: false, code: "disabled" };
+    return { ok: false, code: Number(config?.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION ? "disabled" : "consent_required" };
   }
   if (!(await bridgeSupportsNativeType(config))) {
     return { ok: false, code: "native_type_unavailable" };
@@ -1278,7 +1285,7 @@ async function handleNativeTypePrepareRequest(message) {
 async function handleNativeTypeCapabilityRequest() {
   const config = await getReplyAiConfig();
   if (!config.enabled) {
-    return { ok: false, available: false, code: "disabled" };
+    return { ok: false, available: false, code: Number(config?.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION ? "disabled" : "consent_required" };
   }
   const available = await bridgeSupportsNativeType(config);
   return { ok: true, available };

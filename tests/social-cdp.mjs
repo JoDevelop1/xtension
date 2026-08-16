@@ -1,4 +1,7 @@
+import fs from "node:fs";
+
 const wsUrl = process.argv[2];
+const screenshotPath = process.argv[3] || "";
 
 if (!wsUrl) {
   throw new Error("A DevTools WebSocket URL is required.");
@@ -51,6 +54,7 @@ async function trustedClick(selector) {
 
 await command("Runtime.enable");
 await command("Page.enable");
+await command("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 await evaluate("document.fonts?.ready");
 for (let attempt = 0; attempt < 40; attempt += 1) {
   const ready = await evaluate(`document.readyState === "complete" && Boolean(document.querySelector("[data-xtension-social-host]"))`);
@@ -88,6 +92,15 @@ const generated = JSON.parse(await evaluate(`JSON.stringify({
 })`));
 if (generated.panel !== 1 || generated.suggestions.length !== 3 || generated.submitted) {
   throw new Error(`Unexpected generated state: ${JSON.stringify(generated)}`);
+}
+
+if (screenshotPath) {
+  const screenshot = await command("Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+    captureBeyondViewport: false
+  });
+  fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64"));
 }
 
 await trustedClick(".xtension-social-suggestion > button");

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.28
+
+- Keeps the X/Twitter PDF export intact and presents PDF preservation, AI writing, and image generation as one focused social-content workflow for Chrome Web Store review.
+- Adds a prominent, versioned opt-in before any supported-page content, draft, public author identifier, URL, relationship context, or image can be processed by AI. Existing installations are asked to consent again; PDF export remains available without consent.
+- Restricts the local Codex Connector to Xtension's official Chrome Web Store origin by default. Explicit development or alternate-browser origins require both configuration and a shared local secret.
+- Publishes an accurate Limited Use privacy policy and conservative Chrome data-type declarations, including third-party OpenAI processing and automatic suggestions after deliberate focus in an empty reply field.
+- Replaces illustrated Store screenshots with automated 1280x800 captures of the real options and social-reply interfaces, and applies the recommended transparent padding to the 128px extension icon.
+
 ## v0.6.27
 
 - Adds a yellow-gold **↔ Mutual** relationship badge when X/Twitter explicitly reports that the viewer and the timeline author follow each other.

@@ -117,7 +117,7 @@ def load_store_screenshot():
     return fallback
 
 
-def icon(size):
+def render_logo_artwork(size):
     scale_factor = 4 if size <= 128 else 2
     canvas_size = size * scale_factor
     mask = Image.new("L", (canvas_size, canvas_size), 0)
@@ -146,6 +146,26 @@ def icon(size):
         img = img.resize((size, size), Image.Resampling.LANCZOS)
 
     return img
+
+
+def icon(size):
+    """Render the mark with Chrome Web Store's recommended 16/128 padding."""
+    artwork = render_logo_artwork(size)
+    bounds = artwork.getchannel("A").getbbox()
+    if not bounds:
+        return artwork
+
+    cropped = artwork.crop(bounds)
+    target_size = max(1, round(size * 0.75))
+    scale = min(target_size / cropped.width, target_size / cropped.height)
+    rendered_size = (
+        max(1, round(cropped.width * scale)),
+        max(1, round(cropped.height * scale)),
+    )
+    cropped = cropped.resize(rendered_size, Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.alpha_composite(cropped, ((size - rendered_size[0]) // 2, (size - rendered_size[1]) // 2))
+    return canvas
 
 
 def scale_logo_path(points, canvas_size):
@@ -256,13 +276,13 @@ def promo(width, height, path, marquee=False):
         mark = icon(92)
         img.alpha_composite(mark, (58, 44))
         d.text((168, 46), "Xtension", fill="#0f1419", font=font(46, True))
-        d.text((170, 105), "Improve your X/Twitter experience", fill="#536471", font=font(25))
+        d.text((170, 105), "Prepare content for social platforms", fill="#536471", font=font(25))
 
-        d.text((62, 190), "PDF and AI writing,", fill="#0f1419", font=font(54, True))
-        d.text((62, 255), "inside X/Twitter.", fill="#0f1419", font=font(54, True))
+        d.text((62, 190), "Write, create,", fill="#0f1419", font=font(54, True))
+        d.text((62, 255), "and preserve.", fill="#0f1419", font=font(54, True))
         draw_wrapped(
             d,
-            "Export posts locally, improve drafts, generate contextual replies, and create images with your own ChatGPT account.",
+            "Improve social drafts, create contextual replies and images, and preserve X/Twitter content as local PDFs.",
             (66, 344),
             470,
             font(24),
@@ -275,18 +295,18 @@ def promo(width, height, path, marquee=False):
             chip_x += draw_chip(d, (chip_x, 462), label, color) + 12
 
         d.rounded_rectangle((648, 444, 905, 492), radius=24, fill="#0f1419")
-        d.text((676, 454), "New action in the menu", fill="#ffffff", font=font(20, True))
+        d.text((676, 454), "Explicit privacy controls", fill="#ffffff", font=font(20, True))
     else:
         mark = icon(58)
         img.alpha_composite(mark, (26, 22))
         d.text((96, 27), "Xtension", fill="#0f1419", font=font(29, True))
-        d.text((98, 66), "Improve your X/Twitter experience", fill="#536471", font=font(16))
+        d.text((98, 66), "Prepare and preserve social content", fill="#536471", font=font(16))
 
-        d.text((28, 114), "PDF & AI tools for X", fill="#0f1419", font=font(30, True))
+        d.text((28, 114), "Your social content toolkit", fill="#0f1419", font=font(29, True))
 
         rounded_rectangle(d, (24, 170, 204, 252), 16, "#ffffff", "#d8e0e5", 1)
         d.ellipse((42, 202, 54, 214), fill="#4285f4")
-        d.text((66, 194), "Export PDF", fill="#0f1419", font=font(18, True))
+        d.text((66, 194), "Save as PDF", fill="#0f1419", font=font(18, True))
         rounded_rectangle(d, (220, 170, 416, 252), 16, "#ffffff", "#d8e0e5", 1)
         d.ellipse((238, 202, 250, 214), fill="#34a853")
         d.text((262, 194), "Write with AI", fill="#0f1419", font=font(18, True))
@@ -362,10 +382,8 @@ def screenshot(path, variant=1):
 
 def main():
     save_icons()
-    # Store screenshots are generated from synthetic content so releases never
-    # publish a real profile, post, avatar, or other user data by accident.
-    screenshot(STORE / "screenshot-1-1280x800.png", 1)
-    screenshot(STORE / "screenshot-2-1280x800.png", 2)
+    # Store screenshots are captured from the real extension UI by the CDP
+    # harness. Do not replace them with illustrated mockups here.
     promo(440, 280, STORE / "promo-small-440x280.png", marquee=False)
     promo(1400, 560, STORE / "promo-marquee-1400x560.png", marquee=True)
 

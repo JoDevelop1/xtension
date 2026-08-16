@@ -9,7 +9,8 @@
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
   const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
 
-  const REPLY_AI_CONFIG_VERSION = 24;
+  const REPLY_AI_CONFIG_VERSION = 25;
+  const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
   const DEFAULT_CODEX_REASONING_EFFORT = "low";
@@ -49,7 +50,8 @@
 
   const DEFAULT_CONFIG = {
     configVersion: REPLY_AI_CONFIG_VERSION,
-    enabled: true,
+    enabled: false,
+    dataProcessingConsentVersion: 0,
     codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
     bridgeToken: "",
     codexModel: DEFAULT_CODEX_MODEL,
@@ -61,6 +63,7 @@
   };
 
   const form = document.querySelector("#reply-ai-form");
+  const dataConsentInput = document.querySelector("#reply-ai-data-consent");
   const enabledInput = document.querySelector("#reply-ai-enabled");
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
@@ -145,6 +148,20 @@
       showStatus(localizedText("optionsPromptsReset", "Default prompts restored. Save to apply them."), "");
     });
 
+    dataConsentInput?.addEventListener("change", () => {
+      if (enabledInput) {
+        enabledInput.checked = Boolean(dataConsentInput.checked);
+      }
+      syncConsentControls();
+    });
+
+    enabledInput?.addEventListener("change", () => {
+      if (enabledInput.checked && dataConsentInput && !dataConsentInput.checked) {
+        dataConsentInput.checked = true;
+      }
+      syncConsentControls();
+    });
+
     // Bind every control before touching the network. A stopped or wedged
     // connector must never make Save, tabs, or diagnostics appear broken.
     await loadConfig();
@@ -178,6 +195,9 @@
     if (enabledInput) {
       enabledInput.checked = Boolean(config.enabled);
     }
+    if (dataConsentInput) {
+      dataConsentInput.checked = config.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION;
+    }
     if (codexBridgeUrlInput) {
       codexBridgeUrlInput.value = config.codexBridgeUrl || DEFAULT_CODEX_BRIDGE_URL;
     }
@@ -198,6 +218,7 @@
       generatePromptInput.value = config.generatePrompt || DEFAULT_GENERATE_PROMPT;
     }
     setPromptProfileInputs(config.replyPromptProfiles);
+    syncConsentControls();
   }
 
   function setupTabs() {
@@ -229,7 +250,9 @@
   }
 
   async function saveConfig() {
-    await storageSet({ replyAiConfig: getFormConfig() });
+    const config = getFormConfig();
+    await storageSet({ replyAiConfig: config });
+    syncConsentControls();
     showStatus(localizedText("optionsSaved", "Settings saved."), "success");
     return true;
   }
@@ -726,11 +749,11 @@
   }
 
   function getFormConfig() {
+    const consentGranted = Boolean(dataConsentInput?.checked);
     return {
       configVersion: REPLY_AI_CONFIG_VERSION,
-      // The former enable/disable toggle is no longer part of the compact
-      // Codex page. Keep draft actions enabled for existing configurations.
-      enabled: enabledInput ? Boolean(enabledInput.checked) : true,
+      enabled: consentGranted && Boolean(enabledInput?.checked),
+      dataProcessingConsentVersion: consentGranted ? REQUIRED_AI_DATA_CONSENT_VERSION : 0,
       codexBridgeUrl: normalizeCodexBridgeUrl(codexBridgeUrlInput?.value) || DEFAULT_CODEX_BRIDGE_URL,
       bridgeToken: cleanText(bridgeTokenInput?.value || ""),
       codexModel: normalizeCodexModel(codexModelInput?.value || DEFAULT_CODEX_MODEL),
@@ -747,7 +770,11 @@
     const previousConfigVersion = Number(rawConfig.configVersion) || 0;
     const normalized = { ...DEFAULT_CONFIG, ...rawConfig };
     normalized.configVersion = REPLY_AI_CONFIG_VERSION;
-    normalized.enabled = typeof rawConfig.enabled === "boolean" ? rawConfig.enabled : true;
+    normalized.dataProcessingConsentVersion = Number(rawConfig.dataProcessingConsentVersion) === REQUIRED_AI_DATA_CONSENT_VERSION
+      ? REQUIRED_AI_DATA_CONSENT_VERSION
+      : 0;
+    normalized.enabled = normalized.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION
+      && rawConfig.enabled === true;
     normalized.codexBridgeUrl = normalizeCodexBridgeUrl(normalized.codexBridgeUrl) || DEFAULT_CODEX_BRIDGE_URL;
     normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
     normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
@@ -783,6 +810,14 @@
       "baseUrl", "model", "apiKey", "gpu", "replyLanguageMode"
     ].forEach((key) => delete normalized[key]);
     return normalized;
+  }
+
+  function syncConsentControls() {
+    const consentGranted = Boolean(dataConsentInput?.checked);
+    if (enabledInput) {
+      enabledInput.disabled = !consentGranted;
+      enabledInput.closest(".options-toggle")?.classList.toggle("is-disabled", !consentGranted);
+    }
   }
 
   function cloneDefaultReplyPromptProfiles() {

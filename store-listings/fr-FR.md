@@ -2,53 +2,42 @@
 
 ## Résumé court
 
-Générez des réponses IA sur vos réseaux avec votre compte ChatGPT, plus l'export PDF sur X.
+Préparez vos posts avec l'IA, créez des images et conservez le contenu X/Twitter en PDF local.
 
 ## Description
 
-Xtension ajoute des outils de réponse IA, déclenchés par l'utilisateur, à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube. X/Twitter conserve en plus l'export PDF local, ImageGen et les indicateurs Abonné / Non abonné directement dans la timeline.
+Xtension vous aide à préparer, adapter et conserver du contenu destiné aux plateformes sociales depuis un même parcours dans le navigateur. Améliorez un brouillon, créez une réponse contextuelle, générez une image associée ou conservez un contenu X/Twitter utile dans un PDF propre. Vous relisez chaque résultat : Xtension n'appuie jamais sur le bouton final de publication.
 
-**1. Export PDF — entièrement local**
+### Rédiger et adapter du contenu social
 
-Ouvrez le menu `...` d'un article, d'un tweet ou d'un fil X et choisissez **Télécharger en PDF**. L'extension détecte le contenu pertinent, extrait le texte, la structure, les tweets cités et les images, puis génère le PDF dans votre navigateur. Pour les fils, Xtension regroupe les messages successifs du même auteur et s'arrête avant les réponses des autres comptes. Votre navigateur ouvre sa boîte de dialogue **Enregistrer sous** habituelle : vous choisissez le nom du fichier et le dossier. Aucun service externe n'intervient.
+Sur X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube, Xtension ajoute des commandes de rédaction près des champs de post ou de commentaire reconnus :
 
-- Export PDF direct depuis le menu d'un article, tweet ou fil X/Twitter.
-- Conservation de la structure des articles : titres, paragraphes, listes et citations.
-- Détection des fils du même auteur sans capturer toutes les réponses.
-- Inclusion des tweets cités avec leur contenu disponible.
-- Intégration des images des médias, avatars, images de carte et vignettes vidéo.
-- Liens conservés cliquables et URL source ajoutée.
-- Génération locale, hors ligne, sans service externe.
+- **Correction** corrige la grammaire, l'orthographe et la syntaxe en préservant votre voix.
+- **Traduction** traduit votre brouillon dans la langue de sortie choisie.
+- **Générer** transforme une consigne en post ou réponse adapté à la plateforme visible.
+- **Réponses proposées** crée trois choix contextuels à partir de consignes personnalisables.
+- **Génération d'images sur X/Twitter** crée une image associée en format carré, paysage ou portrait, avec réglages de style, cadrage et ambiance.
+- **Annuler et Rétablir** rend chaque modification IA réversible avant publication.
+- **Choix du modèle** permet de sélectionner un modèle Codex disponible sur votre compte ChatGPT et son effort de raisonnement.
 
-**2. Outils de rédaction IA — via votre propre compte ChatGPT**
+Après votre accord au traitement par l'IA, des suggestions contextuelles peuvent être demandées lorsque vous placez volontairement le curseur dans un champ de réponse vide pris en charge. Choisir une suggestion insère uniquement un brouillon modifiable.
 
-Lorsque vous activez les outils de brouillon, une barre d'outils compacte apparaît près des champs de réponse pris en charge :
+### Conserver le contenu X/Twitter en PDF
 
-- **Correction** — corrige la grammaire, l'orthographe et la syntaxe en gardant votre voix.
-- **Traduction** — traduit votre brouillon dans la langue de sortie que vous choisissez.
-- **Reformulation** — réécrit votre brouillon pour le rendre plus clair ou plus percutant.
-- **Générer** — transforme une consigne en post ou réponse adapté à la plateforme visible.
-- **Suggestions de réponses** — trois réponses contextuelles générées indépendamment à partir de consignes personnalisables.
-- **Génération d'images sur X/Twitter** — décrivez une image et joignez-la à votre message, avec formats carré, paysage et portrait, préréglages de style, cadrage et ambiance.
-- **Annuler / Rétablir** — chaque modification par l'IA est réversible depuis la barre d'outils.
-- **Choix du modèle** — sélectionnez n'importe quel modèle Codex disponible sur votre compte ChatGPT et réglez l'effort de raisonnement par requête.
+Choisissez **Télécharger en PDF** dans le menu `...` d'un article, post ou fil X/Twitter. Xtension conserve titres, paragraphes, listes, citations, structure des fils du même auteur, posts cités, images disponibles, vignettes vidéo, liens cliquables et URL source. Le PDF est généré localement dans votre navigateur et enregistré via la boîte de dialogue habituelle. Il n'est envoyé ni à OpenAI ni au développeur.
 
-Ces fonctions IA nécessitent le **connecteur Codex Xtension**, un petit programme que vous installez séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, n'est joignable que depuis votre propre machine, et démarre le Codex App Server officiel en réutilisant la connexion ChatGPT déjà présente sur votre ordinateur. Xtension ne demande jamais de clé d'API OpenAI et n'envoie jamais vos données à un serveur appartenant au développeur. Le connecteur se télécharge séparément : https://xtension.jodevelop.com
+### Connexion ChatGPT et confidentialité
 
-L'interface de l'extension est disponible en anglais, français, allemand, espagnol et japonais.
+Les fonctions IA sont désactivées jusqu'à l'acceptation d'une information claire sur le traitement des données dans les options. Elles nécessitent le **connecteur Codex Xtension**, installé séparément sous Windows. Il écoute uniquement sur `127.0.0.1:47623`, accepte par défaut l'origine officielle d'Xtension sur le Chrome Web Store et démarre le Codex App Server officiel avec votre connexion ChatGPT. Xtension ne demande jamais de clé API OpenAI.
 
-Permissions utilisées :
+Pour une requête IA, Xtension peut traiter le post ou commentaire visible voisin, le nom ou pseudonyme public de l'auteur, l'URL source, le contenu cité, les liens visibles, les images publiques choisies et le brouillon ou la consigne saisis. Les données nécessaires passent par le connecteur local vers OpenAI sous votre compte ChatGPT. Rien n'est envoyé à un serveur appartenant au développeur d'Xtension. Il n'y a ni analyse d'audience, ni publicité, ni pistage.
 
-- `x.com` / `twitter.com` : ajouter les actions Xtension dans le menu et la zone de rédaction de X/Twitter, et lire uniquement le contenu visible que vous avez sélectionné.
-- Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : ajouter la barre IA près des champs de post ou commentaire reconnus et lire le post visible voisin lorsque vous utilisez l'aide à la réponse. Les routes de messages privés sont exclues.
-- `pbs.twimg.com` : récupérer les images, avatars, images de carte et vignettes vidéo publiques de X/Twitter liées au contenu sélectionné.
-- `localhost:47623` / `127.0.0.1:47623` : connecter les outils IA optionnels au connecteur Codex qui tourne sur votre propre ordinateur. L'extension elle-même ne peut pas exécuter de commandes locales.
-- `storage` : enregistrer vos réglages dans le navigateur.
+Les routes de messages privés sont exclues. Xtension ne lit ni les mots de passe, ni les cookies, ni les jetons d'authentification des plateformes. L'extension ne contient aucun code de capture micro ou audio.
 
-Xtension ne collecte aucune donnée personnelle, n'envoie rien à un serveur appartenant au développeur et ne contient ni analyse d'audience ni pistage. Le texte généré est inséré comme brouillon et l'extension ne clique jamais sur le bouton final de publication. Elle ne contient aucun code de capture micro ou audio. L'intégralité du code source est publiée sous licence Apache 2.0 sur https://github.com/JoDevelop1/xtension
+L'interface est disponible en anglais, français, allemand, espagnol et japonais. Le code source est publié sous licence Apache 2.0 sur https://github.com/JoDevelop1/xtension
 
-Xtension est un projet indépendant. Il n'est affilié ni à X Corp., ni à OpenAI, Microsoft, Google, Mozilla ou Apple.
+Xtension est indépendant et n'est affilié ni à X Corp., ni à OpenAI, Microsoft, Google, Mozilla, Apple ou aux autres plateformes prises en charge.
 
 ## Mots-clés
 
-X, Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, YouTube, PDF, IA, ChatGPT, Codex, rédaction, traduction, réponse
+réseaux sociaux, X, Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, YouTube, PDF, IA, ChatGPT, Codex, rédaction, traduction, réponse, image

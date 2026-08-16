@@ -137,6 +137,34 @@ body {
   padding: 0 8px;
 }
 
+.privacy-consent-section {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.consent-checkbox {
+  align-items: flex-start;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  font-weight: 750;
+  gap: 10px;
+  line-height: 20px;
+}
+
+.consent-checkbox input {
+  flex: 0 0 auto;
+  height: 18px;
+  margin: 1px 0 0;
+  width: 18px;
+}
+
+.privacy-consent-section a {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .connection-card {
   background: #f8fafc;
   border: 1px solid var(--border);

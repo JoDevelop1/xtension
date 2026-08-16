@@ -15,7 +15,7 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.27 · Chrome · Edge · Firefox',
+  heroEyebrow: 'Version 0.6.28 · Chrome · Edge · Firefox',
   heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
   heroLead:
     "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et les états Non abonné, Abonné ou Mutuel directement dans la timeline. Rien n'est publié automatiquement.",
@@ -29,7 +29,7 @@ const FR = {
 
   featuresTitle: 'Tout ce que fait Xtension',
   featuresLead:
-    "Deux moitiés indépendantes : un exportateur PDF qui fonctionne entièrement dans votre navigateur, et un ensemble d'outils de rédaction IA qui passent par votre compte ChatGPT/Codex. Chacune s'utilise sans l'autre.",
+    "Un même parcours centré sur le contenu social : rédiger et adapter des posts, créer des images associées et conserver les contenus X/Twitter utiles dans des PDF locaux propres.",
 
   groupPdf: 'Export PDF — entièrement local',
   f1Title: 'Export depuis le menu ···',
@@ -104,19 +104,19 @@ const FR = {
   privacyDoesTitle: 'Ce que fait Xtension',
   pd1: 'Lit le texte visible du message, article, fil ou brouillon sur lequel vous agissez.',
   pd2: 'Récupère les images publiques de ce contenu depuis <code>pbs.twimg.com</code>.',
-  pd3: "Envoie ce contenu au connecteur local uniquement lorsque vous cliquez sur une action IA.",
+  pd3: "Après votre accord explicite, envoie uniquement les données nécessaires à une action IA vers OpenAI via le connecteur local. Des suggestions peuvent aussi être demandées après votre action volontaire de placer le curseur dans un champ de réponse vide pris en charge.",
   pd4: "Enregistre vos réglages dans le stockage d'extension du navigateur, sur votre machine.",
   privacyNotTitle: 'Ce que Xtension ne fait jamais',
   pn1: 'Aucune donnée envoyée à un serveur appartenant au développeur.',
   pn2: "Aucun mot de passe, cookie ou jeton d'authentification des plateformes lu.",
   pn3: 'Aucun accès à vos messages privés.',
-  pn4: "Aucun historique de navigation, aucune analyse d'audience, aucun pistage, aucune publicité.",
+  pn4: "Aucun profil de navigation, aucune analyse d'audience, aucun pistage, aucune publicité.",
   pn5: "Aucune clé d'API OpenAI demandée ni stockée.",
   pn6: "Aucune publication automatique : Xtension insère un brouillon, jamais un clic sur Publier.",
 
   secTitle: 'Propriétés de sécurité vérifiables',
   sec1: "<strong>Boucle locale uniquement.</strong> Le connecteur écoute sur <code>127.0.0.1</code>. Il n'est joignable ni depuis votre réseau local, ni depuis Internet.",
-  sec2: "<strong>Origines restreintes.</strong> Seules les origines d'extension de navigateur sont acceptées par la politique CORS du connecteur, et un jeton partagé peut être exigé en option.",
+  sec2: "<strong>Origine restreinte.</strong> Le connecteur accepte par défaut uniquement l'origine officielle d'Xtension sur le Chrome Web Store. Les origines de développement ou d'autres navigateurs configurées explicitement exigent aussi un secret local partagé.",
   sec3: "<strong>Sans droits administrateur.</strong> Le connecteur s'installe dans votre profil utilisateur sous <code>%LOCALAPPDATA%</code>. Il ne s'exécute jamais en tant que SYSTEM.",
   sec4: "<strong>Signé et horodaté.</strong> L'installateur est signé via Microsoft Trusted Signing. Vérifiez-le dans Windows : clic droit → <em>Propriétés</em> → <em>Signatures numériques</em>.",
   sec5: '<strong>Empreintes publiées.</strong> Chaque téléchargement ci-dessous affiche son SHA-256 pour que vous puissiez vérifier le fichier reçu.',
@@ -127,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.27',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.28',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -144,7 +144,7 @@ const FR = {
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe pour l'utilisateur courant, sans droits administrateur, et démarre automatiquement à l'ouverture de session.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · v0.6.27 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.28 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',

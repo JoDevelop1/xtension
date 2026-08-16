@@ -78,7 +78,7 @@ const localeMessages = {
   },
   de: {
     extensionName: "Xtension",
-    extensionDescription: "KI-Antworten auf X/Twitter, Reddit, Facebook, Instagram und weiteren sozialen Plattformen erstellen und X-Beiträge als PDF exportieren.",
+    extensionDescription: "Inhalte für soziale Plattformen mit KI vorbereiten und X/Twitter-Inhalte als lokale PDFs bewahren.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Als PDF herunterladen",
     toastPreparingPdf: "PDF wird vorbereitet...",
@@ -102,7 +102,7 @@ const localeMessages = {
   },
   en: {
     extensionName: "Xtension",
-    extensionDescription: "Generate AI replies on X/Twitter, Reddit, Facebook, Instagram and other social platforms, and export X posts as PDF.",
+    extensionDescription: "Prepare social-platform content with AI writing and images, and preserve X/Twitter content as local PDFs.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Download as PDF",
     toastPreparingPdf: "Preparing the PDF...",
@@ -126,7 +126,7 @@ const localeMessages = {
   },
   es: {
     extensionName: "Xtension",
-    extensionDescription: "Genera respuestas con IA en X/Twitter, Reddit, Facebook, Instagram y otras redes sociales, y exporta publicaciones de X a PDF.",
+    extensionDescription: "Prepara contenido social con redacción e imágenes de IA y conserva contenido de X/Twitter como PDF local.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Descargar como PDF",
     toastPreparingPdf: "Preparando el PDF...",
@@ -174,7 +174,7 @@ const localeMessages = {
   },
   fr: {
     extensionName: "Xtension",
-    extensionDescription: "Générez des réponses IA sur X/Twitter, Reddit, Facebook, Instagram et d'autres réseaux, et exportez les posts X en PDF.",
+    extensionDescription: "Préparez vos contenus sociaux avec la rédaction et les images IA, et conservez X/Twitter en PDF local.",
     actionTitle: "Xtension",
     menuDownloadPdf: "Telecharger en PDF",
     toastPreparingPdf: "Preparation du PDF...",
@@ -246,7 +246,7 @@ const localeMessages = {
   },
   ja: {
     extensionName: "Xtension",
-    extensionDescription: "X/Twitter、Reddit、Facebook、Instagram などで AI 返信を生成し、X の投稿を PDF に書き出せます。",
+    extensionDescription: "AI の文章・画像機能でソーシャル投稿を準備し、X/Twitter のコンテンツをローカル PDF に保存します。",
     actionTitle: "Xtension",
     menuDownloadPdf: "PDF としてダウンロード",
     toastPreparingPdf: "PDF を準備しています...",
@@ -640,6 +640,10 @@ const replyFeatureMessages = {
 };
 
 const replyFeatureDefaultMessages = {
+  optionsPrivacyTitle: "Privacy and AI processing",
+  optionsPrivacyDisclosure: "When AI tools are enabled, Xtension reads the nearby visible post, public author name or handle, source URL, media context, and the text you type. It sends only the data needed for the action through the local Xtension connector to OpenAI using your ChatGPT account. Suggested replies may be requested automatically after you deliberately focus an empty reply field. PDF export stays entirely local. Xtension never publishes for you.",
+  optionsPrivacyConsent: "I agree to this processing and want to enable the AI tools.",
+  optionsPrivacyLink: "Read the privacy policy",
   followingBadgeFollowing: "Following",
   followingBadgeNotFollowing: "Not following",
   followingBadgeMutual: "Mutual",
@@ -773,6 +777,7 @@ const replyFeatureDefaultMessages = {
   toastGenerateFailed: "Unable to generate this reply.",
   toastGenerateUnchanged: "The generated reply did not change the draft.",
   replyAiNotConfigured: "Configure the OpenAI Codex connector in Xtension options first.",
+  replyAiConsentRequired: "Review and accept the AI data-processing disclosure in Xtension options first.",
   replyAiBridgeUnavailable: "The Xtension Codex connector is not reachable. Open Xtension options, install or restart it, then try again.",
   replyAiBridgeUpdateRequired: "Update the Xtension Codex connector in the extension options, then try again.",
   replyAiProviderLoginRequired: "Connect your ChatGPT account in Xtension options, then request the suggestions again.",
@@ -793,7 +798,7 @@ const replyFeatureDefaultMessages = {
   popupOpenSettings: "Open settings",
   popupNote: "Reply tools appear on supported social platforms; PDF export remains available on X/Twitter.",
   optionsTitle: "Xtension",
-  optionsDescription: "Connect ChatGPT, choose the Codex model, and set the reasoning effort used by Xtension across supported social platforms.",
+  optionsDescription: "Control how Xtension prepares social content with your ChatGPT account while PDF preservation stays local.",
   optionsTabReplies: "Replies",
   optionsTabBridge: "AI Bridge",
   optionsTabPrompt: "Prompt",
@@ -920,6 +925,11 @@ for (const [locale, messages] of Object.entries(replyStyleTranslations)) {
 }
 
 Object.assign(replyFeatureMessages.fr, {
+  optionsPrivacyTitle: "Confidentialité et traitement par l'IA",
+  optionsPrivacyDisclosure: "Lorsque les outils IA sont activés, Xtension lit le post visible voisin, le nom ou pseudonyme public de l'auteur, l'URL source, le contexte média et le texte que vous saisissez. Seules les données nécessaires à l'action sont envoyées à OpenAI via le connecteur local Xtension et votre compte ChatGPT. Des suggestions peuvent être demandées automatiquement après votre action volontaire de placer le curseur dans un champ de réponse vide. L'export PDF reste entièrement local. Xtension ne publie jamais à votre place.",
+  optionsPrivacyConsent: "J'accepte ce traitement et je souhaite activer les outils IA.",
+  optionsPrivacyLink: "Lire la politique de confidentialité",
+  replyAiConsentRequired: "Consultez et acceptez d'abord l'information sur le traitement des données par l'IA dans les options Xtension.",
   followingBadgeFollowing: "Abonné",
   followingBadgeNotFollowing: "Non abonné",
   followingBadgeMutual: "Mutuel",
@@ -1066,7 +1076,7 @@ Object.assign(replyFeatureMessages.fr, {
   popupOpenSettings: "Ouvrir les réglages",
   popupNote: "Les outils de réponse apparaissent sur les plateformes prises en charge ; l'export PDF reste disponible sur X/Twitter.",
   optionsTitle: "Xtension",
-  optionsDescription: "Connectez ChatGPT, choisissez le modèle Codex et définissez l'effort de raisonnement utilisé par Xtension sur les plateformes sociales prises en charge.",
+  optionsDescription: "Contrôlez la préparation de vos contenus sociaux via votre compte ChatGPT ; la conservation PDF reste locale.",
   optionsTabReplies: "Réponses",
   optionsTabBridge: "Bridge IA",
   optionsTabPrompt: "Prompt",
