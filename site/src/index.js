@@ -66,9 +66,10 @@ const ALIASES = {
 };
 
 /** Récupère la dernière release publiée. Renvoie null si l'API est inutilisable. */
-async function fetchLatestRelease() {
+async function fetchLatestRelease(cacheVersion) {
   try {
-    const response = await fetch(RELEASES_API, {
+    const releaseApi = `${RELEASES_API}?site_version=${encodeURIComponent(cacheVersion || 'latest')}`;
+    const response = await fetch(releaseApi, {
       headers: {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'xtension.jodevelop.com',
@@ -91,7 +92,7 @@ function fallbackUrl(alias, version) {
 }
 
 async function resolveDownloadUrl(alias, fallbackVersion) {
-  const release = await fetchLatestRelease();
+  const release = await fetchLatestRelease(fallbackVersion);
   if (release && Array.isArray(release.assets)) {
     const asset = release.assets.find((item) => ALIASES[alias].match(item.name || ''));
     if (asset && asset.browser_download_url) {
@@ -133,7 +134,7 @@ export default {
 
     // Métadonnées de version, utiles pour l'extension et les scripts.
     if (url.pathname === '/version.json') {
-      const release = await fetchLatestRelease();
+      const release = await fetchLatestRelease(env.FALLBACK_VERSION);
       const version = release ? String(release.tag_name).replace(/^v/, '') : env.FALLBACK_VERSION;
       const origin = `https://${url.host}`;
 
