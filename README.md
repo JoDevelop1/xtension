@@ -136,9 +136,9 @@ See [STORE_SUBMISSION.md](STORE_SUBMISSION.md).
 
 Generated archives:
 
-- `dist/xtension-chrome-v0.6.28.zip`
-- `dist/xtension-edge-v0.6.28.zip`
-- `dist/xtension-firefox-v0.6.28.zip`
+- `dist/xtension-chrome-v0.6.29.zip`
+- `dist/xtension-edge-v0.6.29.zip`
+- `dist/xtension-firefox-v0.6.29.zip`
 - `dist/SHA256SUMS.txt`
 - `dist/XtensionBridgeSetup.exe`
 - `dist/XtensionBridgeSetup.SHA256.txt`
@@ -149,7 +149,7 @@ See [RELEASES.md](RELEASES.md) to install Xtension from a GitHub release while s
 
 ## Permissions
 
-- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter content-preparation controls, local PDF export, consent-gated reply suggestions, and consent-gated timeline relationship badges.
+- `https://x.com/*`, `https://*.x.com/*`, `https://twitter.com/*`, `https://*.twitter.com/*`: add X/Twitter content-preparation controls, local PDF export, consent-gated reply suggestions, and locally computed timeline relationship badges that remain independent of AI consent.
 - Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky, and YouTube page matches: add the writing toolbar beside recognized post/comment editors. Nearby visible context is read for AI only after affirmative consent and a user action or deliberate focus in an empty supported reply field.
 - `https://pbs.twimg.com/*`: fetch public X/Twitter images, avatars, card images, and video preview thumbnails referenced by the selected content.
 - `http://localhost:47623/*`, `http://127.0.0.1:47623/*`: connect to the Xtension Codex Connector running on the user's computer on the default loopback port.

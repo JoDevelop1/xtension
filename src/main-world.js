@@ -25,11 +25,8 @@
 
   const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
   const FOLLOWING_MAP_EVENT = "xtension-following-map";
-  const AI_STATE_ATTRIBUTE = "data-xtension-ai-processing-enabled";
-  const AI_STATE_EVENT = "xtension-ai-processing-state";
   const relationshipByHandle = new Map();
   let followingMapPublishQueued = false;
-  let relationshipObservationEnabled = false;
 
   // Les reponses GraphQL de X contiennent deja la relation entre le compte
   // connecte et les auteurs presents dans la timeline. On ne conserve que le
@@ -82,7 +79,7 @@
   }
 
   function collectFollowingRelationships(payload) {
-    if (!relationshipObservationEnabled || !payload || typeof payload !== "object") {
+    if (!payload || typeof payload !== "object") {
       return false;
     }
 
@@ -167,7 +164,7 @@
   }
 
   function inspectFetchResponse(response, requestedUrl) {
-    if (!relationshipObservationEnabled || !response?.ok || !isRelationshipResponseUrl(response.url || requestedUrl)) {
+    if (!response?.ok || !isRelationshipResponseUrl(response.url || requestedUrl)) {
       return;
     }
     const contentType = String(response.headers?.get?.("content-type") || "");
@@ -211,7 +208,7 @@
     Object.defineProperty(observedOpen, "__xtensionFollowingObserver", { value: true });
     prototype.open = observedOpen;
     prototype.send = function observedSend(...args) {
-      if (relationshipObservationEnabled && isRelationshipResponseUrl(this.__xtensionFollowingUrl)) {
+      if (isRelationshipResponseUrl(this.__xtensionFollowingUrl)) {
         this.addEventListener("load", () => {
           try {
             if (this.status < 200 || this.status >= 300) {
@@ -230,21 +227,8 @@
     };
   }
 
-  function syncRelationshipObservation() {
-    const enabled = document.documentElement?.getAttribute?.(AI_STATE_ATTRIBUTE) === "1";
-    relationshipObservationEnabled = enabled;
-    if (enabled) {
-      installRelationshipFetchObserver();
-      installRelationshipXhrObserver();
-      return;
-    }
-    relationshipByHandle.clear();
-    document.documentElement?.removeAttribute?.(FOLLOWING_MAP_ATTRIBUTE);
-    document.dispatchEvent(new Event(FOLLOWING_MAP_EVENT));
-  }
-
-  document.addEventListener(AI_STATE_EVENT, syncRelationshipObservation, false);
-  syncRelationshipObservation();
+  installRelationshipFetchObserver();
+  installRelationshipXhrObserver();
 
   // Remonte la fibre React depuis l'élément éditeur jusqu'aux props du composant
   // DraftEditor (celui qui porte editorState + onChange).

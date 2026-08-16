@@ -23,7 +23,8 @@
         <p>Xtension does not sell data, use data for advertising or creditworthiness, or send data to a server owned by the developer. The extension has no analytics or tracking SDK. Optional AI features transmit the required request data to OpenAI through a connector on the user's computer.</p>
 
         <h2>Consent and control</h2>
-        <p>AI processing is disabled by default. Before supported-page content, a draft, URL, author identifier, relationship context, or image is processed for AI features, the user must affirmatively accept the disclosure in Xtension's options and enable the AI tools. Consent can be withdrawn at any time.</p>
+        <p>AI processing is disabled by default. Before supported-page content, a draft, URL, author identifier, or image is processed for AI features, the user must affirmatively accept the disclosure in Xtension's options and enable the AI tools. Consent can be withdrawn at any time.</p>
+        <p>Accepting this disclosure does not sign the user into ChatGPT. Account authentication is a separate optional step handled by the local connector and the official OpenAI sign-in flow; Xtension never receives the user's password or OAuth token.</p>
         <p>After consent, Xtension may request contextual reply suggestions when the user deliberately focuses an empty supported reply field. Other AI operations start when the user chooses an Xtension action. Results remain editable drafts; Xtension never activates a platform's final publish control.</p>
         <p>PDF export requires no AI consent, runs locally in the browser, and is never sent to OpenAI or the developer.</p>
 
@@ -32,7 +33,7 @@
           <li><strong>Website content:</strong> visible posts, comments, articles, quoted content, same-author threads, drafts, instructions, public images, and video thumbnails needed for the selected feature.</li>
           <li><strong>Public identifiers:</strong> display names and account handles shown next to that content.</li>
           <li><strong>Current and source URLs:</strong> only for the supported page or selected public post; Xtension does not build a browsing profile.</li>
-          <li><strong>X/Twitter relationship context:</strong> public following, followed-by, or mutual status already present in X/Twitter responses. Its observation is disabled before AI consent.</li>
+          <li><strong>X/Twitter relationship context:</strong> public following, followed-by, or mutual status already present in X/Twitter responses, processed locally to display timeline badges independently of the optional AI tools.</li>
           <li><strong>Local settings and diagnostics:</strong> consent and feature settings plus a bounded log of operation names, timestamps, durations, text lengths, and errors. Full content, prompts, passwords, cookies, tokens, and API keys are excluded from diagnostics.</li>
         </ul>
         <p>Xtension contains no microphone, camera, audio-capture, cookie-reading, password-reading, private-message, or platform-authentication-token code.</p>

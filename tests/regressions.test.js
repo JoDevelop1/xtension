@@ -61,6 +61,7 @@ test("AI website-content processing requires a versioned affirmative consent", (
   const social = read("src/social.js");
   assert.match(html, /id="reply-ai-data-consent" type="checkbox"/);
   assert.match(html, /nearby visible post[\s\S]{0,500}OpenAI[\s\S]{0,500}automatically/);
+  assert.match(html, /only authorizes AI processing[\s\S]{0,240}ChatGPT connection is handled separately/);
   assert.match(options, /dataProcessingConsentVersion: consentGranted \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
   assert.match(options, /normalized\.enabled = normalized\.dataProcessingConsentVersion === REQUIRED_AI_DATA_CONSENT_VERSION/);
   assert.match(background, /error\.code = consentGranted \? "not_configured" : "consent_required"/);
@@ -68,6 +69,15 @@ test("AI website-content processing requires a versioned affirmative consent", (
   assert.match(social, /await isAiProcessingEnabled\(\)/);
   assert.match(content, /action !== "undo" && action !== "redo" && !\(await isAiProcessingEnabled\(\)\)/);
   assert.match(social, /async function runAction[\s\S]{0,260}await isAiProcessingEnabled\(\)/);
+});
+
+test("X relationship badges remain independent from optional AI consent", () => {
+  const content = read("src/content.js");
+  const mainWorld = read("src/main-world.js");
+  assert.doesNotMatch(content, /MAIN_WORLD_AI_STATE|syncMainWorldAiProcessingState|installAiStorageListener/);
+  assert.doesNotMatch(mainWorld, /AI_STATE_|relationshipObservationEnabled|syncRelationshipObservation/);
+  assert.match(mainWorld, /installRelationshipFetchObserver\(\);\s+installRelationshipXhrObserver\(\);/);
+  assert.match(mainWorld, /function collectFollowingRelationships\(payload\) \{\s+if \(!payload/);
 });
 
 test("the local connector accepts the official Store origin by default, not every extension", () => {

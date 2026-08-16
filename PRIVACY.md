@@ -8,7 +8,9 @@ Xtension does not sell data, use data for advertising or creditworthiness, or se
 
 ## Consent and Control
 
-AI processing is disabled by default. Before any supported-page content, draft, URL, author identifier, relationship context, or image is processed for AI features, the user must affirmatively accept the disclosure shown in Xtension's options and enable the AI tools. A user can withdraw consent at any time by disabling the AI tools or clearing that consent in the options.
+AI processing is disabled by default. Before any supported-page content, draft, URL, author identifier, or image is processed for AI features, the user must affirmatively accept the disclosure shown in Xtension's options and enable the AI tools. A user can withdraw consent at any time by disabling the AI tools or clearing that consent in the options.
+
+Accepting this disclosure does not sign the user into ChatGPT. Account authentication is a separate optional step handled by the local connector and the official OpenAI sign-in flow; Xtension never receives the user's password or OAuth token.
 
 After consent, Xtension may request contextual reply suggestions when the user deliberately focuses an empty supported reply field. Other AI operations begin when the user chooses an Xtension correction, translation, generation, suggestion, or image action. Xtension inserts results as editable drafts and never activates a platform's final publish or submit control.
 
@@ -21,7 +23,7 @@ Depending on the feature used, Xtension may process these categories:
 - **Website content:** visible text from a nearby post, comment, article, reply composer, quoted post, or same-author thread; the user's draft or instruction; and public images or video thumbnails associated with that content.
 - **Identifiers contained in website content:** public display names and account handles visible next to the selected content.
 - **Current-page and source URLs:** URLs for the supported page or selected public post, used to preserve sources and give AI the relevant context. Xtension does not build a browsing-history profile.
-- **Public relationship context on X/Twitter:** following, followed-by, or mutual status already present in X/Twitter responses, used to display timeline badges. This observation remains off until AI processing has been accepted and enabled.
+- **Public relationship context on X/Twitter:** following, followed-by, or mutual status already present in X/Twitter responses, processed locally to display timeline badges independently of the optional AI tools.
 - **Extension settings:** consent state, AI enablement, model, reasoning effort, writing preferences, loopback connector URL, and an optional local connector token, stored in browser extension storage.
 - **Diagnostic metadata:** up to 160 local entries containing operation names, timestamps, durations, text lengths, routing information, and error codes. Full post text, drafts, prompts, account tokens, and API keys are excluded.
 

@@ -1,9 +1,15 @@
 # Changelog
 
+## v0.6.29
+
+- Keeps X/Twitter following, followed-by, and mutual badges active independently of the optional AI consent and connection flow.
+- Clarifies in Options that accepting AI data processing does not sign the user into ChatGPT; account connection remains a separate step through the local connector and official OpenAI sign-in.
+- Retains the v0.6.28 Chrome Web Store privacy, origin-restriction, listing, and asset hardening without changing PDF export or AI drafting behavior after opt-in.
+
 ## v0.6.28
 
 - Keeps the X/Twitter PDF export intact and presents PDF preservation, AI writing, and image generation as one focused social-content workflow for Chrome Web Store review.
-- Adds a prominent, versioned opt-in before any supported-page content, draft, public author identifier, URL, relationship context, or image can be processed by AI. Existing installations are asked to consent again; PDF export remains available without consent.
+- Adds a prominent, versioned opt-in before supported-page content, drafts, public author identifiers, URLs, or images can be processed by AI. Existing installations are asked to consent again; PDF export remains available without consent. X relationship observation was temporarily tied to the same opt-in in this release and separated again in v0.6.29.
 - Restricts the local Codex Connector to Xtension's official Chrome Web Store origin by default. Explicit development or alternate-browser origins require both configuration and a shared local secret.
 - Publishes an accurate Limited Use privacy policy and conservative Chrome data-type declarations, including third-party OpenAI processing and automatic suggestions after deliberate focus in an empty reply field.
 - Replaces illustrated Store screenshots with automated 1280x800 captures of the real options and social-reply interfaces, and applies the recommended transparent padding to the 128px extension icon.
