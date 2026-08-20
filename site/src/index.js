@@ -137,6 +137,9 @@ export default {
       const release = await fetchLatestRelease(env.FALLBACK_VERSION);
       const version = release ? String(release.tag_name).replace(/^v/, '') : env.FALLBACK_VERSION;
       const origin = `https://${url.host}`;
+      // Version the stable aliases so a redirect cached for the previous
+      // release can never send an updater back to an older artifact.
+      const releaseQuery = `?v=${encodeURIComponent(version)}`;
 
       return new Response(
         JSON.stringify(
@@ -144,12 +147,12 @@ export default {
             version,
             released_at: release ? release.published_at : null,
             release_page: release ? release.html_url : RELEASES_PAGE,
-            connector: `${origin}/dl/XtensionBridgeSetup.exe`,
-            chrome: `${origin}/dl/xtension-chrome.zip`,
-            edge: `${origin}/dl/xtension-edge.zip`,
-            firefox: `${origin}/dl/xtension-firefox.zip`,
-            checksums: `${origin}/dl/SHA256SUMS.txt`,
-            connector_checksum: `${origin}/dl/XtensionBridgeSetup.SHA256.txt`,
+            connector: `${origin}/dl/XtensionBridgeSetup.exe${releaseQuery}`,
+            chrome: `${origin}/dl/xtension-chrome.zip${releaseQuery}`,
+            edge: `${origin}/dl/xtension-edge.zip${releaseQuery}`,
+            firefox: `${origin}/dl/xtension-firefox.zip${releaseQuery}`,
+            checksums: `${origin}/dl/SHA256SUMS.txt${releaseQuery}`,
+            connector_checksum: `${origin}/dl/XtensionBridgeSetup.SHA256.txt${releaseQuery}`,
             repository: `https://github.com/${REPO}`,
           },
           null,

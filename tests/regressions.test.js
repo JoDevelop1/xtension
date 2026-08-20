@@ -887,3 +887,10 @@ test("options expose Codex, Claude, and Ollama without API-key fields", () => {
   assert.doesNotMatch(html, /type="password"[^>]+api/i);
   assert.match(options, /refreshOllamaModels/);
 });
+
+test("the public update manifest cache-busts stable download aliases per release", () => {
+  const worker = read("site/src/index.js");
+  assert.match(worker, /const releaseQuery = `\?v=\$\{encodeURIComponent\(version\)\}`/);
+  assert.match(worker, /connector: `\$\{origin\}\/dl\/XtensionBridgeSetup\.exe\$\{releaseQuery\}`/);
+  assert.match(worker, /connector_checksum: `\$\{origin\}\/dl\/XtensionBridgeSetup\.SHA256\.txt\$\{releaseQuery\}`/);
+});
