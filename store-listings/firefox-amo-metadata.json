@@ -1,7 +1,7 @@
 {
   "summary": {
-    "fr": "Générez des réponses IA sur vos réseaux avec votre compte ChatGPT, plus l'export PDF sur X.",
-    "en-US": "Generate AI replies across social platforms with your own ChatGPT account, plus PDF export on X."
+    "fr": "Générez des réponses avec ChatGPT, Claude ou Ollama local, plus l'export PDF sur X.",
+    "en-US": "Generate AI replies with ChatGPT, Claude, or local Ollama, plus PDF export on X."
   },
   "categories": {
     "firefox": [

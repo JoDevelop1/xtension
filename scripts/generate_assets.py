@@ -347,7 +347,7 @@ def screenshot(path, variant=1):
         d.text((806, 566), "Generated locally", fill="#34a853", font=font(19, True))
     else:
         rounded_rectangle(d, (70, 108, 770, 714), 22, "#ffffff", "#d8e0e5", 2)
-        d.text((112, 148), "Write with your own ChatGPT account", fill="#0f1419", font=font(30, True))
+        d.text((112, 148), "Write with ChatGPT, Claude, or local AI", fill="#0f1419", font=font(30, True))
         d.text((112, 198), "Replying to a post in its original language", fill="#536471", font=font(18))
         rounded_rectangle(d, (112, 246, 728, 498), 16, "#f7f9f9", "#d8e0e5", 2)
         d.text((142, 276), "This is a first clear idea.", fill="#0f1419", font=font(21))

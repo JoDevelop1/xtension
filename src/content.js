@@ -3776,7 +3776,17 @@
       || code === "consent_required"
       || code === "bridge_unreachable"
       || code === "bridge_update_required"
-      || code === "provider_login_required";
+      || code === "provider_login_required"
+      || code === "provider_not_installed"
+      || code === "provider_update_required"
+      || code === "ai_model_not_found"
+      || code === "ai_usage_limit"
+      || code === "ai_overloaded"
+      || code === "ai_timeout"
+      || code === "ai_out_of_memory"
+      || code === "ai_context_overflow"
+      || code === "ai_unavailable"
+      || code === "ai_all_stages_exhausted";
   }
 
   function getReplyAiSetupErrorMessage(code) {
@@ -3784,10 +3794,37 @@
       return localizedText("replyAiConsentRequired", "Enable AI features in Xtension options first.");
     }
     if (code === "provider_login_required") {
-      return localizedText("replyAiProviderLoginRequired", "Connect your ChatGPT account in Xtension options, then request the suggestions again.");
+      return localizedText("replyAiProviderLoginRequired", "Connect the selected AI provider in Xtension options, then request the suggestions again.");
+    }
+    if (code === "provider_not_installed") {
+      return localizedText("replyAiProviderNotInstalled", "Install or start the selected AI provider, then try again.");
+    }
+    if (code === "provider_update_required") {
+      return localizedText("replyAiProviderUpdateRequired", "Update the selected AI provider, then try again.");
+    }
+    if (code === "ai_model_not_found") {
+      return localizedText("replyAiModelNotFound", "Choose an installed model in Xtension options, then try again.");
+    }
+    if (code === "ai_usage_limit") {
+      return localizedText("replyAiUsageLimit", "The selected AI subscription has reached its current usage limit. Enable fallback or try again later.");
+    }
+    if (code === "ai_overloaded") {
+      return localizedText("replyAiOverloaded", "The selected AI provider is overloaded. Enable fallback or try again shortly.");
+    }
+    if (code === "ai_timeout") {
+      return localizedText("replyAiTimeout", "The AI request timed out. Enable fallback or try again.");
+    }
+    if (code === "ai_out_of_memory") {
+      return localizedText("replyAiOutOfMemory", "The local AI ran out of memory. Choose a smaller model or close other GPU workloads.");
+    }
+    if (code === "ai_context_overflow") {
+      return localizedText("replyAiContextOverflow", "The local model could not fit this request. Choose a larger-context model or shorten the draft.");
+    }
+    if (code === "ai_unavailable" || code === "ai_all_stages_exhausted") {
+      return localizedText("replyAiAllProvidersUnavailable", "No allowed AI provider could complete this request. Check the engine states in Xtension options.");
     }
     if (code === "bridge_unreachable") {
-      return localizedText("replyAiBridgeUnavailable", "The Xtension Codex connector is not reachable. Open Xtension options, install or restart it, then try again.");
+      return localizedText("replyAiBridgeUnavailable", "The Xtension AI connector is not reachable. Open Xtension options, install or restart it, then try again.");
     }
     if (code === "bridge_update_required") {
       return localizedText("replyAiBridgeUpdateRequired", "Update the Xtension Codex connector in the extension options, then try again.");
@@ -5000,7 +5037,7 @@
   async function isAiProcessingEnabled() {
     const stored = await storageGet({ replyAiConfig: null });
     const config = stored?.replyAiConfig;
-    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 1;
+    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 2;
   }
 
   async function getDraftActionTiming(action) {

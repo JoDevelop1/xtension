@@ -5,12 +5,17 @@ const actionApi = extensionApi?.action || extensionApi?.browserAction;
 const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 // UI-only connector releases must not disable otherwise compatible AI tools.
 // Raise this value only when the loopback API changes incompatibly.
-const MINIMUM_CONNECTOR_VERSION = "0.6.31";
+const MINIMUM_CONNECTOR_VERSION = "0.6.35";
 
-const REPLY_AI_CONFIG_VERSION = 25;
-const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
+const REPLY_AI_CONFIG_VERSION = 26;
+const REQUIRED_AI_DATA_CONSENT_VERSION = 2;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
+const DEFAULT_AI_PRIMARY_PROVIDER = "auto";
+const DEFAULT_CLAUDE_MODEL = "sonnet";
+const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
+const DEFAULT_OLLAMA_MODEL = "hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL";
+const ALLOWED_AI_PROVIDERS = ["openai-codex", "anthropic-claude", "local-ollama"];
 // Les réponses X sont courtes et bien délimitées. Le mode low est le meilleur
 // compromis mesuré sur ce parcours (Luna low ~3,7 s contre ~6,3 s en medium),
 // tout en restant réglable dans les options.
@@ -88,8 +93,13 @@ const DEFAULT_REPLY_AI_CONFIG = {
   dataProcessingConsentVersion: 0,
   codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
   bridgeToken: "",
+  aiPrimaryProvider: DEFAULT_AI_PRIMARY_PROVIDER,
+  aiFallbackEnabled: true,
   codexModel: DEFAULT_CODEX_MODEL,
   codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
+  claudeModel: DEFAULT_CLAUDE_MODEL,
+  ollamaUrl: DEFAULT_OLLAMA_URL,
+  ollamaModel: DEFAULT_OLLAMA_MODEL,
   replyTranslationLanguage: DEFAULT_REPLY_TRANSLATION_LANGUAGE,
   replyStyle: DEFAULT_REPLY_STYLE,
   replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
@@ -388,8 +398,7 @@ async function streamDraftOperation(port, message) {
       context,
       text: draftText,
       generatePrompt: config?.generatePrompt || "",
-      model: config?.codexModel || DEFAULT_CODEX_MODEL,
-      reasoningEffort: config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
+      ...getProviderRequestConfig(config),
       ...(image ? { image } : {})
     }, (delta, full) => {
       postToPort(port, { type: "delta", delta, text: full });
@@ -860,7 +869,7 @@ async function warmupBridge() {
     },
     // Le modèle est transmis pour que le connecteur prépare un fil du bon
     // modèle avant la première action de l'utilisateur.
-    body: JSON.stringify({ model: config?.codexModel || DEFAULT_CODEX_MODEL })
+    body: JSON.stringify(getProviderRequestConfig(config))
   }, {
     operation: "warmup"
   });
@@ -912,8 +921,7 @@ async function generateReplySuggestionProfile(profileIndex, context, locale) {
       systemPrompt: profile.prompt,
       replyProfile: { index: profileIndex, label: profile.label },
       replyStyle: normalizeReplyStyle(config.replyStyle),
-      model: config.codexModel,
-      reasoningEffort: config.codexReasoningEffort,
+      ...getProviderRequestConfig(config),
       ...(image ? { image } : {})
     })
   }, {
@@ -1064,6 +1072,11 @@ function normalizeReplyAiConfig(config) {
   normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
   normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
   normalized.codexReasoningEffort = normalizeCodexReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
+  normalized.aiPrimaryProvider = normalizeAiPrimaryProvider(normalized.aiPrimaryProvider);
+  normalized.aiFallbackEnabled = normalized.aiFallbackEnabled !== false;
+  normalized.claudeModel = normalizeProviderModel(normalized.claudeModel, DEFAULT_CLAUDE_MODEL);
+  normalized.ollamaUrl = normalizeOllamaUrl(normalized.ollamaUrl) || DEFAULT_OLLAMA_URL;
+  normalized.ollamaModel = normalizeProviderModel(normalized.ollamaModel, DEFAULT_OLLAMA_MODEL);
 
   // Migration vers la v20 : l'ancien défaut "max" coûtait ~1,2 s par requête.
   // On ne le remplace que s'il s'agit bien de l'ancien défaut hérité, jamais
@@ -1156,6 +1169,31 @@ function normalizeCodexReasoningEffort(value) {
   return CODEX_REASONING_EFFORTS.includes(effort) ? effort : DEFAULT_CODEX_REASONING_EFFORT;
 }
 
+function normalizeAiPrimaryProvider(value) {
+  const provider = cleanText(value).toLowerCase();
+  return provider === "auto" || ALLOWED_AI_PROVIDERS.includes(provider)
+    ? provider
+    : DEFAULT_AI_PRIMARY_PROVIDER;
+}
+
+function normalizeProviderModel(value, fallback) {
+  const model = cleanText(value);
+  return model && !/[\x00-\x1f\s]/.test(model) && model.length <= 240 ? model : fallback;
+}
+
+function getProviderRequestConfig(config) {
+  return {
+    allowedProviders: [...ALLOWED_AI_PROVIDERS],
+    primaryProvider: normalizeAiPrimaryProvider(config?.aiPrimaryProvider),
+    fallbackEnabled: config?.aiFallbackEnabled !== false,
+    model: normalizeCodexModel(config?.codexModel || DEFAULT_CODEX_MODEL),
+    reasoningEffort: normalizeCodexReasoningEffort(config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT),
+    claudeModel: normalizeProviderModel(config?.claudeModel, DEFAULT_CLAUDE_MODEL),
+    ollamaUrl: normalizeOllamaUrl(config?.ollamaUrl) || DEFAULT_OLLAMA_URL,
+    ollamaModel: normalizeProviderModel(config?.ollamaModel, DEFAULT_OLLAMA_MODEL)
+  };
+}
+
 function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
   if (!rawConfig || typeof rawConfig !== "object") {
     return true;
@@ -1187,8 +1225,7 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
       context,
       text,
       generatePrompt: config?.generatePrompt || "",
-      model: config?.codexModel || DEFAULT_CODEX_MODEL,
-      reasoningEffort: config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
+      ...getProviderRequestConfig(config),
       ...(image ? { image } : {})
     })
   }, {
@@ -1429,6 +1466,26 @@ function normalizeCodexBridgeUrl(value) {
     }
     return `${url.protocol}//${url.host}`;
   } catch (error) {
+    return "";
+  }
+}
+
+function normalizeOllamaUrl(value) {
+  try {
+    const url = new URL(String(value || DEFAULT_OLLAMA_URL).trim());
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    const privateHost = ["localhost", "127.0.0.1", "::1"].includes(host)
+      || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
+      || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)
+      || (() => {
+        const match = host.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+        return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+      })();
+    if (!["http:", "https:"].includes(url.protocol) || !privateHost || url.username || url.password) {
+      return "";
+    }
+    return `${url.protocol}//${url.host}`;
+  } catch {
     return "";
   }
 }

@@ -8,12 +8,17 @@
   const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
   const BRIDGE_STATUS_TIMEOUT_MS = 15000;
   const BRIDGE_STATUS_RETRY_DELAYS_MS = [0, 350, 1000];
-  const MINIMUM_CONNECTOR_VERSION = "0.6.31";
+  const MINIMUM_CONNECTOR_VERSION = "0.6.35";
 
-  const REPLY_AI_CONFIG_VERSION = 25;
-  const REQUIRED_AI_DATA_CONSENT_VERSION = 1;
+  const REPLY_AI_CONFIG_VERSION = 26;
+  const REQUIRED_AI_DATA_CONSENT_VERSION = 2;
   const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
   const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
+  const DEFAULT_AI_PRIMARY_PROVIDER = "auto";
+  const AI_PROVIDER_IDS = ["openai-codex", "anthropic-claude", "local-ollama"];
+  const DEFAULT_CLAUDE_MODEL = "sonnet";
+  const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
+  const DEFAULT_OLLAMA_MODEL = "hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL";
   const DEFAULT_CODEX_REASONING_EFFORT = "low";
   const CODEX_REASONING_ORDER = ["low", "medium", "high", "xhigh", "max", "ultra"];
   const FALLBACK_CODEX_MODELS = [
@@ -55,8 +60,13 @@
     dataProcessingConsentVersion: 0,
     codexBridgeUrl: DEFAULT_CODEX_BRIDGE_URL,
     bridgeToken: "",
+    aiPrimaryProvider: DEFAULT_AI_PRIMARY_PROVIDER,
+    aiFallbackEnabled: true,
     codexModel: DEFAULT_CODEX_MODEL,
     codexReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
+    claudeModel: DEFAULT_CLAUDE_MODEL,
+    ollamaUrl: DEFAULT_OLLAMA_URL,
+    ollamaModel: DEFAULT_OLLAMA_MODEL,
     replyTranslationLanguage: DEFAULT_REPLY_TRANSLATION_LANGUAGE,
     replyStyle: DEFAULT_REPLY_STYLE,
     replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
@@ -68,6 +78,8 @@
   const enabledInput = document.querySelector("#reply-ai-enabled");
   const codexBridgeUrlInput = document.querySelector("#reply-ai-codex-bridge-url");
   const bridgeTokenInput = document.querySelector("#reply-ai-bridge-token");
+  const primaryProviderInput = document.querySelector("#reply-ai-primary-provider");
+  const fallbackEnabledInput = document.querySelector("#reply-ai-fallback-enabled");
   const replyTranslationLanguageInput = document.querySelector("#reply-ai-translation-language");
   const replyStyleInput = document.querySelector("#reply-ai-style");
   const generatePromptInput = document.querySelector("#reply-ai-generate-prompt");
@@ -83,6 +95,17 @@
   const codexModelInput = document.querySelector("#reply-ai-codex-model");
   const codexModelStatus = document.querySelector("#reply-ai-codex-model-status");
   const codexReasoningInput = document.querySelector("#reply-ai-codex-reasoning");
+  const claudeModelInput = document.querySelector("#reply-ai-claude-model");
+  const ollamaUrlInput = document.querySelector("#reply-ai-ollama-url");
+  const ollamaModelInput = document.querySelector("#reply-ai-ollama-model");
+  const ollamaModelsList = document.querySelector("#reply-ai-ollama-models");
+  const ollamaModelStatus = document.querySelector("#reply-ai-ollama-model-status");
+  const claudeCard = document.querySelector("#reply-ai-claude-card");
+  const claudeBadge = document.querySelector("#reply-ai-claude-badge");
+  const claudeStatusElement = document.querySelector("#reply-ai-claude-status");
+  const ollamaCard = document.querySelector("#reply-ai-ollama-card");
+  const ollamaBadge = document.querySelector("#reply-ai-ollama-badge");
+  const ollamaStatusElement = document.querySelector("#reply-ai-ollama-status");
   const testButton = document.querySelector("#reply-ai-test");
   const loginButton = document.querySelector("#reply-ai-login");
   const logoutButton = document.querySelector("#reply-ai-logout");
@@ -142,6 +165,10 @@
 
     codexModelInput?.addEventListener("change", () => {
       applyReasoningOptions(codexModelInput.value, codexReasoningInput?.value);
+    });
+
+    ollamaUrlInput?.addEventListener("change", () => {
+      refreshOllamaModels(getFormConfig()).catch(() => {});
     });
 
     logsCopyButton?.addEventListener("click", async () => {
@@ -213,10 +240,25 @@
     if (bridgeTokenInput) {
       bridgeTokenInput.value = config.bridgeToken || "";
     }
+    if (primaryProviderInput) {
+      primaryProviderInput.value = config.aiPrimaryProvider || DEFAULT_AI_PRIMARY_PROVIDER;
+    }
+    if (fallbackEnabledInput) {
+      fallbackEnabledInput.checked = config.aiFallbackEnabled !== false;
+    }
     if (codexModelInput) {
       codexModelInput.value = config.codexModel || DEFAULT_CODEX_MODEL;
     }
     applyReasoningOptions(config.codexModel, config.codexReasoningEffort);
+    if (claudeModelInput) {
+      claudeModelInput.value = config.claudeModel || DEFAULT_CLAUDE_MODEL;
+    }
+    if (ollamaUrlInput) {
+      ollamaUrlInput.value = config.ollamaUrl || DEFAULT_OLLAMA_URL;
+    }
+    if (ollamaModelInput) {
+      ollamaModelInput.value = config.ollamaModel || DEFAULT_OLLAMA_MODEL;
+    }
     if (replyTranslationLanguageInput) {
       replyTranslationLanguageInput.value = config.replyTranslationLanguage || DEFAULT_REPLY_TRANSLATION_LANGUAGE;
     }
@@ -273,18 +315,20 @@
       const config = getFormConfig();
       const data = await fetchBridgeJson(`${getBridgeUrl(config)}/warmup`, {
         method: "POST",
-        headers: buildBridgeAuthHeaders(config)
+        headers: { "content-type": "application/json", ...buildBridgeAuthHeaders(config) },
+        body: JSON.stringify(getProviderRequestConfig(config))
       });
       renderCodexStatus(data);
       await refreshCodexModels(config);
+      await refreshOllamaModels(config);
       renderCodexStatus(data);
       await refreshConnectorUpdateStatus(config, data);
       if (isConnectorUpdateRequired(data)) {
         showStatus(localizedText("optionsCodexUpdateRequired", "Update the Xtension connector before using Codex."), "error");
-      } else if (isCodexAuthenticated(data)) {
-        showStatus(localizedText("optionsCodexConnected", "Connected to OpenAI Codex."), "success");
+      } else if (getUsableProviders(data).length) {
+        showStatus(localizedText("optionsMultiProviderConnected", "At least one AI engine is ready."), "success");
       } else {
-        showStatus(localizedText("optionsCodexAccountRequired", "Connect your ChatGPT account to use OpenAI Codex."), "error");
+        showStatus(localizedText("optionsNoProviderReady", "No AI engine is ready yet."), "error");
       }
     } catch (error) {
       await refreshCodexStatus();
@@ -303,21 +347,26 @@
       }
 
       try {
-        const data = await fetchBridgeJson(`${getBridgeUrl(config)}${warmup ? "/warmup" : "/auth/status"}`, {
+        const endpoint = warmup ? "/warmup" : buildProviderStatusPath(config);
+        const data = await fetchBridgeJson(`${getBridgeUrl(config)}${endpoint}`, {
           method: warmup ? "POST" : "GET",
-          headers: buildBridgeAuthHeaders(config)
+          headers: warmup
+            ? { "content-type": "application/json", ...buildBridgeAuthHeaders(config) }
+            : buildBridgeAuthHeaders(config),
+          ...(warmup ? { body: JSON.stringify(getProviderRequestConfig(config)) } : {})
         });
 
         // The connector can answer before the Codex child process has finished
         // starting. Retry this transient state automatically instead of showing
         // a permanent red badge that disappears only after a manual test.
-        if (!data?.codex?.installed && attempt + 1 < delays.length) {
-          lastError = new Error(data?.error || "Codex is still starting.");
+        if (!getInstalledProviders(data).length && attempt + 1 < delays.length) {
+          lastError = new Error(data?.error || "AI engines are still starting.");
           continue;
         }
 
         renderCodexStatus(data);
         await refreshCodexModels(config);
+        await refreshOllamaModels(config);
         renderCodexStatus(data);
         await refreshConnectorUpdateStatus(config, data);
         return data;
@@ -342,6 +391,7 @@
   }
 
   function renderCodexStatus(data) {
+    renderAdditionalProviders(data);
     const codexInstalled = Boolean(data?.codex?.installed);
     const authenticated = isCodexAuthenticated(data);
     const connectorVersion = getConnectorVersion(data);
@@ -414,6 +464,82 @@
 
   function isCodexAuthenticated(data) {
     return Boolean(data?.auth?.authenticated ?? data?.authenticated);
+  }
+
+  function getProviderData(data, id) {
+    return (Array.isArray(data?.providers) ? data.providers : []).find((provider) => provider?.id === id) || null;
+  }
+
+  function getInstalledProviders(data) {
+    return (Array.isArray(data?.providers) ? data.providers : []).filter((provider) => provider?.installed);
+  }
+
+  function getUsableProviders(data) {
+    return (Array.isArray(data?.providers) ? data.providers : []).filter((provider) => provider?.usable);
+  }
+
+  function renderAdditionalProviders(data) {
+    const claudeProvider = getProviderData(data, "anthropic-claude") || data?.claude || {};
+    if (claudeProvider.usable) {
+      setProviderCard(claudeCard, claudeBadge, claudeStatusElement, "connected",
+        localizedText("optionsProviderReadyBadge", "Ready"),
+        localizedText("optionsClaudeReady", "Claude Code is connected through the existing Claude subscription."));
+    } else if (claudeProvider.installed) {
+      setProviderCard(claudeCard, claudeBadge, claudeStatusElement, "signed-out",
+        localizedText("optionsCodexDisconnectedBadge", "Not connected"),
+        claudeProvider.errorCode === "provider_update_required"
+          ? localizedText("optionsClaudeUpdateRequired", "Update Claude Code before using it in Xtension.")
+          : localizedText("optionsClaudeLoginRequired", "Run Claude Code once and sign in with a Claude subscription."));
+    } else {
+      setProviderCard(claudeCard, claudeBadge, claudeStatusElement, "unavailable",
+        localizedText("optionsProviderUnavailableBadge", "Unavailable"),
+        localizedText("optionsClaudeNotInstalled", "Claude Code was not detected on this Windows account."));
+    }
+
+    const ollamaProvider = getProviderData(data, "local-ollama") || data?.ollama || {};
+    if (ollamaProvider.usable) {
+      setProviderCard(ollamaCard, ollamaBadge, ollamaStatusElement, "connected",
+        localizedText("optionsProviderReadyBadge", "Ready"),
+        localizedText("optionsOllamaReady", "The configured Ollama server and model are ready."));
+    } else if (ollamaProvider.installed) {
+      setProviderCard(ollamaCard, ollamaBadge, ollamaStatusElement, "signed-out",
+        localizedText("optionsProviderModelMissingBadge", "Model missing"),
+        localizedText("optionsOllamaModelMissing", "Ollama is reachable, but the configured model is not installed."));
+    } else {
+      setProviderCard(ollamaCard, ollamaBadge, ollamaStatusElement, "unavailable",
+        localizedText("optionsProviderUnavailableBadge", "Unavailable"),
+        localizedText("optionsOllamaUnavailable", "Ollama is not reachable at the configured local URL."));
+    }
+  }
+
+  function setProviderCard(card, badge, status, state, badgeText, statusText) {
+    if (card) card.dataset.state = state;
+    if (badge) {
+      badge.dataset.state = state;
+      badge.textContent = badgeText;
+    }
+    if (status) status.textContent = statusText;
+  }
+
+  function buildProviderStatusPath(config) {
+    const params = new URLSearchParams({
+      ollamaUrl: normalizeOllamaUrl(config?.ollamaUrl) || DEFAULT_OLLAMA_URL,
+      ollamaModel: normalizeProviderModel(config?.ollamaModel, DEFAULT_OLLAMA_MODEL)
+    });
+    return `/providers?${params.toString()}`;
+  }
+
+  function getProviderRequestConfig(config) {
+    return {
+      allowedProviders: [...AI_PROVIDER_IDS],
+      primaryProvider: normalizeAiPrimaryProvider(config?.aiPrimaryProvider),
+      fallbackEnabled: config?.aiFallbackEnabled !== false,
+      model: normalizeCodexModel(config?.codexModel || DEFAULT_CODEX_MODEL),
+      reasoningEffort: normalizeReasoningEffort(config?.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT),
+      claudeModel: normalizeProviderModel(config?.claudeModel, DEFAULT_CLAUDE_MODEL),
+      ollamaUrl: normalizeOllamaUrl(config?.ollamaUrl) || DEFAULT_OLLAMA_URL,
+      ollamaModel: normalizeProviderModel(config?.ollamaModel, DEFAULT_OLLAMA_MODEL)
+    };
   }
 
   function getConnectorVersion(data) {
@@ -595,7 +721,7 @@
 
   async function refreshCodexModels(config = getFormConfig()) {
     try {
-      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/models`, {
+      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/models?provider=openai-codex`, {
         method: "GET",
         headers: buildBridgeAuthHeaders(config)
       });
@@ -613,6 +739,38 @@
         codexModelStatus.textContent = localizedText("optionsCodexModelFallback", "Showing the standard Codex models. The live catalog will appear when the Codex host is reachable.");
       }
       return modelCatalog;
+    }
+  }
+
+  async function refreshOllamaModels(config = getFormConfig()) {
+    if (!ollamaModelsList || !ollamaModelInput) return [];
+    const params = new URLSearchParams({
+      provider: "local-ollama",
+      ollamaUrl: normalizeOllamaUrl(config?.ollamaUrl) || DEFAULT_OLLAMA_URL
+    });
+    try {
+      const data = await fetchBridgeJson(`${getBridgeUrl(config)}/models?${params.toString()}`, {
+        method: "GET",
+        headers: buildBridgeAuthHeaders(config)
+      });
+      const models = Array.isArray(data?.models) ? data.models.filter((item) => item?.model) : [];
+      ollamaModelsList.replaceChildren(...models.map((item) => {
+        const option = document.createElement("option");
+        option.value = item.model;
+        option.label = item.displayName || item.model;
+        return option;
+      }));
+      if (ollamaModelStatus) {
+        ollamaModelStatus.textContent = localizedText("optionsOllamaModelCount", "{count} local models available.")
+          .replace("{count}", String(models.length));
+      }
+      return models;
+    } catch (error) {
+      ollamaModelsList.replaceChildren();
+      if (ollamaModelStatus) {
+        ollamaModelStatus.textContent = localizedText("optionsOllamaModelUnavailable", "The local model list will appear when Ollama is reachable.");
+      }
+      return [];
     }
   }
 
@@ -939,8 +1097,13 @@
       dataProcessingConsentVersion: aiEnabled ? REQUIRED_AI_DATA_CONSENT_VERSION : 0,
       codexBridgeUrl: normalizeCodexBridgeUrl(codexBridgeUrlInput?.value) || DEFAULT_CODEX_BRIDGE_URL,
       bridgeToken: cleanText(bridgeTokenInput?.value || ""),
+      aiPrimaryProvider: normalizeAiPrimaryProvider(primaryProviderInput?.value),
+      aiFallbackEnabled: fallbackEnabledInput?.checked !== false,
       codexModel: normalizeCodexModel(codexModelInput?.value || DEFAULT_CODEX_MODEL),
       codexReasoningEffort: normalizeReasoningEffort(codexReasoningInput?.value || DEFAULT_CODEX_REASONING_EFFORT),
+      claudeModel: normalizeProviderModel(claudeModelInput?.value, DEFAULT_CLAUDE_MODEL),
+      ollamaUrl: normalizeOllamaUrl(ollamaUrlInput?.value) || DEFAULT_OLLAMA_URL,
+      ollamaModel: normalizeProviderModel(ollamaModelInput?.value, DEFAULT_OLLAMA_MODEL),
       replyTranslationLanguage: normalizeReplyTranslationLanguage(replyTranslationLanguageInput?.value),
       replyStyle: normalizeReplyStyle(replyStyleInput?.value),
       replyPromptProfiles: getPromptProfileInputs(),
@@ -962,6 +1125,11 @@
     normalized.bridgeToken = cleanText(normalized.bridgeToken || "");
     normalized.codexModel = normalizeCodexModel(normalized.codexModel || DEFAULT_CODEX_MODEL);
     normalized.codexReasoningEffort = normalizeReasoningEffort(normalized.codexReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT);
+    normalized.aiPrimaryProvider = normalizeAiPrimaryProvider(normalized.aiPrimaryProvider);
+    normalized.aiFallbackEnabled = normalized.aiFallbackEnabled !== false;
+    normalized.claudeModel = normalizeProviderModel(normalized.claudeModel, DEFAULT_CLAUDE_MODEL);
+    normalized.ollamaUrl = normalizeOllamaUrl(normalized.ollamaUrl) || DEFAULT_OLLAMA_URL;
+    normalized.ollamaModel = normalizeProviderModel(normalized.ollamaModel, DEFAULT_OLLAMA_MODEL);
     if (previousConfigVersion < 20 && cleanText(rawConfig.codexReasoningEffort || "") === "max") {
       normalized.codexReasoningEffort = DEFAULT_CODEX_REASONING_EFFORT;
     }
@@ -1064,6 +1232,18 @@
     return CODEX_REASONING_ORDER.includes(effort) ? effort : DEFAULT_CODEX_REASONING_EFFORT;
   }
 
+  function normalizeAiPrimaryProvider(value) {
+    const provider = cleanText(value).toLowerCase();
+    return provider === "auto" || AI_PROVIDER_IDS.includes(provider)
+      ? provider
+      : DEFAULT_AI_PRIMARY_PROVIDER;
+  }
+
+  function normalizeProviderModel(value, fallback) {
+    const model = cleanText(value);
+    return model && !/[\x00-\x1f\s]/.test(model) && model.length <= 240 ? model : fallback;
+  }
+
   function formatReasoningEffort(value) {
     const key = `optionsCodexReasoning${value === "xhigh" ? "XHigh" : value.charAt(0).toUpperCase() + value.slice(1)}`;
     return localizedText(key, value);
@@ -1073,6 +1253,26 @@
     try {
       const url = new URL(String(value || DEFAULT_CODEX_BRIDGE_URL).trim());
       if (!['127.0.0.1', 'localhost', '::1'].includes(url.hostname)) {
+        return "";
+      }
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      return "";
+    }
+  }
+
+  function normalizeOllamaUrl(value) {
+    try {
+      const url = new URL(String(value || DEFAULT_OLLAMA_URL).trim());
+      const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+      const privateHost = ["localhost", "127.0.0.1", "::1"].includes(host)
+        || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
+        || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)
+        || (() => {
+          const match = host.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+          return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+        })();
+      if (!["http:", "https:"].includes(url.protocol) || !privateHost || url.username || url.password) {
         return "";
       }
       return `${url.protocol}//${url.host}`;

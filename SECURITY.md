@@ -1,8 +1,8 @@
 # Security
 
-Xtension does not operate a developer-owned data-collection server. The optional AI draft tools use a local loopback connector and the user's authenticated OpenAI Codex/ChatGPT session. Text, selected X/Twitter context, and images included for generation can therefore be sent to OpenAI to fulfil the user's request. Xtension does not request or store an OpenAI API key. Voice dictation is explicitly unavailable in this no-key Codex mode.
+Xtension does not operate a developer-owned data-collection server. Optional AI draft tools use a local loopback connector and one explicitly selected engine: the user's authenticated OpenAI Codex/ChatGPT session, the user's authenticated Claude Code subscription session, or a configured localhost/private-network Ollama server. Text and selected social context can be sent to the selected engine; images remain on the Codex path. Xtension does not request or store OpenAI or Anthropic API keys. Voice dictation is unavailable.
 
-The connector is bound to `127.0.0.1`, restricts browser-extension origins, uses ephemeral read-only Codex threads, and denies tool-approval requests. Codex owns the ChatGPT OAuth token lifecycle; the extension and connector do not expose that token to browser storage or request logs.
+The connector is bound to `127.0.0.1`, restricts browser-extension origins, uses ephemeral read-only Codex threads, and denies Codex tool approvals. Claude Code runs without tools, MCP, slash commands, session persistence, API-key environment variables, or automatic retries. Ollama destinations are restricted to localhost and private IP ranges. Codex and Claude Code own their OAuth token lifecycles; the extension and connector do not expose those tokens to browser storage or request logs.
 
 To report a vulnerability:
 

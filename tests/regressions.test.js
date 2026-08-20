@@ -49,7 +49,7 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "25");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "26");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
 });
 
@@ -60,8 +60,8 @@ test("AI website content stays off until the user enables AI features", () => {
   const content = read("src/content.js");
   const social = read("src/social.js");
   assert.match(html, /id="reply-ai-enabled" type="checkbox"/);
-  assert.match(html, /go directly to OpenAI[\s\S]{0,500}JoDevelop does not receive or store/);
-  assert.match(html, /does not sign you in[\s\S]{0,240}open-source connector/);
+  assert.match(html, /OpenAI Codex, Claude Code, or your configured Ollama server[\s\S]{0,240}JoDevelop does not receive or store/);
+  assert.match(html, /does not sign you in[\s\S]{0,300}No API key is requested/);
   assert.doesNotMatch(html, /reply-ai-data-consent|I agree to this processing/);
   assert.match(options, /dataProcessingConsentVersion: aiEnabled \? REQUIRED_AI_DATA_CONSENT_VERSION : 0/);
   assert.match(options, /enabledInput\?\.addEventListener\("change", async \(\) => \{[\s\S]{0,180}await saveConfig\(\)/);
@@ -69,6 +69,8 @@ test("AI website content stays off until the user enables AI features", () => {
   assert.match(background, /error\.code = consentGranted \? "not_configured" : "consent_required"/);
   assert.match(content, /await isAiProcessingEnabled\(\)/);
   assert.match(social, /await isAiProcessingEnabled\(\)/);
+  assert.match(content, /Number\(config\?\.dataProcessingConsentVersion\) === 2/);
+  assert.match(social, /Number\(config\?\.dataProcessingConsentVersion\) === 2/);
   assert.match(content, /action !== "undo" && action !== "redo" && !\(await isAiProcessingEnabled\(\)\)/);
   assert.match(social, /async function runAction[\s\S]{0,260}await isAiProcessingEnabled\(\)/);
 });
@@ -159,11 +161,11 @@ test("the connector updater verifies release metadata, checksum, signature, and 
   assert.match(bridge, /activeRequestCount > 0 \|\| nativeTypeInFlight/);
 });
 
-test("connector compatibility is independent from UI-only patch releases", () => {
+test("multi-provider requests require the connector API that implements them", () => {
   const options = read("src/options.js");
   const background = read("src/background.js");
-  assert.match(options, /MINIMUM_CONNECTOR_VERSION = "0\.6\.31"/);
-  assert.match(background, /MINIMUM_CONNECTOR_VERSION = "0\.6\.31"/);
+  assert.match(options, /MINIMUM_CONNECTOR_VERSION = "0\.6\.35"/);
+  assert.match(background, /MINIMUM_CONNECTOR_VERSION = "0\.6\.35"/);
   assert.match(background, /compareVersions\(version, MINIMUM_CONNECTOR_VERSION\) >= 0/);
   assert.doesNotMatch(background, /compareVersions\(version, EXTENSION_VERSION\) >= 0/);
 });
@@ -685,8 +687,9 @@ test("options warm up and retry the connector automatically on page load", () =>
   const options = read("src/options.js");
   assert.match(options, /BRIDGE_STATUS_RETRY_DELAYS_MS = \[0, 350, 1000\]/);
   assert.match(options, /refreshCodexStatus\(\{ warmup: true, retry: true \}\)/);
-  assert.match(options, /warmup \? "\/warmup" : "\/auth\/status"/);
-  assert.match(options, /!data\?\.codex\?\.installed && attempt \+ 1 < delays\.length/);
+  assert.match(options, /warmup \? "\/warmup" : buildProviderStatusPath\(config\)/);
+  assert.match(options, /!getInstalledProviders\(data\)\.length && attempt \+ 1 < delays\.length/);
+  assert.match(options, /body: JSON\.stringify\(getProviderRequestConfig\(config\)\)/);
 });
 
 test("latency optimizations refill threads and share context image work", () => {
@@ -819,4 +822,68 @@ test("X generation prompts require universally postable length", () => {
   assert.match(bridge, /at or below 280 visible characters/);
   assert.match(bridge, /getPlatformLengthInstruction\(platformName, "reply"\)/);
   assert.match(bridge, /getPlatformLengthInstruction\(platformName, "post or reply"\)/);
+});
+
+test("Claude Code runs subscription-only with tools, persistence, and retries disabled", () => {
+  const source = read("scripts/claude-code-client.js");
+  const { createClaudeEnvironment, guardLeadingSlash } = require(path.join(root, "scripts", "claude-code-client.js"));
+  const previousApiKey = process.env.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_API_KEY = "test-only";
+  try {
+    const environment = createClaudeEnvironment();
+    assert.equal(environment.ANTHROPIC_API_KEY, undefined);
+    assert.equal(environment.CLAUDE_CODE_MAX_RETRIES, "0");
+  } finally {
+    if (previousApiKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = previousApiKey;
+  }
+  assert.match(source, /"--tools", ""/);
+  assert.match(source, /"--safe-mode"/);
+  assert.match(source, /"--no-session-persistence"/);
+  assert.match(source, /"--disable-slash-commands"/);
+  assert.match(source, /auth\?\.authMethod === "claude\.ai"/);
+  assert.doesNotMatch(source, /--bare/);
+  assert.match(guardLeadingSlash("/model opus"), /slash-prefixed text as data/);
+});
+
+test("Ollama stays local, disables thinking, and bounds its context", () => {
+  const source = read("scripts/ollama-client.js");
+  const { MAX_LOCAL_PROMPT_CHARS, normalizeOllamaBaseUrl, truncateLocalPrompt } = require(path.join(root, "scripts", "ollama-client.js"));
+  assert.equal(normalizeOllamaBaseUrl("http://127.0.0.1:11434"), "http://127.0.0.1:11434");
+  assert.equal(normalizeOllamaBaseUrl("http://192.168.1.10:11434"), "http://192.168.1.10:11434");
+  assert.throws(() => normalizeOllamaBaseUrl("https://example.com"), /localhost or a private network/);
+  assert.ok(truncateLocalPrompt("x".repeat(MAX_LOCAL_PROMPT_CHARS + 500)).length <= MAX_LOCAL_PROMPT_CHARS);
+  assert.match(source, /think: false/);
+  assert.match(source, /num_ctx: 8192/);
+  assert.match(source, /format: \{[\s\S]{0,180}additionalProperties: false/);
+  assert.match(source, /reason === "length" \? "ai_context_overflow"/);
+});
+
+test("the connector only uses consented providers and never falls back after output starts", () => {
+  const bridge = read("scripts/xtension-ai-bridge.js");
+  const chainStart = bridge.indexOf("async function runProviderChain");
+  const chainEnd = bridge.indexOf("\nasync function runTransform", chainStart);
+  assert.ok(chainStart >= 0 && chainEnd > chainStart);
+  const chain = bridge.slice(chainStart, chainEnd);
+  assert.match(chain, /if \(!Array\.isArray\(payload\?\.allowedProviders\)\)[\s\S]{0,80}return \["openai-codex"\]/);
+  assert.match(chain, /payload\.allowedProviders\.includes\(provider\)/);
+  assert.match(chain, /if \(delta\) committed = true/);
+  assert.match(chain, /if \(committed \|\| !shouldFallbackProviderError/);
+  assert.match(chain, /image \|\| audio[\s\S]{0,100}\["openai-codex"\]/);
+  assert.match(read("src/background.js"), /allowedProviders: \[\.\.\.ALLOWED_AI_PROVIDERS\]/);
+});
+
+test("options expose Codex, Claude, and Ollama without API-key fields", () => {
+  const html = read("src/options.html");
+  const options = read("src/options.js");
+  assert.match(html, /id="reply-ai-primary-provider"/);
+  assert.match(html, /value="openai-codex"/);
+  assert.match(html, /value="anthropic-claude"/);
+  assert.match(html, /value="local-ollama"/);
+  assert.match(html, /id="reply-ai-fallback-enabled"/);
+  assert.match(html, /id="reply-ai-claude-model"/);
+  assert.match(html, /id="reply-ai-ollama-url"/);
+  assert.match(html, /id="reply-ai-ollama-model"/);
+  assert.doesNotMatch(html, /type="password"[^>]+api/i);
+  assert.match(options, /refreshOllamaModels/);
 });

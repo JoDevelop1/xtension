@@ -53,10 +53,10 @@
         <div class="wrap">
           <p class="eyebrow">
             <span class="dot"></span>
-            <span data-i18n="heroEyebrow">Version 0.6.34 · Chrome · Edge · Firefox</span>
+            <span data-i18n="heroEyebrow">Version 0.6.35 · Chrome · Edge · Firefox</span>
           </p>
           <h1 data-i18n="heroTitle">
-            Reply better across social platforms,<br />with your own ChatGPT account.
+            Reply better across social platforms,<br />with your own AI subscription or local model.
           </h1>
           <p class="lead" data-i18n="heroLead">
             Xtension adds AI reply tools to X/Twitter, Reddit, Facebook, Instagram, Threads,
@@ -79,7 +79,7 @@
             </a>
           </div>
           <ul class="badges">
-            <li data-i18n="badgeNoKey">No OpenAI API key</li>
+            <li data-i18n="badgeNoKey">No provider API key</li>
             <li data-i18n="badgeNoServer">No JoDevelop processing server</li>
             <li data-i18n="badgeSigned">Signed Windows installer</li>
             <li data-i18n="badgeAuditable">Apache-2.0 open source</li>
@@ -143,7 +143,7 @@
           </div>
 
           <h3 class="group-title" data-i18n="groupAi">
-            AI writing tools — through your ChatGPT account
+            AI writing tools — Codex, Claude, or local Ollama
           </h3>
           <div class="grid">
             <article class="card">
@@ -202,8 +202,8 @@
             <article class="card">
               <h4 data-i18n="f14Title">Model and reasoning control</h4>
               <p data-i18n="f14Body">
-                Pick any Codex model available to your ChatGPT account and set the reasoning effort
-                per request. Defaults: <code>gpt-5.6-luna</code> at low reasoning for faster short messages.
+                Prefer Codex, Claude Code, or Ollama, choose each model, and enable a safe fallback
+                that stops as soon as one engine returns text.
               </p>
             </article>
             <article class="card">
@@ -242,17 +242,16 @@
               <h3 data-i18n="step2Title">The local connector</h3>
               <p data-i18n="step2Body">
                 A small signed program listening on <code>127.0.0.1:47623</code>, reachable only
-                from your own machine. It starts the official Codex App Server in your Windows
-                session, denies tool approvals and uses read-only ephemeral threads.
+                from your own machine. It securely routes each request to the selected Codex,
+                Claude Code, or private-network Ollama engine.
               </p>
             </li>
             <li>
               <span class="step-num">3</span>
-              <h3 data-i18n="step3Title">Your ChatGPT account</h3>
+              <h3 data-i18n="step3Title">Your subscription or local model</h3>
               <p data-i18n="step3Body">
-                Codex reuses the ChatGPT sign-in that already exists on your computer. The request
-                is sent to OpenAI under your own account, with the model and reasoning effort you
-                selected. Xtension never asks for an API key.
+                Codex and Claude Code reuse the sign-ins already present on your computer; Ollama
+                uses the model you installed locally. Xtension never asks for an API key.
               </p>
             </li>
           </ol>
@@ -262,9 +261,9 @@
             <span class="flow-arrow">→</span>
             <span class="flow-node" data-i18n="flowConnector">Local connector<br />127.0.0.1</span>
             <span class="flow-arrow">→</span>
-            <span class="flow-node" data-i18n="flowCodex">Codex App Server</span>
+            <span class="flow-node" data-i18n="flowCodex">Selected AI engine</span>
             <span class="flow-arrow">→</span>
-            <span class="flow-node" data-i18n="flowOpenAI">OpenAI<br />(your account)</span>
+            <span class="flow-node" data-i18n="flowOpenAI">Your account<br />or local model</span>
           </div>
 
           <p class="note" data-i18n="howNote">
@@ -290,8 +289,8 @@
                   Fetches the public images of that content from <code>pbs.twimg.com</code>.
                 </li>
                 <li data-i18n="pd3">
-                  Your browser sends the useful context directly to OpenAI with your ChatGPT account
-                  through the local open-source connector. Suggestions may also use that context
+                  Your browser sends the useful context only to the selected Codex, Claude Code, or
+                  Ollama engine through the local open-source connector. Suggestions may also use that context
                   after you deliberately focus an empty supported reply field.
                 </li>
                 <li data-i18n="pd4">
@@ -306,7 +305,7 @@
                 <li data-i18n="pn2">No platform password, cookie or authentication token read.</li>
                 <li data-i18n="pn3">No access to your private messages.</li>
                 <li data-i18n="pn4">No browsing profile, no analytics, no tracking, no ads.</li>
-                <li data-i18n="pn5">No OpenAI API key requested or stored.</li>
+                <li data-i18n="pn5">No provider API key requested or stored.</li>
                 <li data-i18n="pn6">No automatic publication: Xtension inserts a draft and never presses Publish.</li>
               </ul>
             </div>
@@ -366,19 +365,19 @@
 
           <h3 class="group-title" data-i18n="dlStep1">1 · The browser extension</h3>
           <div class="dl-grid">
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.34/xtension-chrome-v0.6.34.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.35/xtension-chrome-v0.6.35.zip">
               <span class="dl-name">Chrome</span>
-              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.34</span>
+              <span class="dl-meta" data-i18n="dlChromeMeta">Brave · Vivaldi · Opera · v0.6.35</span>
               <span class="dl-action" data-i18n="dlZip">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.34/xtension-edge-v0.6.34.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.35/xtension-edge-v0.6.35.zip">
               <span class="dl-name">Edge</span>
-              <span class="dl-meta">v0.6.34</span>
+              <span class="dl-meta">v0.6.35</span>
               <span class="dl-action" data-i18n="dlZip2">Download .zip</span>
             </a>
-            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.34/xtension-firefox-v0.6.34.zip">
+            <a class="dl-card" href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.35/xtension-firefox-v0.6.35.zip">
               <span class="dl-name">Firefox</span>
-              <span class="dl-meta">v0.6.34</span>
+              <span class="dl-meta">v0.6.35</span>
               <span class="dl-action" data-i18n="dlZip3">Download .zip</span>
             </a>
           </div>
@@ -408,7 +407,7 @@
             </div>
           </details>
 
-          <h3 class="group-title" data-i18n="dlStep2">2 · The Codex connector (optional, Windows)</h3>
+          <h3 class="group-title" data-i18n="dlStep2">2 · The AI connector (optional, Windows)</h3>
           <p class="section-lead" data-i18n="dlConnectorLead">
             Only needed for the AI features. The PDF export works without it. Installs for the
             current user without administrator rights, starts when you sign in, and securely
@@ -416,7 +415,7 @@
           </p>
           <a class="btn btn-primary btn-lg" href="https://github.com/JoDevelop1/xtension/releases/latest/download/XtensionBridgeSetup.exe">
             <span data-i18n="dlConnectorBtn">Download XtensionBridgeSetup.exe</span>
-            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · v0.6.34 · from GitHub</span>
+            <span class="btn-sub" data-i18n="dlConnectorBtnSub">Windows · v0.6.35 · from GitHub</span>
           </a>
 
           <div class="checksums">
@@ -435,24 +434,24 @@
               <tbody>
                 <tr>
                   <td>XtensionBridgeSetup.exe</td>
-                  <td><code>78b70dda9dfeafece4330c8cd7e8ee8fce9a5cb3bacc87af98813483a5c1e1ae</code></td>
+                  <td><code>041c5b61d4ab7ee985d1c22348e462f1d506a8aae52ca511175296c7731dbfed</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-chrome-v0.6.34.zip</td>
-                  <td><code>973c22b13e5a43e15e5099f35b6928548ff72edd282c96429e1692b7c554271f</code></td>
+                  <td>xtension-chrome-v0.6.35.zip</td>
+                  <td><code>33efc913f423c53ddc24b605d25d886590598fdc5db814449ba4e0e82ace7802</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-edge-v0.6.34.zip</td>
-                  <td><code>973c22b13e5a43e15e5099f35b6928548ff72edd282c96429e1692b7c554271f</code></td>
+                  <td>xtension-edge-v0.6.35.zip</td>
+                  <td><code>33efc913f423c53ddc24b605d25d886590598fdc5db814449ba4e0e82ace7802</code></td>
                 </tr>
                 <tr>
-                  <td>xtension-firefox-v0.6.34.zip</td>
-                  <td><code>e2877d7123ace7622ec8b84f944e8da092e4ba674d2e39e77c646ec3eaaf9914</code></td>
+                  <td>xtension-firefox-v0.6.35.zip</td>
+                  <td><code>a5cec4dd392fe9c52d338368472309eb3f86b89fc0c9e630494f3b94b3c3f983</code></td>
                 </tr>
               </tbody>
             </table>
             <p class="fineprint">
-              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.34/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
+              <a href="https://github.com/JoDevelop1/xtension/releases/download/v0.6.35/SHA256SUMS.txt" data-i18n="checksumRaw">Raw checksum file</a>
               ·
               <a href="/version.json" data-i18n="versionJson">version.json</a>
             </p>

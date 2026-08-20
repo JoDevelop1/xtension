@@ -15,14 +15,14 @@ const FR = {
   navPrivacy: 'Confidentialité',
   navDownload: 'Téléchargement',
 
-  heroEyebrow: 'Version 0.6.34 · Chrome · Edge · Firefox',
-  heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre propre compte ChatGPT.',
+  heroEyebrow: 'Version 0.6.35 · Chrome · Edge · Firefox',
+  heroTitle: 'Répondez mieux sur vos réseaux,<br />avec votre abonnement IA ou un modèle local.',
   heroLead:
     "Xtension ajoute une barre d'outils de réponse à X/Twitter, Reddit, Facebook, Instagram, Threads, LinkedIn, Bluesky et YouTube : correction, traduction, génération et réponses contextuelles. X conserve en plus l'ImageGen, l'export PDF et les états Non abonné, Abonné ou Mutuel directement dans la timeline. Rien n'est publié automatiquement.",
   heroCtaDownload: 'Télécharger Xtension',
   heroCtaSource: 'Lire le code source',
 
-  badgeNoKey: "Aucune clé d'API OpenAI",
+  badgeNoKey: "Aucune clé d'API fournisseur",
   badgeNoServer: 'Aucun serveur de traitement JoDevelop',
   badgeSigned: 'Installateur Windows signé',
   badgeAuditable: 'Open source Apache-2.0',
@@ -51,7 +51,7 @@ const FR = {
   f6Body:
     "Les liens restent cliquables dans le PDF, l'URL source est ajoutée, et le profil du compte exporté est mis en lien à la fin.",
 
-  groupAi: 'Outils de rédaction IA — via votre compte ChatGPT',
+  groupAi: 'Outils de rédaction IA — Codex, Claude ou Ollama local',
   f7Title: 'Correction',
   f7Body:
     'Corrige la grammaire, l’orthographe et la syntaxe de votre brouillon tout en gardant votre voix. Annulable en un clic.',
@@ -75,7 +75,7 @@ const FR = {
     "Chaque modification par l'IA est réversible. Les flèches annuler et rétablir sont directement dans la barre d'outils de rédaction : rien n'est jamais perdu.",
   f14Title: 'Choix du modèle et du raisonnement',
   f14Body:
-    "Sélectionnez n'importe quel modèle Codex disponible sur votre compte ChatGPT et réglez l'effort de raisonnement par requête. Par défaut : <code>gpt-5.6-luna</code> avec raisonnement faible pour accélérer les messages courts.",
+    "Préférez Codex, Claude Code ou Ollama, choisissez le modèle de chaque moteur et activez un repli sûr qui s'arrête dès qu'un moteur renvoie du texte.",
   f15Title: "Cinq langues d'interface",
   f15Body:
     "L'interface de l'extension est disponible en anglais, français, allemand, espagnol et japonais, sélectionnée automatiquement selon la langue de votre navigateur.",
@@ -89,14 +89,14 @@ const FR = {
     "Ne s'exécute que sur les plateformes sociales prises en charge. Elle lit le post visible près du champ de réponse ou le brouillon sur lequel vous agissez ; les routes de messages privés sont exclues.",
   step2Title: 'Le connecteur local',
   step2Body:
-    "Un petit programme signé qui écoute sur <code>127.0.0.1:47623</code>, joignable uniquement depuis votre propre machine. Il démarre le Codex App Server officiel dans votre session Windows, refuse les approbations d'outils et utilise des fils éphémères en lecture seule.",
-  step3Title: 'Votre compte ChatGPT',
+    "Un petit programme signé qui écoute sur <code>127.0.0.1:47623</code>, joignable uniquement depuis votre machine. Il route chaque demande vers le moteur Codex, Claude Code ou Ollama privé sélectionné.",
+  step3Title: 'Votre abonnement ou modèle local',
   step3Body:
-    "Codex réutilise la connexion ChatGPT déjà présente sur votre ordinateur. La requête est envoyée à OpenAI sous votre propre compte, avec le modèle et l'effort de raisonnement que vous avez choisis. Xtension ne demande jamais de clé d'API.",
+    "Codex et Claude Code réutilisent les connexions déjà présentes sur votre ordinateur ; Ollama utilise le modèle installé localement. Xtension ne demande jamais de clé d'API.",
   flowBrowser: 'Navigateur',
   flowConnector: 'Connecteur local<br />127.0.0.1',
-  flowCodex: 'Codex App Server',
-  flowOpenAI: 'OpenAI<br />(votre compte)',
+  flowCodex: 'Moteur IA sélectionné',
+  flowOpenAI: 'Votre compte<br />ou modèle local',
   howNote:
     "L'export PDF n'a besoin de rien de tout cela : il fonctionne seul, hors ligne, dès que l'extension est installée.",
 
@@ -104,14 +104,14 @@ const FR = {
   privacyDoesTitle: 'Comment fonctionnent les demandes IA',
   pd1: "Vous choisissez le brouillon, le post, l'article, le fil ou l'image utilisé pour la demande IA.",
   pd2: 'Récupère les images publiques de ce contenu depuis <code>pbs.twimg.com</code>.',
-  pd3: "Votre navigateur envoie le contexte utile directement à OpenAI avec votre compte ChatGPT, via le connecteur local open source. Les suggestions peuvent aussi utiliser ce contexte après votre action volontaire d'ouvrir un champ de réponse vide pris en charge.",
+  pd3: "Votre navigateur envoie le contexte utile uniquement au moteur Codex, Claude Code ou Ollama sélectionné, via le connecteur local open source. Les suggestions peuvent aussi utiliser ce contexte après votre action volontaire d'ouvrir un champ de réponse vide pris en charge.",
   pd4: "Enregistre vos réglages dans le stockage d'extension du navigateur, sur votre machine.",
   privacyNotTitle: 'Ce que Xtension ne fait jamais',
   pn1: 'JoDevelop ne reçoit ni ne conserve votre contenu, vos demandes IA ou les réponses de l’IA.',
   pn2: "Aucun mot de passe, cookie ou jeton d'authentification des plateformes lu.",
   pn3: 'Aucun accès à vos messages privés.',
   pn4: "Aucun profil de navigation, aucune analyse d'audience, aucun pistage, aucune publicité.",
-  pn5: "Aucune clé d'API OpenAI demandée ni stockée.",
+  pn5: "Aucune clé d'API fournisseur demandée ni stockée.",
   pn6: "Aucune publication automatique : Xtension insère un brouillon, jamais un clic sur Publier.",
 
   secTitle: 'Propriétés de sécurité vérifiables',
@@ -127,7 +127,7 @@ const FR = {
   dlLead:
     "Installez l'extension dans votre navigateur. Puis, seulement si vous voulez les fonctions IA, installez le connecteur sous Windows. Tous les téléchargements ci-dessous sont servis par <strong>GitHub Releases</strong>, depuis le dépôt du projet — rien n'est hébergé ailleurs.",
   dlStep1: "1 · L'extension de navigateur",
-  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.34',
+  dlChromeMeta: 'Brave · Vivaldi · Opera · v0.6.35',
   dlZip: 'Télécharger le .zip',
   dlZip2: 'Télécharger le .zip',
   dlZip3: 'Télécharger le .zip',
@@ -140,11 +140,11 @@ const FR = {
   dlHow5: 'Ouvrez <code>about:debugging#/runtime/this-firefox</code>.',
   dlHow6:
     'Cliquez sur <strong>Charger un module temporaire</strong> et sélectionnez le <code>manifest.json</code> dans le dossier décompressé.',
-  dlStep2: '2 · Le connecteur Codex (optionnel, Windows)',
+  dlStep2: '2 · Le connecteur IA (optionnel, Windows)',
   dlConnectorLead:
     "Nécessaire uniquement pour les fonctions IA. L'export PDF fonctionne sans. S'installe sans droits administrateur, démarre à l'ouverture de session et applique ensuite automatiquement les mises à jour signées lorsqu'il est inactif.",
   dlConnectorBtn: 'Télécharger XtensionBridgeSetup.exe',
-  dlConnectorBtnSub: 'Windows · v0.6.34 · depuis GitHub',
+  dlConnectorBtnSub: 'Windows · v0.6.35 · depuis GitHub',
   checksumTitle: 'Vérifiez ce que vous avez téléchargé',
   checksumLead:
     'Sous Windows, lancez <code>Get-FileHash &lt;fichier&gt; -Algorithm SHA256</code> dans PowerShell et comparez avec la valeur ci-dessous.',

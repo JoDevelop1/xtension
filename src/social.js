@@ -658,7 +658,7 @@
 
   async function isAiProcessingEnabled() {
     const config = await readStorageValue("replyAiConfig");
-    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 1;
+    return config?.enabled === true && Number(config?.dataProcessingConsentVersion) === 2;
   }
 
   function cleanup() {
@@ -677,7 +677,11 @@
   function createResponseError(response) {
     const error = new Error(response?.error || localize("socialReplyGenerationFailed", "Unable to generate replies."));
     error.code = response?.code || "generation_failed";
-    if (["bridge_unreachable", "bridge_update_required", "not_configured", "consent_required", "codex_login_required"].includes(error.code)) {
+    if ([
+      "bridge_unreachable", "bridge_update_required", "not_configured", "consent_required",
+      "provider_login_required", "provider_not_installed", "provider_update_required",
+      "ai_model_not_found", "ai_unavailable", "ai_all_stages_exhausted"
+    ].includes(error.code)) {
       const configure = window.confirm(`${error.message}\n\n${localize("socialReplyOpenSettings", "Open Xtension settings?")}`);
       if (configure) sendRuntimeMessage({ type: "xtension-open-options" }).catch(() => {});
     }

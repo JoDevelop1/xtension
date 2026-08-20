@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.35
+
+- Added consent-bound multi-provider routing across OpenAI Codex, Claude Code, and local/private-network Ollama.
+- Added safe automatic fallback that never switches providers after text output has started.
+- Added Claude subscription support with tools, MCP, slash commands, persistence, API-key variables, and automatic retries disabled.
+- Added Ollama model discovery, private-network URL validation, constrained JSON output, disabled thinking, and bounded local context.
+- Added per-engine status, model, URL, preferred-engine, and fallback controls in Options.
+- Updated consent, privacy disclosures, documentation, and localized errors for all five shipped locales.
+
 ## v0.6.34
 
 - Recognizes a successful X/Twitter draft insertion from the editor content itself instead of incorrectly treating a temporarily disabled publish button as an insertion failure.
