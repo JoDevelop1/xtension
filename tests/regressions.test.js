@@ -785,3 +785,38 @@ test("native draft insertion uses SendInput targeting and never silently falls b
   assert.ok(streamStart >= 0 && streamEnd > streamStart);
   assert.doesNotMatch(content.slice(streamStart, streamEnd), /applyDraftTextViaBridge/);
 });
+
+test("successful draft insertion is independent from X publish-button validation", () => {
+  const content = read("src/content.js");
+  const committedStart = content.indexOf("  function isReplyDraftCommitted");
+  const committedEnd = content.indexOf("\n  function replyDraftTextMatches", committedStart);
+
+  assert.ok(committedStart >= 0 && committedEnd > committedStart);
+  assert.match(content.slice(committedStart, committedEnd), /return replyDraftTextMatches\(editor, message\)/);
+  assert.doesNotMatch(content.slice(committedStart, committedEnd), /findComposerSubmitButton|isDisabledButton/);
+});
+
+test("streamed provider errors are preserved and never replayed non-streaming", () => {
+  const background = read("src/background.js");
+  const content = read("src/content.js");
+  const streamOperationStart = background.indexOf("async function streamDraftOperation");
+  const streamOperationEnd = background.indexOf("\n// Lit le flux NDJSON", streamOperationStart);
+  const contentStreamStart = content.indexOf("  function streamGenerateReplyText");
+  const contentStreamEnd = content.indexOf("\n  async function transformReplyText", contentStreamStart);
+
+  assert.ok(streamOperationStart >= 0 && streamOperationEnd > streamOperationStart);
+  assert.match(background.slice(streamOperationStart, streamOperationEnd), /error\?\.code !== "bridge_stream_unsupported"/);
+  assert.match(background.slice(streamOperationStart, streamOperationEnd), /postToPort\(port, \{[\s\S]{0,180}type: "error"/);
+  assert.ok(contentStreamStart >= 0 && contentStreamEnd > contentStreamStart);
+  assert.match(content.slice(contentStreamStart, contentStreamEnd), /reject\(streamError\)/);
+  assert.doesNotMatch(content.slice(contentStreamStart, contentStreamEnd), /message\.type === "error"\)[\s\S]{0,80}finish\(null\)/);
+});
+
+test("X generation prompts require universally postable length", () => {
+  const bridge = read("scripts/xtension-ai-bridge.js");
+
+  assert.match(bridge, /function getPlatformLengthInstruction/);
+  assert.match(bridge, /at or below 280 visible characters/);
+  assert.match(bridge, /getPlatformLengthInstruction\(platformName, "reply"\)/);
+  assert.match(bridge, /getPlatformLengthInstruction\(platformName, "post or reply"\)/);
+});

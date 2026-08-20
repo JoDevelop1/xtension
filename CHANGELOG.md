@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.34
+
+- Recognizes a successful X/Twitter draft insertion from the editor content itself instead of incorrectly treating a temporarily disabled publish button as an insertion failure.
+- Keeps newly generated X/Twitter posts and replies within the universal 280-character format by default, while leaving correction and translation content intact.
+- Preserves streamed provider errors and prevents quota, login, timeout, or overload failures from silently replaying the same AI request a second time.
+
 ## v0.6.33
 
 - Hardens automatic updates by importing the Windows Authenticode security module from its trusted system path instead of depending on the caller's PowerShell module environment.

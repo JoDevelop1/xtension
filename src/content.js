@@ -4208,9 +4208,12 @@
   // Génération en STREAMING : ouvre un port pour recevoir le texte au fil de
   // l'eau, mais n'écrit plus de deltas synthétiques dans l'éditeur. Seul le texte
   // FINAL est inséré ensuite par la voie native Windows quand elle est disponible.
-  // Résout null si le streaming échoue afin de conserver le chemin classique.
+  // Résout null uniquement si le transport streaming n'est pas disponible afin
+  // de conserver la compatibilité avec un ancien connecteur. Une erreur explicite
+  // du fournisseur est propagée : la rejouer en non-streaming consommerait deux
+  // fois le quota pour une seule action utilisateur.
   function streamGenerateReplyText(payload) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const port = connectRuntimePort("xtension-generate-stream");
       if (!port) {
         resolve(null);
@@ -4227,6 +4230,17 @@
         resolve(value);
       };
 
+      const fail = (message) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        try { port.disconnect(); } catch (error) { /* ignore */ }
+        const streamError = new Error(message?.error || localizedText("toastReplySuggestionsFailed", "Unable to generate reply suggestions."));
+        streamError.code = message?.code || "generation_failed";
+        reject(streamError);
+      };
+
       port.onMessage.addListener((message) => {
         if (!message) {
           return;
@@ -4234,12 +4248,16 @@
         if (message.type === "done") {
           finish(cleanMultilineText(message.text || ""));
         } else if (message.type === "error") {
-          finish(null);
+          fail(message);
         }
       });
       port.onDisconnect?.addListener(() => finish(null));
-      // Filet : si rien n'arrive (service worker tué, etc.), on abandonne le stream.
-      window.setTimeout(() => finish(null), 125000);
+      // Le connecteur laisse jusqu'à 180 s à un tour Codex. Au-delà, on signale
+      // l'expiration sans relancer la même génération en arrière-plan.
+      window.setTimeout(() => fail({
+        code: "codex_timeout",
+        error: localizedText("draftActionTimeout", "The AI request timed out. Try again.")
+      }), 190000);
 
       try {
         port.postMessage({ type: "start", ...payload });
@@ -5395,10 +5413,7 @@
       return false;
     }
 
-    const matches = (value) => {
-      const text = getReplyEditorText(target);
-      return text === value || (text.includes(value) && text.length <= value.length + 2);
-    };
+    const matches = (value) => replyDraftTextMatches(target, value);
 
     if (matches(trimmedMessage)) {
       return true;
@@ -5693,14 +5708,16 @@
   }
 
   function isReplyDraftCommitted(editor, message) {
-    const currentText = getReplyEditorText(editor);
-    if (currentText !== message && !(currentText.includes(message) && currentText.length <= message.length + 2)) {
-      return false;
-    }
+    // L'insertion et la publication sont deux états distincts. X peut conserver
+    // le bouton Publier désactivé alors que le texte est bien présent (limite de
+    // longueur, validation en cours, droits du compte, etc.). Xtension ne publie
+    // jamais : son succès doit donc dépendre uniquement du brouillon inséré.
+    return replyDraftTextMatches(editor, message);
+  }
 
-    const composer = findReplyComposerContainer(editor);
-    const submitButton = findComposerSubmitButton(composer);
-    return !submitButton || !isDisabledButton(submitButton);
+  function replyDraftTextMatches(editor, message) {
+    const currentText = getReplyEditorText(editor);
+    return currentText === message || (currentText.includes(message) && currentText.length <= message.length + 2);
   }
 
   function dispatchReplyPaste(editor, message) {

@@ -400,7 +400,27 @@ async function streamDraftOperation(port, message) {
       : (cleaned || draftText);
     postToPort(port, { type: "done", text: finalValue });
   } catch (error) {
-    // Repli : au pire, la génération fonctionne comme avant (sans aperçu live).
+    // Seul un ancien connecteur dépourvu de /transform-stream justifie un repli
+    // non-streaming. Une erreur explicite du fournisseur (quota, login, timeout,
+    // surcharge...) doit rester une erreur : la rejouer doublerait la requête.
+    if (error?.code !== "bridge_stream_unsupported") {
+      appendDiagnosticLog({
+        level: "error",
+        area: "ai",
+        event: "draft_stream_failed",
+        operation,
+        errorCode: error?.code || "generation_failed",
+        errorMessage: String(error?.message || error).slice(0, 200)
+      }).catch(() => {});
+      postToPort(port, {
+        type: "error",
+        error: error?.message || "Generation failed.",
+        code: error?.code || "generation_failed"
+      });
+      return;
+    }
+
+    // Compatibilité avec un connecteur ancien : une seule tentative classique.
     appendDiagnosticLog({
       level: "warn",
       area: "ai",
@@ -414,16 +434,28 @@ async function streamDraftOperation(port, message) {
 }
 
 // Lit le flux NDJSON de /transform-stream : {"delta":"..."} au fil de l'eau,
-// {"done":true,"text":"..."} final. Renvoie le texte final. Lève si l'endpoint est
-// absent/en erreur (le repli non-streaming prend alors le relais en amont).
+// {"done":true,"text":"..."} final. Renvoie le texte final. Seule l'absence de
+// l'endpoint autorise le repli non-streaming en amont.
 async function streamTransformFromBridge(config, bridgeUrl, body, onDelta) {
-  const response = await fetch(`${bridgeUrl}/transform-stream`, {
+  const response = await fetchBridgeRequest(`${bridgeUrl}/transform-stream`, {
     method: "POST",
     headers: { "content-type": "application/json", ...buildBridgeAuthHeaders(config) },
     body: JSON.stringify(body)
+  }, {
+    operation: `draft_stream_${normalizeDraftTransformOperation(body?.operation)}`
   });
-  if (!response.ok || !response.body) {
-    throw new Error(`transform-stream ${response.status}`);
+  if (response.status === 404) {
+    const error = new Error("The installed connector does not support streaming transforms.");
+    error.code = "bridge_stream_unsupported";
+    throw error;
+  }
+  if (!response.ok) {
+    throw await createBridgeHttpError(response);
+  }
+  if (!response.body) {
+    const error = new Error("The installed connector does not expose a readable transform stream.");
+    error.code = "bridge_stream_unsupported";
+    throw error;
   }
 
   const reader = response.body.getReader();

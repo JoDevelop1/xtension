@@ -1,6 +1,6 @@
 {
   "name": "xtension",
-  "version": "0.6.33",
+  "version": "0.6.34",
   "description": "Prepare, adapt, and preserve social-platform content with AI writing, images, and local X/Twitter PDF export.",
   "private": true,
   "license": "Apache-2.0",

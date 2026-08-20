@@ -1202,7 +1202,7 @@ async function runReply(payload) {
     "<XTENSION_TRANSLATION>",
     "the translation text, or empty when the reply is already in the translation language",
     "</XTENSION_TRANSLATION>",
-    `Follow ${platformName}'s visible conventions and length limits. Keep the reply visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence reply may remain one paragraph.`,
+    `${getPlatformLengthInstruction(platformName, "reply")} Keep the reply visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the reply needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence reply may remain one paragraph.`,
     "Never use Unicode code point U+2014; use a comma or another suitable punctuation mark instead.",
     "Do not invent facts that are absent from the visible context.",
     "",
@@ -1301,6 +1301,14 @@ function getContextPlatformName(context) {
   return value.slice(0, 80) || "X/Twitter";
 }
 
+function getPlatformLengthInstruction(platformName, contentKind = "reply") {
+  const normalizedPlatform = cleanText(platformName).toLowerCase();
+  if (["x", "twitter", "x/twitter"].includes(normalizedPlatform)) {
+    return `Keep the ${contentKind} at or below 280 visible characters, including line breaks, so it remains postable for X/Twitter accounts without long-post access.`;
+  }
+  return `Follow ${platformName}'s visible conventions and length limits.`;
+}
+
 function applyReplyPromptVariables(value, variables) {
   let prompt = cleanDraftText(value || "Write a concise, natural reply specific to the visible post.").slice(0, 5000);
   for (const [key, replacement] of Object.entries(variables)) {
@@ -1373,7 +1381,7 @@ function buildDraftTransformPrompt(operation, text, targetLanguage, context, gen
       `Write the ${platformName} post or reply requested by the user's instruction below.`,
       "Produce the post itself, not a correction or a description of the instruction.",
       "Use a natural, human voice with a clear point of view. Do not invent specific fake facts, names, numbers, or quotes.",
-      `Follow ${platformName}'s visible conventions and length limits. Keep the post visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the post needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.`
+      `${getPlatformLengthInstruction(platformName, "post or reply")} Keep the post visually airy when the platform supports paragraph breaks. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the post needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.`
     ];
     const style = cleanText(generatePrompt || "");
     if (style) {
