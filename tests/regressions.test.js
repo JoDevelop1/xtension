@@ -922,6 +922,27 @@ test("Claude Code runs subscription-only with tools, persistence, and retries di
   assert.match(guardLeadingSlash("/model opus"), /slash-prefixed text as data/);
 });
 
+test("the Codex app-server is isolated from user MCP tools and releases completed threads", () => {
+  const source = read("scripts/xtension-ai-bridge.js");
+  assert.match(source, /spawnSync\(command, \["mcp", "list", "--json"\]/);
+  assert.match(source, /mcp_servers\.\$\{serverName\}\.enabled=false/);
+  assert.match(source, /"apps\._default\.enabled=false"/);
+  assert.match(source, /"agents\.enabled=false"/);
+  assert.match(source, /requestRaw\("thread\/unsubscribe", \{ threadId: normalizedThreadId \}/);
+  assert.match(source, /taskkill\.exe[\s\S]{0,120}"\/t", "\/f"/);
+
+  const parserStart = source.indexOf("function parseCodexMcpServerNames");
+  const parserEnd = source.indexOf("\nfunction terminateChildProcessTree", parserStart);
+  assert.ok(parserStart >= 0 && parserEnd > parserStart);
+  const parseCodexMcpServerNames = new Function(
+    "cleanText",
+    `${source.slice(parserStart, parserEnd)}\nreturn parseCodexMcpServerNames;`
+  )((value) => String(value || "").trim());
+  assert.deepEqual(parseCodexMcpServerNames(
+    `warning\n[{"name":"node_repl","enabled":true},{"name":"disabled-tool","enabled":false},{"name":"after-effects"},{"name":"bad.name"},{"name":"node_repl"}]`
+  ), ["node_repl", "after-effects"]);
+});
+
 test("Ollama stays local, disables thinking, and bounds its context", () => {
   const source = read("scripts/ollama-client.js");
   const { MAX_LOCAL_PROMPT_CHARS, normalizeOllamaBaseUrl, truncateLocalPrompt } = require(path.join(root, "scripts", "ollama-client.js"));

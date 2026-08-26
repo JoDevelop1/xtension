@@ -12,7 +12,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const { version: CODEX_CLIENT_VERSION } = require("./version");
 const { ClaudeCodeClient } = require("./claude-code-client");
 const {
@@ -93,6 +93,7 @@ const CODEX_REASONING_EFFORT = "low";
 const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max", "ultra"]);
 const CODEX_CLIENT_NAME = "xtension-codex-connector";
 const CODEX_TURN_TIMEOUT_MS = readDurationSetting("XTENSION_CODEX_TIMEOUT_MS", 180000, 10000, 30 * 60 * 1000);
+const CODEX_CONFIG_DISCOVERY_TIMEOUT_MS = 8000;
 // ImageGen can legitimately remain silent for several minutes between its
 // item/started and item/completed notifications. Five minutes proved too short
 // in real use, so keep a bounded ten-minute safety net instead of interrupting
@@ -195,12 +196,17 @@ class CodexAppServerClient {
     fs.mkdirSync(CODEX_RUNTIME_DIR, { recursive: true });
 
     const command = resolveCodexCommand();
-    const args = ["app-server", "--listen", "stdio://"];
     const childEnvironment = { ...process.env, XTENSION_CODEX_CONNECTOR: "1" };
     // This connector is intentionally ChatGPT OAuth-only. Do not let a
     // machine-wide API key silently change the authentication mode.
     delete childEnvironment.OPENAI_API_KEY;
     delete childEnvironment.CODEX_API_KEY;
+    const isolation = buildCodexAppServerIsolation(command, childEnvironment);
+    const args = ["app-server", "--listen", "stdio://", ...isolation.args];
+    logBridgeEvent("codex_app_server_isolated", {
+      mcpDiscoveryOk: isolation.discoveryOk,
+      disabledMcpServerCount: isolation.disabledMcpServerCount
+    });
     const child = spawn(command, args, {
       cwd: CODEX_RUNTIME_DIR,
       env: childEnvironment,
@@ -450,6 +456,7 @@ class CodexAppServerClient {
       return normalizeImageGenerationResult(item, imageFormat, visualPreferences);
     } finally {
       this.listeners.delete(listener);
+      this.releaseThread(threadId).catch(() => {});
     }
   }
 
@@ -483,6 +490,12 @@ class CodexAppServerClient {
 
     if (this.spareThreadPromise && this.spareThreadModel === selectedModel) {
       return this.spareThreadPromise;
+    }
+
+    if (this.spareThread && this.spareThread.model !== selectedModel) {
+      const staleThreadId = this.spareThread.threadId;
+      this.spareThread = null;
+      this.releaseThread(staleThreadId).catch(() => {});
     }
 
     const promise = (async () => {
@@ -524,6 +537,9 @@ class CodexAppServerClient {
     this.spareThread = null;
     if (spare && spare.model === model && Date.now() - spare.at < CODEX_SPARE_THREAD_TTL_MS) {
       return spare.threadId;
+    }
+    if (spare?.threadId) {
+      this.releaseThread(spare.threadId).catch(() => {});
     }
     const threadId = await this.startThread(model);
     if (!threadId) {
@@ -652,7 +668,16 @@ class CodexAppServerClient {
       return sanitizeModelText(text);
     } finally {
       this.listeners.delete(listener);
+      this.releaseThread(threadId).catch(() => {});
     }
+  }
+
+  async releaseThread(threadId) {
+    const normalizedThreadId = cleanText(threadId);
+    if (!normalizedThreadId || !this.ready || !this.child || this.child.killed) {
+      return;
+    }
+    await this.requestRaw("thread/unsubscribe", { threadId: normalizedThreadId }, CODEX_START_TIMEOUT_MS);
   }
 
   findAgentMessageText(items) {
@@ -800,11 +825,7 @@ class CodexAppServerClient {
     this.spareThreadPromise = null;
     this.spareThreadModel = "";
     if (child && !child.killed) {
-      try {
-        child.kill();
-      } catch {
-        // The process may already have exited.
-      }
+      terminateChildProcessTree(child);
     }
   }
 }
@@ -2478,6 +2499,79 @@ function resolveCodexCommand() {
     "codex"
   ];
   return candidates.find((candidate) => !path.isAbsolute(candidate) || fs.existsSync(candidate)) || "codex.cmd";
+}
+
+function buildCodexAppServerIsolation(command, childEnvironment) {
+  const configOverrides = [
+    "apps._default.enabled=false",
+    "agents.enabled=false"
+  ];
+  let serverNames = [];
+  let discoveryOk = false;
+
+  try {
+    const result = spawnSync(command, ["mcp", "list", "--json"], {
+      cwd: CODEX_RUNTIME_DIR,
+      env: childEnvironment,
+      shell: true,
+      windowsHide: true,
+      encoding: "utf8",
+      timeout: CODEX_CONFIG_DISCOVERY_TIMEOUT_MS,
+      maxBuffer: 512 * 1024
+    });
+    if (!result.error && result.status === 0) {
+      serverNames = parseCodexMcpServerNames(result.stdout);
+      discoveryOk = true;
+    }
+  } catch {
+    // Codex itself will surface a useful startup error below. Isolation stays
+    // best-effort for older CLI builds that do not expose `mcp list --json`.
+  }
+
+  for (const serverName of serverNames) {
+    configOverrides.push(`mcp_servers.${serverName}.enabled=false`);
+  }
+
+  return {
+    args: configOverrides.flatMap((value) => ["-c", value]),
+    discoveryOk,
+    disabledMcpServerCount: serverNames.length
+  };
+}
+
+function parseCodexMcpServerNames(value) {
+  const text = String(value || "");
+  const jsonStart = text.indexOf("[");
+  const jsonEnd = text.lastIndexOf("]");
+  if (jsonStart < 0 || jsonEnd < jsonStart) {
+    return [];
+  }
+  const entries = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return [...new Set(entries
+    .filter((entry) => entry?.enabled !== false)
+    .map((entry) => cleanText(entry?.name || ""))
+    // TOML bare keys accept ASCII letters, digits, underscores, and dashes.
+    // Reject anything else instead of interpolating it into a CLI override.
+    .filter((name) => /^[A-Za-z0-9_-]{1,128}$/.test(name)))];
+}
+
+function terminateChildProcessTree(child) {
+  try {
+    if (process.platform === "win32" && Number.isInteger(child?.pid)) {
+      const killer = spawn("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
+        windowsHide: true,
+        stdio: "ignore"
+      });
+      killer.unref?.();
+      return;
+    }
+    child?.kill?.();
+  } catch {
+    // The process may already have exited.
+  }
 }
 
 function getBridgeDataDir() {
