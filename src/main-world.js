@@ -26,6 +26,7 @@
   const FOLLOWING_MAP_ATTRIBUTE = "data-xtension-following-map";
   const FOLLOWING_MAP_EVENT = "xtension-following-map";
   const relationshipByHandle = new Map();
+  const relationshipPriorityByHandle = new Map();
   let followingMapPublishQueued = false;
 
   // Les reponses GraphQL de X contiennent deja la relation entre le compte
@@ -40,31 +41,42 @@
       .toLowerCase();
   }
 
+  function readRelationshipBoolean(candidates) {
+    for (const [candidate, priority] of candidates) {
+      if (typeof candidate === "boolean") {
+        return { value: candidate, priority };
+      }
+    }
+    return null;
+  }
+
   function readFollowingState(value) {
+    // X peut encore fournir un champ legacy perime a cote de la perspective
+    // courante. La priorite doit survivre a la traversee recursive du payload.
     const candidates = [
-      value?.relationship_perspectives?.following,
-      value?.legacy?.following,
-      value?.result?.relationship_perspectives?.following,
-      value?.result?.legacy?.following,
-      value?.following
+      [value?.relationship_perspectives?.following, 30],
+      [value?.result?.relationship_perspectives?.following, 30],
+      [value?.legacy?.following, 20],
+      [value?.result?.legacy?.following, 20],
+      [value?.following, 10]
     ];
-    return candidates.find((candidate) => typeof candidate === "boolean");
+    return readRelationshipBoolean(candidates);
   }
 
   function readFollowedByState(value) {
     const candidates = [
-      value?.relationship_perspectives?.followed_by,
-      value?.relationship_perspectives?.followedBy,
-      value?.legacy?.followed_by,
-      value?.legacy?.followedBy,
-      value?.result?.relationship_perspectives?.followed_by,
-      value?.result?.relationship_perspectives?.followedBy,
-      value?.result?.legacy?.followed_by,
-      value?.result?.legacy?.followedBy,
-      value?.followed_by,
-      value?.followedBy
+      [value?.relationship_perspectives?.followed_by, 30],
+      [value?.relationship_perspectives?.followedBy, 30],
+      [value?.result?.relationship_perspectives?.followed_by, 30],
+      [value?.result?.relationship_perspectives?.followedBy, 30],
+      [value?.legacy?.followed_by, 20],
+      [value?.legacy?.followedBy, 20],
+      [value?.result?.legacy?.followed_by, 20],
+      [value?.result?.legacy?.followedBy, 20],
+      [value?.followed_by, 10],
+      [value?.followedBy, 10]
     ];
-    return candidates.find((candidate) => typeof candidate === "boolean");
+    return readRelationshipBoolean(candidates);
   }
 
   function readRelationshipHandle(value) {
@@ -102,9 +114,18 @@
       const following = readFollowingState(value);
       const followedBy = readFollowedByState(value);
       const previous = handle ? relationshipByHandle.get(handle) : null;
+      const previousPriority = handle ? relationshipPriorityByHandle.get(handle) : null;
+      const useFollowing = following
+        && following.priority >= (previousPriority?.following ?? -1);
+      const useFollowedBy = followedBy
+        && followedBy.priority >= (previousPriority?.followedBy ?? -1);
       const next = {
-        following: typeof following === "boolean" ? following : previous?.following,
-        followedBy: typeof followedBy === "boolean" ? followedBy : previous?.followedBy
+        following: useFollowing ? following.value : previous?.following,
+        followedBy: useFollowedBy ? followedBy.value : previous?.followedBy
+      };
+      const nextPriority = {
+        following: useFollowing ? following.priority : previousPriority?.following,
+        followedBy: useFollowedBy ? followedBy.priority : previousPriority?.followedBy
       };
       if (
         handle
@@ -113,6 +134,13 @@
       ) {
         relationshipByHandle.set(handle, next);
         changed = true;
+      }
+      if (
+        handle
+        && (previousPriority?.following !== nextPriority.following
+          || previousPriority?.followedBy !== nextPriority.followedBy)
+      ) {
+        relationshipPriorityByHandle.set(handle, nextPriority);
       }
 
       if (Array.isArray(value)) {

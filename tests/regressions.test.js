@@ -307,7 +307,9 @@ test("X relationship data exposes following and followed-by states without profi
         data: {
           followed: {
             core: { screen_name: "FollowedAuthor" },
-            relationship_perspectives: { following: true, followed_by: false }
+            relationship_perspectives: { following: true, followed_by: false },
+            // X peut laisser des booleens historiques contradictoires dans legacy.
+            legacy: { screen_name: "FollowedAuthor", following: false, followed_by: true }
           },
           mutual: {
             core: { screen_name: "MutualAuthor" },
