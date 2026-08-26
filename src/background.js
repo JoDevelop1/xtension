@@ -7,7 +7,7 @@ const EXTENSION_VERSION = runtimeApi?.getManifest?.().version || "";
 // Raise this value only when the loopback API changes incompatibly.
 const MINIMUM_CONNECTOR_VERSION = "0.6.35";
 
-const REPLY_AI_CONFIG_VERSION = 26;
+const REPLY_AI_CONFIG_VERSION = 27;
 const REQUIRED_AI_DATA_CONSENT_VERSION = 2;
 const DEFAULT_CODEX_BRIDGE_URL = "http://127.0.0.1:47623";
 const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
@@ -29,7 +29,9 @@ const PROHIBITED_REPLY_SYMBOL_PATTERN = /\u2014/g;
 const LEGACY_GENERATE_PROMPT_V20 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise, about 1 to 3 sentences, unless the instruction asks for more.";
 const LEGACY_GENERATE_PROMPT_V21 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise. When the post contains more than one sentence or idea, use two short paragraphs separated by exactly one blank line; otherwise use one line. Never return a dense block.";
 const LEGACY_GENERATE_PROMPT_V23 = "Write a punchy, natural X/Twitter post with a clear point of view. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
-const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural social-media post or reply with a clear point of view. Follow the visible platform's conventions and length limits. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
+const LEGACY_SHARED_GENERATE_PROMPT_V26 = "Write a punchy, natural social-media post or reply with a clear point of view. Follow the visible platform's conventions and length limits. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
+const DEFAULT_GENERATE_PROMPT = "Write a punchy, natural new social-media post with a clear point of view. Follow the visible platform's conventions and length limits. Keep it concise and visually airy. Put each distinct sentence, idea, reaction, or transition in its own very short paragraph whenever natural, separated by exactly one blank line. Use as many short paragraphs as the content needs; never target a fixed paragraph count or combine ideas merely to reduce it. A very short one-sentence post may remain one paragraph.";
+const DEFAULT_REPLY_GENERATE_PROMPT = "Write a relevant, natural social-media reply to the visible post. Address its actual point directly, add a clear point of view, and avoid generic agreement or unrelated commentary. Follow the visible platform's conventions and length limits. Keep it concise and visually airy, with one blank line between distinct ideas when natural.";
 const LEGACY_REPLY_PROMPT_PROFILES_V20 = [
   {
     label: "Short impact",
@@ -103,7 +105,8 @@ const DEFAULT_REPLY_AI_CONFIG = {
   replyTranslationLanguage: DEFAULT_REPLY_TRANSLATION_LANGUAGE,
   replyStyle: DEFAULT_REPLY_STYLE,
   replyPromptProfiles: cloneDefaultReplyPromptProfiles(),
-  generatePrompt: DEFAULT_GENERATE_PROMPT
+  generatePrompt: DEFAULT_GENERATE_PROMPT,
+  replyGeneratePrompt: DEFAULT_REPLY_GENERATE_PROMPT
 };
 
 const DIAGNOSTIC_LOG_STORAGE_KEY = "xtensionDiagnosticLogs";
@@ -223,12 +226,13 @@ runtimeApi.onMessage.addListener((message, sender, sendResponse) => {
       "generatedText",
       "generation_failed",
       sendResponse,
-      () => transformReplyDraft("generate", message.text, message.locale, message.targetLanguage, message.context),
+      () => transformReplyDraft("generate", message.text, message.locale, message.targetLanguage, message.context, message.composerKind),
       {
         locale: cleanText(message.locale || ""),
         targetLanguage: cleanText(message.targetLanguage || ""),
         inputLength: String(message.text || "").length,
-        hasContext: Boolean(message.context)
+        hasContext: Boolean(message.context),
+        composerKind: normalizeDraftComposerKind(message.composerKind, message.context)
       }
     );
 
@@ -378,6 +382,7 @@ async function streamDraftOperation(port, message) {
   const locale = message?.locale || "";
   const targetLanguage = message?.targetLanguage || "";
   const context = message?.context || null;
+  const composerKind = normalizeDraftComposerKind(message?.composerKind, context);
   // Seule la génération exploite l'image du tweet ; la récupérer pour une
   // correction ne ferait qu'ajouter un téléchargement au chemin critique.
   const image = operation === "generate" ? await fetchContextImageDataUrl(context) : "";
@@ -397,7 +402,7 @@ async function streamDraftOperation(port, message) {
       targetLanguage,
       context,
       text: draftText,
-      generatePrompt: config?.generatePrompt || "",
+      generatePrompt: getDraftGeneratePrompt(config, composerKind),
       ...getProviderRequestConfig(config),
       ...(image ? { image } : {})
     }, (delta, full) => {
@@ -437,7 +442,7 @@ async function streamDraftOperation(port, message) {
       operation,
       error: String(error?.message || error).slice(0, 200)
     }).catch(() => {});
-    const text = await transformReplyDraft(operation, draftText, locale, targetLanguage, context);
+    const text = await transformReplyDraft(operation, draftText, locale, targetLanguage, context, composerKind);
     postToPort(port, { type: "done", text });
   }
 }
@@ -764,10 +769,11 @@ async function createExtensionTab(url) {
   });
 }
 
-async function transformReplyDraft(operation, text, locale, targetLanguage, context) {
+async function transformReplyDraft(operation, text, locale, targetLanguage, context, composerKind) {
   const config = await getReplyAiConfig();
   const draftText = String(text || "").trim();
   const normalizedOperation = normalizeDraftTransformOperation(operation);
+  const normalizedComposerKind = normalizeDraftComposerKind(composerKind, context);
 
   if (!config.enabled) {
     logAiRoute(config, `draft_${normalizedOperation}`, {
@@ -786,10 +792,11 @@ async function transformReplyDraft(operation, text, locale, targetLanguage, cont
 
   logAiRoute(config, `draft_${normalizedOperation}`, {
     hasContext: Boolean(context),
-    hasImage: Boolean(image)
+    hasImage: Boolean(image),
+    composerKind: normalizedComposerKind
   });
 
-  const transformedText = await transformReplyDraftWithBridge(config, normalizedOperation, draftText, locale, targetLanguage, context, image);
+  const transformedText = await transformReplyDraftWithBridge(config, normalizedOperation, draftText, locale, targetLanguage, context, image, normalizedComposerKind);
   if (normalizedOperation === "correct") {
     return refineDraftCorrection(draftText, transformedText, locale, targetLanguage) || draftText;
   }
@@ -1101,9 +1108,11 @@ function normalizeReplyAiConfig(config) {
   if (
     (previousConfigVersion < 22 && [LEGACY_GENERATE_PROMPT_V20, LEGACY_GENERATE_PROMPT_V21].includes(cleanDraftText(rawConfig.generatePrompt || "")))
     || (previousConfigVersion < 24 && cleanDraftText(rawConfig.generatePrompt || "") === LEGACY_GENERATE_PROMPT_V23)
+    || (previousConfigVersion < 27 && cleanDraftText(rawConfig.generatePrompt || "") === LEGACY_SHARED_GENERATE_PROMPT_V26)
   ) {
     normalized.generatePrompt = DEFAULT_GENERATE_PROMPT;
   }
+  normalized.replyGeneratePrompt = cleanDraftText(normalized.replyGeneratePrompt || DEFAULT_REPLY_GENERATE_PROMPT) || DEFAULT_REPLY_GENERATE_PROMPT;
 
   delete normalized.provider;
   delete normalized.codexModelPreset;
@@ -1202,7 +1211,7 @@ function shouldPersistReplyAiConfig(rawConfig, normalizedConfig) {
   return JSON.stringify(rawConfig) !== JSON.stringify(normalizedConfig);
 }
 
-async function transformReplyDraftWithBridge(config, operation, text, locale, targetLanguage, context, image) {
+async function transformReplyDraftWithBridge(config, operation, text, locale, targetLanguage, context, image, composerKind) {
   const bridgeUrl = normalizeCodexBridgeUrl(config.codexBridgeUrl);
   if (!bridgeUrl) {
     const error = new Error("AI bridge URL is invalid.");
@@ -1224,7 +1233,7 @@ async function transformReplyDraftWithBridge(config, operation, text, locale, ta
       targetLanguage,
       context,
       text,
-      generatePrompt: config?.generatePrompt || "",
+      generatePrompt: getDraftGeneratePrompt(config, normalizeDraftComposerKind(composerKind, context)),
       ...getProviderRequestConfig(config),
       ...(image ? { image } : {})
     })
@@ -1711,6 +1720,17 @@ function normalizeDraftTransformOperation(value) {
   const allowed = new Set(["correct", "translate", "generate"]);
 
   return allowed.has(operation) ? operation : "correct";
+}
+
+function normalizeDraftComposerKind(value, context) {
+  const explicit = cleanText(value || context?.composerKind).toLowerCase();
+  return explicit === "reply" ? "reply" : "post";
+}
+
+function getDraftGeneratePrompt(config, composerKind) {
+  return composerKind === "reply"
+    ? cleanDraftText(config?.replyGeneratePrompt || DEFAULT_REPLY_GENERATE_PROMPT)
+    : cleanDraftText(config?.generatePrompt || DEFAULT_GENERATE_PROMPT);
 }
 
 function normalizeReplyTranslationLanguage(value) {

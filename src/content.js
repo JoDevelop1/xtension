@@ -1098,6 +1098,43 @@
     return findVisibleDescendant(scope, '[data-testid="tweetButton"], [data-testid="tweetButtonInline"], [data-testid*="tweetButton"], button[type="submit"]');
   }
 
+  function getDraftComposerKind(editor) {
+    const target = findEditableReplyEditor(editor) || editor;
+    const composer = findReplyComposerContainer(target);
+    const submitButton = findComposerSubmitButton(composer);
+    const submitMarker = cleanText([
+      submitButton?.getAttribute?.("aria-label"),
+      submitButton?.getAttribute?.("data-testid"),
+      submitButton?.textContent
+    ].filter(Boolean).join(" ")).toLowerCase();
+
+    if (/\breply\b|répond|repond|antwort|responder|respuesta|返信|コメント/.test(submitMarker)) {
+      return "reply";
+    }
+    if (/\bpost\b|\btweet\b|publier|poster|posten|publicar|ポスト/.test(submitMarker)) {
+      return "post";
+    }
+
+    const composerMarker = cleanText([
+      composer?.getAttribute?.("aria-label"),
+      composer?.textContent,
+      target?.getAttribute?.("aria-label")
+    ].filter(Boolean).join(" ")).toLowerCase();
+    if (/\breplying to\b|\bpost your reply\b|répondre à|repondre a|en réponse à|en reponse a|antwort an|respondiendo a|返信先/.test(composerMarker)) {
+      return "reply";
+    }
+
+    const dialog = findVisibleReplyDialog(target);
+    if (dialog?.querySelector?.('article[data-testid="tweet"]')) {
+      return "reply";
+    }
+    if (target?.closest?.('article[data-testid="tweet"]')) {
+      return "reply";
+    }
+
+    return "post";
+  }
+
   function isNativeComposerMediaControl(element) {
     if (!(element instanceof Element)) {
       return false;
@@ -1225,11 +1262,15 @@
 
     getDraftActionDefinitions().forEach((action) => {
       const button = document.createElement("button");
-      const label = localizedText(action.labelKey, action.fallback);
+      const composerKind = getDraftComposerKind(editor);
+      const label = action.id === "generate"
+        ? getGenerateButtonLabel(composerKind)
+        : localizedText(action.labelKey, action.fallback);
 
       button.type = "button";
       button.className = `xtension-draft-action-button is-${action.id}`;
       button.setAttribute(DRAFT_ACTION_BUTTON_ATTRIBUTE, action.id);
+      button.setAttribute("data-xtension-composer-kind", composerKind);
       button.title = label;
       button.setAttribute("aria-label", label);
       if (action.id === "suggestions") {
@@ -1856,6 +1897,12 @@
         fallback: "Redo"
       }
     ];
+  }
+
+  function getGenerateButtonLabel(composerKind) {
+    return composerKind === "reply"
+      ? localizedText("generateReplyButtonLabel", "Generate reply")
+      : localizedText("generatePostButtonLabel", "Generate post");
   }
 
   function cleanupReplyButtonsOutsidePrimaryTimeline() {
@@ -4343,6 +4390,7 @@
     const actionId = normalizeDraftAction(action);
     const definition = getDraftActionDefinition(actionId);
     const context = await getReplyDraftContext(editor);
+    const composerKind = context.composerKind || getDraftComposerKind(editor);
     const targetLanguage = await getDraftActionTargetLanguage(actionId, context, text);
 
     // Correction, traduction et génération sont reçues en streaming, mais le
@@ -4353,6 +4401,7 @@
         operation: actionId,
         locale: getUiLocale(),
         targetLanguage,
+        composerKind,
         context,
         text
       });
@@ -4365,6 +4414,7 @@
       type: definition.messageType,
       locale: getUiLocale(),
       targetLanguage,
+      composerKind,
       context,
       text
     });
@@ -4388,13 +4438,26 @@
 
   async function getReplyDraftContext(editor) {
     const target = findEditableReplyEditor(editor) || editor;
+    const composerKind = getDraftComposerKind(target);
+
+    if (composerKind === "post") {
+      return {
+        composerKind,
+        tweetLanguage: "",
+        tweetText: ""
+      };
+    }
 
     const tweet = findReplySourceTweet(target);
     if (tweet) {
-      return collectReplySuggestionContext(tweet);
+      return {
+        ...collectReplySuggestionContext(tweet),
+        composerKind
+      };
     }
 
     return {
+      composerKind,
       tweetLanguage: "",
       tweetText: ""
     };
@@ -5155,6 +5218,7 @@
 
   async function handleDraftActionButtonClick(button, editor, action) {
     const target = findEditableReplyEditor(editor);
+    const composerKind = getDraftComposerKind(target);
     const rawAction = cleanText(action).toLowerCase();
     if (!target || button._xtensionDraftActionBusy) {
       return;
@@ -5197,10 +5261,9 @@
         showToast(localizedText(definition.emptyKey, definition.emptyFallback));
         return;
       }
-      currentText = localizedText(
-        "draftGenerateReplyDefault",
-        "Write a relevant, natural, concise reply to this tweet."
-      );
+      currentText = composerKind === "reply"
+        ? localizedText("draftGenerateReplyDefault", "Write a relevant, natural, concise reply to this tweet.")
+        : localizedText("draftGeneratePostDefault", "Write a concise, natural new post with a clear point of view.");
     }
 
     // Traduction : si le brouillon est déjà dans la langue cible, inutile de
@@ -5490,7 +5553,9 @@
     }
 
     const definition = getDraftActionDefinition(actionId);
-    const label = localizedText(definition.labelKey, definition.fallback);
+    const label = actionId === "generate"
+      ? getGenerateButtonLabel(button.getAttribute("data-xtension-composer-kind"))
+      : localizedText(definition.labelKey, definition.fallback);
     button.classList.remove("is-undo");
     button.classList.remove("is-loading");
     setDraftActionButtonLabel(button, label);

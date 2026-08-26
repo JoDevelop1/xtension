@@ -310,6 +310,7 @@
         text,
         locale: getUiLocale(),
         targetLanguage: getUiLocale().split("-")[0],
+        composerKind: "reply",
         context
       });
       const result = response?.correctedText || response?.translatedText || response?.generatedText || "";

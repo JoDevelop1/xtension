@@ -209,21 +209,35 @@
                 <p class="field-note" data-i18n="optionsReplyTranslationLanguageHint">Replies always follow the visible post language. When that differs, Xtension shows a translation in this language without inserting it into X.</p>
               </div>
             </div>
-            <div class="setting-row">
-              <div class="field-title">
-                <label for="reply-ai-generate-prompt" data-i18n="optionsGeneratePrompt">Generation style prompt</label>
-                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpGeneratePrompt" data-help="This prompt is always added when you use Generate.">?</button>
-              </div>
-              <textarea id="reply-ai-generate-prompt" spellcheck="false"></textarea>
-            </div>
           </fieldset>
         </section>
 
         <section class="settings-tab-panel" data-tab-panel="prompts" hidden>
           <fieldset class="setting-section">
-            <legend data-i18n="optionsPromptTitle">Suggested reply prompts</legend>
-            <p class="field-note" data-i18n="optionsPromptHint">Each profile generates one separate suggestion. Variables: {{uiLocale}}, {{tweetLanguage}}, {{targetLanguage}}, {{replyStyle}}, {{profileName}}.</p>
-            <div class="reply-prompt-profiles">
+            <legend data-i18n="optionsComposerPromptsTitle">New post and reply prompts</legend>
+            <p class="field-note" data-i18n="optionsComposerPromptsHint">Xtension detects whether the active composer is a new post or a reply, then applies the matching prompt automatically.</p>
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-generate-prompt" data-i18n="optionsGeneratePrompt">New post prompt</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpGeneratePrompt" data-help="This prompt is applied only when Generate is used in a new-post composer.">?</button>
+              </div>
+              <textarea id="reply-ai-generate-prompt" spellcheck="false"></textarea>
+            </div>
+            <div class="setting-row">
+              <div class="field-title">
+                <label for="reply-ai-reply-generate-prompt" data-i18n="optionsReplyGeneratePrompt">Reply prompt</label>
+                <button class="field-help" type="button" aria-label="Help" data-help-i18n="optionsHelpReplyGeneratePrompt" data-help="This prompt is applied only when Generate is used in a reply composer.">?</button>
+              </div>
+              <textarea id="reply-ai-reply-generate-prompt" spellcheck="false"></textarea>
+            </div>
+            <div class="inline-actions"><button id="reply-ai-prompt-reset" type="button" class="secondary" data-i18n="optionsPromptReset">Reset all prompts</button></div>
+          </fieldset>
+          <details class="model-settings reply-prompt-profile-settings">
+            <summary data-i18n="optionsPromptAdvancedTitle">Advanced suggested-reply profiles</summary>
+            <fieldset class="setting-section">
+              <legend data-i18n="optionsPromptTitle">Suggested reply prompts</legend>
+              <p class="field-note" data-i18n="optionsPromptHint">Each profile generates one separate suggestion. Variables: {{uiLocale}}, {{tweetLanguage}}, {{targetLanguage}}, {{replyStyle}}, {{profileName}}.</p>
+              <div class="reply-prompt-profiles">
               <section class="reply-prompt-profile" data-reply-prompt-profile="0">
                 <div class="setting-row"><label for="reply-ai-prompt-label-0" data-i18n="optionsPromptProfileName">Profile name</label><input id="reply-ai-prompt-label-0" type="text" data-reply-prompt-label autocomplete="off"></div>
                 <div class="setting-row"><label for="reply-ai-prompt-text-0" data-i18n="optionsPrompt">Prompt</label><textarea id="reply-ai-prompt-text-0" data-reply-prompt-text spellcheck="false"></textarea></div>
@@ -236,9 +250,9 @@
                 <div class="setting-row"><label for="reply-ai-prompt-label-2" data-i18n="optionsPromptProfileName">Profile name</label><input id="reply-ai-prompt-label-2" type="text" data-reply-prompt-label autocomplete="off"></div>
                 <div class="setting-row"><label for="reply-ai-prompt-text-2" data-i18n="optionsPrompt">Prompt</label><textarea id="reply-ai-prompt-text-2" data-reply-prompt-text spellcheck="false"></textarea></div>
               </section>
-            </div>
-            <div class="inline-actions"><button id="reply-ai-prompt-reset" type="button" class="secondary" data-i18n="optionsPromptReset">Reset prompts</button></div>
-          </fieldset>
+              </div>
+            </fieldset>
+          </details>
         </section>
 
         <section class="settings-tab-panel" data-tab-panel="logs" hidden>

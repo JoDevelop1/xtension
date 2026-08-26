@@ -49,8 +49,29 @@ test("options and background use the same configuration generation", () => {
   const readConstant = (source, name) => source.match(new RegExp(`const ${name} = ([^;]+);`))?.[1];
   assert.equal(readConstant(options, "REPLY_AI_CONFIG_VERSION"), readConstant(background, "REPLY_AI_CONFIG_VERSION"));
   assert.equal(readConstant(options, "DEFAULT_CODEX_REASONING_EFFORT"), readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"));
-  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "26");
+  assert.equal(readConstant(background, "REPLY_AI_CONFIG_VERSION"), "27");
   assert.equal(readConstant(background, "DEFAULT_CODEX_REASONING_EFFORT"), '"low"');
+});
+
+test("new posts and replies use separate prompts selected from the active composer", () => {
+  const html = read("src/options.html");
+  const options = read("src/options.js");
+  const background = read("src/background.js");
+  const content = read("src/content.js");
+  const social = read("src/social.js");
+
+  assert.match(html, /id="reply-ai-generate-prompt"[\s\S]{0,900}id="reply-ai-reply-generate-prompt"/);
+  assert.match(html, /optionsComposerPromptsHint[^\n]+detects whether the active composer is a new post or a reply/);
+  assert.match(options, /generatePrompt: cleanText\([\s\S]{0,220}replyGeneratePrompt: cleanText\(/);
+  assert.match(options, /previousConfigVersion < 27 && cleanText\(rawConfig\.generatePrompt \|\| ""\) === LEGACY_SHARED_GENERATE_PROMPT_V26/);
+  assert.match(content, /function getDraftComposerKind\([\s\S]{0,1500}return "post";/);
+  assert.match(content, /const composerKind = context\.composerKind \|\| getDraftComposerKind\(editor\);/);
+  assert.match(content, /targetLanguage,\s+composerKind,\s+context,\s+text/);
+  assert.match(content, /composerKind === "reply"[\s\S]{0,180}draftGenerateReplyDefault[\s\S]{0,180}draftGeneratePostDefault/);
+  assert.match(background, /function getDraftGeneratePrompt\([\s\S]{0,260}replyGeneratePrompt[\s\S]{0,180}generatePrompt/);
+  assert.match(background, /generatePrompt: getDraftGeneratePrompt\(config, composerKind\)/);
+  assert.match(background, /generatePrompt: getDraftGeneratePrompt\(config, normalizeDraftComposerKind\(composerKind, context\)\)/);
+  assert.match(social, /type: messageTypes\[action\][\s\S]{0,180}composerKind: "reply"/);
 });
 
 test("AI website content stays off until the user enables AI features", () => {
