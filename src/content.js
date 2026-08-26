@@ -1723,8 +1723,41 @@
     return composerEditor
       || findVisibleDialogReplyEditor()
       || document.activeElement?.closest?.(REPLY_EDITOR_SELECTOR)
-      || fallbackEditor
       || null;
+  }
+
+  function resolveDraftActionInsertionEditor(button, panel, fallbackEditor) {
+    const host = button?.closest?.(DRAFT_ACTIONS_HOST_SELECTOR) || null;
+    const hostEditor = resolveDraftActionEditorFromHost(host);
+    if (hostEditor) {
+      return hostEditor;
+    }
+
+    const panelEditor = findConnectedEditableReplyEditor(panel?._xtensionReplyEditor);
+    if (panelEditor && isVisibleElement(panelEditor)) {
+      return panelEditor;
+    }
+
+    const panelComposer = panel?._xtensionReplyComposer;
+    const composerEditor = Array.from(panelComposer?.querySelectorAll?.(REPLY_EDITOR_SELECTOR) || []).find(isVisibleElement);
+    if (composerEditor) {
+      return composerEditor;
+    }
+
+    const fallback = findConnectedEditableReplyEditor(fallbackEditor);
+    if (fallback && isVisibleElement(fallback)) {
+      return fallback;
+    }
+
+    if (panel?._xtensionReplyWasDialog) {
+      return findVisibleDialogReplyEditor();
+    }
+
+    // Si X a remonte tout le compositeur, on n'accepte un remplacement global
+    // que lorsqu'il ne reste qu'un seul editeur visible. Ne jamais risquer de
+    // taper la correction dans un autre brouillon ouvert.
+    const visibleEditors = Array.from(document.querySelectorAll(REPLY_EDITOR_SELECTOR)).filter(isVisibleElement);
+    return visibleEditors.length === 1 ? visibleEditors[0] : null;
   }
 
   function resolveDraftActionEditorFromHost(host) {
@@ -3677,6 +3710,8 @@
     }
 
     panel._xtensionReplyEditor = target;
+    panel._xtensionReplyComposer = findReplyComposerContainer(target);
+    panel._xtensionReplyWasDialog = Boolean(target?.closest?.('[role="dialog"]'));
     panel._xtensionPanelMode = "draft-action";
     panel.hidden = false;
     panel.removeAttribute("aria-hidden");
@@ -5210,17 +5245,28 @@
         return;
       }
 
+      const insertionTarget = resolveDraftActionInsertionEditor(button, actionPanel, target);
+      if (!insertionTarget) {
+        throw new Error(localizedText(
+          "draftActionInsertFailed",
+          "The text was generated, but X refreshed the editor before insertion. Keep this X tab active and try again."
+        ));
+      }
+
       // On mémorise l'état AVANT la transformation dans l'historique, afin que
       // Annuler puisse y revenir, puis on insère le résultat.
-      ensureDraftHistory(target);
-      recordDraftHistorySnapshot(target);
+      ensureDraftHistory(insertionTarget);
+      recordDraftHistorySnapshot(insertionTarget);
       await markDraftActionPanelProgress(actionPanel, "insert");
-      const inserted = await injectReplyDraft(target, transformedText);
+      const inserted = await injectReplyDraft(insertionTarget, transformedText);
       if (!inserted) {
-        throw new Error(localizedText("draftActionInsertFailed", "The text was generated but X did not accept the insertion."));
+        throw new Error(localizedText(
+          "draftActionInsertFailed",
+          "The text was generated, but X refreshed or unfocused the editor before insertion. Keep this X tab active and try again."
+        ));
       }
       // ...et on mémorise l'état APRÈS transformation (pour Rétablir).
-      recordDraftHistorySnapshot(target);
+      recordDraftHistorySnapshot(insertionTarget);
       await markDraftActionPanelProgress(actionPanel, "done");
       recordDraftActionTiming(actionId, Date.now() - actionStartedAt).catch(() => {});
       // Le bouton reste une action normale : recorriger doit toujours recorriger,
@@ -5312,13 +5358,10 @@
         return { available: false, ok: false, code: capability?.code || "native_type_unavailable" };
       }
 
-      target.focus();
-      selectEditorContents(target);
-      await nextFrame();
       // Le helper capture d'abord la fenetre et le controle Windows focalises. Le
       // connecteur conserve ces handles derriere un jeton aleatoire a usage unique :
       // aucun titre d'onglet n'est requis, y compris avec les groupes Edge.
-      if (!document.hasFocus() || document.activeElement !== target || !selectionBelongsToEditor(target)) {
+      if (!await focusReplyEditorForNativeType(target)) {
         return { available: true, ok: false, code: "target_not_focused" };
       }
       const expectedBrowser = getNativeTypingBrowserName();
@@ -5334,8 +5377,10 @@
         return { available: true, ok: false, code: prepared?.code || "native_type_failed" };
       }
 
-      await nextFrame();
-      if (!document.hasFocus() || document.activeElement !== target || !selectionBelongsToEditor(target)) {
+      // La préparation traverse le service worker puis le connecteur local. X peut
+      // déplacer le caret pendant cet aller-retour ; on restaure donc la sélection
+      // avant de consommer le jeton, sans jamais ramener une autre fenêtre au premier plan.
+      if (!await focusReplyEditorForNativeType(target)) {
         return { available: true, ok: false, code: "target_not_focused" };
       }
       const response = await sendRuntimeMessage({
@@ -5356,6 +5401,21 @@
     } catch (error) {
       return { available: true, ok: false, code: error?.code || "native_type_failed" };
     }
+  }
+
+  async function focusReplyEditorForNativeType(target) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!target?.isConnected) {
+        return false;
+      }
+      target.focus();
+      selectEditorContents(target);
+      await nextFrame();
+      if (document.hasFocus() && document.activeElement === target && selectionBelongsToEditor(target)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function getNativeTypingBrowserName() {
@@ -5625,13 +5685,25 @@
   }
 
   function findEditableReplyEditor(editor) {
-    if (editor?.matches?.('[contenteditable="true"]')) {
+    const connectedEditor = findConnectedEditableReplyEditor(editor);
+    if (connectedEditor) {
+      return connectedEditor;
+    }
+
+    const activeEditor = document.activeElement?.closest?.('[contenteditable="true"]');
+    return activeEditor?.isConnected ? activeEditor : null;
+  }
+
+  function findConnectedEditableReplyEditor(editor) {
+    if (editor?.isConnected && editor.matches?.('[contenteditable="true"]')) {
       return editor;
     }
 
-    return editor?.querySelector?.('[contenteditable="true"]')
-      || document.activeElement?.closest?.('[contenteditable="true"]')
-      || null;
+    const nestedEditor = editor?.querySelector?.('[contenteditable="true"]');
+    if (nestedEditor?.isConnected) {
+      return nestedEditor;
+    }
+    return null;
   }
 
   async function activateReplyEditor(editor) {

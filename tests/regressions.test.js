@@ -791,6 +791,80 @@ test("native draft insertion uses SendInput targeting and never silently falls b
   assert.doesNotMatch(content.slice(streamStart, streamEnd), /applyDraftTextViaBridge/);
 });
 
+test("delayed X corrections re-resolve a replaced editor and recover its selection", async () => {
+  const content = read("src/content.js");
+  const actionStart = content.indexOf("  async function handleDraftActionButtonClick");
+  const actionEnd = content.indexOf("\n  function applyDraftTextViaBridge", actionStart);
+  const resolverStart = content.indexOf("  function resolveDraftActionInsertionEditor");
+  const resolverEnd = content.indexOf("\n  function resolveDraftActionEditorFromHost", resolverStart);
+  const focusStart = content.indexOf("  async function focusReplyEditorForNativeType");
+  const focusEnd = content.indexOf("\n  function getNativeTypingBrowserName", focusStart);
+
+  assert.ok(actionStart >= 0 && actionEnd > actionStart);
+  assert.ok(resolverStart >= 0 && resolverEnd > resolverStart);
+  assert.ok(focusStart >= 0 && focusEnd > focusStart);
+  assert.match(content.slice(actionStart, actionEnd), /resolveDraftActionInsertionEditor\(button, actionPanel, target\)/);
+  assert.match(content.slice(actionStart, actionEnd), /injectReplyDraft\(insertionTarget, transformedText\)/);
+
+  const replacementEditor = { isConnected: true };
+  const staleEditor = { isConnected: false };
+  const resolveDraftActionInsertionEditor = new Function(
+    "resolveDraftActionEditorFromHost",
+    "findConnectedEditableReplyEditor",
+    "isVisibleElement",
+    "findVisibleDialogReplyEditor",
+    "document",
+    "REPLY_EDITOR_SELECTOR",
+    "DRAFT_ACTIONS_HOST_SELECTOR",
+    `${content.slice(resolverStart, resolverEnd)}\nreturn resolveDraftActionInsertionEditor;`
+  )(
+    () => null,
+    (editor) => editor?.isConnected ? editor : null,
+    (editor) => Boolean(editor?.isConnected),
+    () => null,
+    { querySelectorAll: () => [] },
+    "[contenteditable=true]",
+    "[data-actions-host]"
+  );
+  assert.equal(resolveDraftActionInsertionEditor(
+    { closest: () => null },
+    {
+      _xtensionReplyEditor: staleEditor,
+      _xtensionReplyComposer: { querySelectorAll: () => [replacementEditor] },
+      _xtensionReplyWasDialog: false
+    },
+    staleEditor
+  ), replacementEditor);
+
+  let focusAttempts = 0;
+  let selectionReady = false;
+  const fakeDocument = {
+    activeElement: null,
+    hasFocus: () => true
+  };
+  const target = {
+    isConnected: true,
+    focus() {
+      focusAttempts += 1;
+      fakeDocument.activeElement = this;
+    }
+  };
+  const focusReplyEditorForNativeType = new Function(
+    "selectEditorContents",
+    "nextFrame",
+    "document",
+    "selectionBelongsToEditor",
+    `${content.slice(focusStart, focusEnd)}\nreturn focusReplyEditorForNativeType;`
+  )(
+    () => { selectionReady = focusAttempts >= 2; },
+    async () => {},
+    fakeDocument,
+    () => selectionReady
+  );
+  assert.equal(await focusReplyEditorForNativeType(target), true);
+  assert.equal(focusAttempts, 2);
+});
+
 test("successful draft insertion is independent from X publish-button validation", () => {
   const content = read("src/content.js");
   const committedStart = content.indexOf("  function isReplyDraftCommitted");
